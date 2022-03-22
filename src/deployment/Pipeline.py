@@ -1,6 +1,7 @@
 from dao.DataIO import DataIO
 from common.SqlConfig import SqlConfig
 from init.DataLoad import DataLoad
+from init.Preprocessing import Preprocessing
 
 
 class Pipeline(object):
@@ -18,3 +19,7 @@ class Pipeline(object):
         # Load dataset
         mst = load_cls.load_mst_temp()    # Master dataset
         demand = load_cls.load_demand_temp()
+
+        # Data preprocessing
+        prep = Preprocessing()
+        prep.run(mst=mst, demand=demand)

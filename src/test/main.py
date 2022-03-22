@@ -1,25 +1,31 @@
 from optimize.optseq import Model, Mode
 from optimize.optmodule import *
 
+import os
 import pandas as pd
 import numpy as np
 
-bom = pd.read_csv("BOM.csv")
-wcdf = pd.read_csv("WC.csv")
-oper = pd.read_csv("Operation.csv")
-demand = pd.read_csv("Demand.csv")
-itemdf = pd.read_csv("ITEM.csv")
+base_dir = os.path.join('..', '..', 'data')
+
+bom = pd.read_csv(os.path.join(base_dir, "bom.csv"))
+wcdf = pd.read_csv(os.path.join(base_dir, "wc.csv"))
+oper = pd.read_csv(os.path.join(base_dir, "operation.csv"))
+demand = pd.read_csv(os.path.join(base_dir, "demand.csv"))
+itemdf = pd.read_csv(os.path.join(base_dir, "item.csv"))
 
 demand["deadline"] = pd.to_datetime(demand["DUEDATE"].astype(str))
+
 start = demand["deadline"].min()
 demand["days"] = (demand["deadline"] - start)
 demand["minutes"] = demand["days"] / np.timedelta64(1, "m")
+
 itemlist = list(set(bom.PARENT_ITEM) | set(bom.CHILD_ITEM))
 item_code, code_item = {}, {}
 for i in range(len(itemlist)):
     n = base(i, 10)
     item_code[itemlist[i]] = n
     code_item[n] = itemlist[i]
+
 demand["ITEM_CODE"] = [item_code[demand.ITEM_CD[i]] for i in demand.index]
 oper["ITEM_CODE"] = [item_code[oper.ITEM_CD[i]] for i in oper.index]
 oper["SCHD_TIME"] = list(map(lambda x: np.ceil(x), oper.SCHD_TIME))

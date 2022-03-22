@@ -1,5 +1,5 @@
 import re
-import networkx as nx
+# import networkx as nx
 import datetime as dt
 
 
@@ -66,12 +66,13 @@ def base(n, b):
 
 
 def make_bom(bomdf, item_code):
-    BOM1, BOM2 = nx.DiGraph(), nx.DiGraph()
-
-    for i in bomdf.index:
-        BOM1.add_edge(bomdf.CHILD_ITEM[i], bomdf.PARENT_ITEM[i], rate=bomdf.RATE[i])
-        BOM2.add_edge(item_code[bomdf.CHILD_ITEM[i]], item_code[bomdf.PARENT_ITEM[i]], rate=bomdf.RATE[i])
-    return BOM1, BOM2
+    pass
+    # BOM1, BOM2 = nx.DiGraph(), nx.DiGraph()
+    #
+    # for i in bomdf.index:
+    #     BOM1.add_edge(bomdf.CHILD_ITEM[i], bomdf.PARENT_ITEM[i], rate=bomdf.RATE[i])
+    #     BOM2.add_edge(item_code[bomdf.CHILD_ITEM[i]], item_code[bomdf.PARENT_ITEM[i]], rate=bomdf.RATE[i])
+    # return BOM1, BOM2
 
 
 def make_reslist(df):
