@@ -2,6 +2,7 @@ from dao.DataIO import DataIO
 from common.SqlConfig import SqlConfig
 from init.DataLoad import DataLoad
 from init.Preprocessing import Preprocessing
+from plan.Plan import Plan
 
 
 class Pipeline(object):
@@ -22,4 +23,11 @@ class Pipeline(object):
 
         # Data preprocessing
         prep = Preprocessing()
-        prep.run(mst=mst, demand=demand)
+        mst_map, demand, bom_route = prep.run(mst=mst, demand=demand)
+
+        # Model
+        model = Plan(mst=mst, mst_map=mst_map)
+        model.init(
+            demand=demand,
+            bom_route=bom_route
+        )

@@ -45,6 +45,7 @@ resource, act, mode = {}, {}, {}
 errorlist = []
 for r in wc:
     resource[r] = model.addResource(name=r, capacity=int(wc[r]))
+
 for item, repeat in demandlist:
     actlist, temporal = make_activities(BOM, item, repeat)
     for a in actlist:
