@@ -6,16 +6,17 @@ import sys
 import copy
 import platform
 
-if platform.system()=="Windows":
-    optseq="OptSeq"
+if platform.system() == "Windows":
+    optseq = "OptSeq"
 else:
-    optseq="./OptSeq"
-    
-if int(sys.version_info[0])<=2:
+    optseq = "./OptSeq"
+
+if int(sys.version_info[0]) <= 2:
     import string
 #    _trans = string.maketrans("-+*/'(){} ^=<>$&#?,","_"*19)
 else:
-    _trans = str.maketrans("-+*/'(){} ^=<>$&#?,","_"*19)
+    _trans = str.maketrans("-+*/'(){} ^=<>$&#?,", "_" * 19)
+
 
 class Parameters():
     """
@@ -35,19 +36,21 @@ class Parameters():
             is False otherwise, i.e., to minimize the total weighted tardiness of activities.
             Default=False.
     """
+
     def __init__(self):
-        self.TimeLimit=600
-        self.OutputFlag=0 #off 
-        self.RandomSeed=1
-        self.ReportInterval=1073741823
-        self.Backtruck=1000
-        self.MaxIteration=1073741823
-        self.Initial=False
-        self.Tenure=1
-        self.Makespan=False
-        
-class Mode(): 
-    def __init__(self,name="",duration=0):
+        self.TimeLimit = 600
+        self.OutputFlag = 0  # off
+        self.RandomSeed = 1
+        self.ReportInterval = 1073741823
+        self.Backtruck = 1000
+        self.MaxIteration = 1073741823
+        self.Initial = False
+        self.Tenure = 1
+        self.Makespan = False
+
+
+class Mode():
+    def __init__(self, name="", duration=0):
         """
         OptSeq mode class.
 
@@ -65,62 +68,60 @@ class Mode():
                 - paralel:  Dictionary that maps parallelable intervals to maximum parallel numbers. 
                 - state: Dictionary that maps states to the tuples of values.
         """
-        if name=="dummy":
+        if name == "dummy":
             print("source and sink cannnot be used as an activity name")
             raise NameError
-        self.name=name
-        self.duration=duration
-        self.requirement={} 
-        self.breakable={}   
-        self.parallel={}
-        self.state={}
-        
-    def __str__(self):
-        ret=[" duration {0} ".format(self.duration)]
+        self.name = name
+        self.duration = duration
+        self.requirement = {}
+        self.breakable = {}
+        self.parallel = {}
+        self.state = {}
 
-        if self.requirement !={}:
-            for (r,rtype) in self.requirement:
-                for (interval,cap) in self.requirement[(r,rtype)].items():
-                    (s,t)=interval
-                    if rtype=="max":
-                        ret.append(" {0} max interval {1} {2} requirement {3} ".format(r,s,t,cap))
-                    elif rtype=="break":
-                        ret.append(" {0} interval break {1} {2} requirement {3} ".format(r,s,t,cap))
-                    elif rtype==None:
-                        ret.append(" {0} interval {1} {2} requirement {3} ".format(r,s,t,cap))
+    def __str__(self):
+        ret = [" duration {0} ".format(self.duration)]
+
+        if self.requirement != {}:
+            for (r, rtype) in self.requirement:
+                for (interval, cap) in self.requirement[(r, rtype)].items():
+                    (s, t) = interval
+                    if rtype == "max":
+                        ret.append(" {0} max interval {1} {2} requirement {3} ".format(r, s, t, cap))
+                    elif rtype == "break":
+                        ret.append(" {0} interval break {1} {2} requirement {3} ".format(r, s, t, cap))
+                    elif rtype == None:
+                        ret.append(" {0} interval {1} {2} requirement {3} ".format(r, s, t, cap))
                     else:
                         print("resource type error")
                         raise TypeError
 
-        #break
-        if self.breakable !={}:
-            for (interval,cap) in self.breakable.items():
-                (s,t)=interval
-                if cap=="inf":
-                    ret.append(" break interval {0} {1} ".format(s,t))
+        # break
+        if self.breakable != {}:
+            for (interval, cap) in self.breakable.items():
+                (s, t) = interval
+                if cap == "inf":
+                    ret.append(" break interval {0} {1} ".format(s, t))
                 else:
-                    ret.append(" break interval {0} {1} max {2} ".format(s,t,cap))
+                    ret.append(" break interval {0} {1} max {2} ".format(s, t, cap))
 
-        #parallel
-        if self.parallel !={}:
-            for (interval,cap) in self.parallel.items():
-                (s,t)=interval
-                if cap=="inf":
-                    ret.append(" parallel interval {0} {1} ".format(s,t))
+        # parallel
+        if self.parallel != {}:
+            for (interval, cap) in self.parallel.items():
+                (s, t) = interval
+                if cap == "inf":
+                    ret.append(" parallel interval {0} {1} ".format(s, t))
                 else:
-                    ret.append(" parallel interval {0} {1} max {2} ".format(s,t,cap))
+                    ret.append(" parallel interval {0} {1} max {2} ".format(s, t, cap))
 
-        #state
-        if self.state !={}:
+        # state
+        if self.state != {}:
             for s in self.state:
-                (f,t)=self.state[s]
-                ret.append(" {0} from {1} to {2} ".format(s,f,t))
+                (f, t) = self.state[s]
+                ret.append(" {0} from {1} to {2} ".format(s, f, t))
 
         return " \n".join(ret)
 
-
-
-    def addState(self,state,fromValue=0,toValue=0):
+    def addState(self, state, fromValue=0, toValue=0):
         """
         Adds a state change information to the mode.
 
@@ -136,13 +137,13 @@ class Mode():
             defines that state1 is changed from 0 to 1. 
 
         """
-        if type(fromValue)!=type(1) or type(toValue)!=type(1):
+        if type(fromValue) != type(1) or type(toValue) != type(1):
             print("time and value of the state {0} must be integer".format(self.name))
             raise TypeError
         else:
-            self.state[state.name]=(fromValue,toValue)
-                 
-    def addResource(self,resource,requirement={},rtype=None):
+            self.state[state.name] = (fromValue, toValue)
+
+    def addResource(self, resource, requirement={}, rtype=None):
         """
         Adds a resource to the mode.
 
@@ -167,23 +168,23 @@ class Mode():
 
             defines machine resource that uses 1 unit during parallel execution. 
         """
-        if type(requirement)==type(1):
-            requirement={(0,"inf"):requirement }
+        if type(requirement) == type(1):
+            requirement = {(0, "inf"): requirement}
 
-        if type(resource.name)!=type("") or type(requirement)!=type({}):
-            print("type error in adding a resource {0} to activity".format(resource.name,self.name))
+        if type(resource.name) != type("") or type(requirement) != type({}):
+            print("type error in adding a resource {0} to activity".format(resource.name, self.name))
             raise TypeError
-        elif rtype ==None or rtype=="break" or rtype =="max":
-            if (resource.name,rtype) not in self.requirement:
-                self.requirement[(resource.name,rtype)]={} #generate an empty dic.    
-            data=copy.deepcopy(self.requirement[(resource.name,rtype)])
-            data.update( requirement )
-            self.requirement[(resource.name,rtype)]=data 
+        elif rtype == None or rtype == "break" or rtype == "max":
+            if (resource.name, rtype) not in self.requirement:
+                self.requirement[(resource.name, rtype)] = {}  # generate an empty dic.
+            data = copy.deepcopy(self.requirement[(resource.name, rtype)])
+            data.update(requirement)
+            self.requirement[(resource.name, rtype)] = data
         else:
             print("rtype must be None or break or max")
             raise NameError
-        
-    def addBreak(self,start=0,finish=0,maxtime="inf"):
+
+    def addBreak(self, start=0, finish=0, maxtime="inf"):
         """
         Sets breakable information to the mode.
 
@@ -199,11 +200,11 @@ class Mode():
 
             defines a break between (0,10) for one period.      
         """
-        data=copy.deepcopy(self.breakable)
-        data.update({ (start,finish):maxtime }  )
-        self.breakable=data
+        data = copy.deepcopy(self.breakable)
+        data.update({(start, finish): maxtime})
+        self.breakable = data
 
-    def addParallel(self,start=1,finish=1,maxparallel="inf"):
+    def addParallel(self, start=1, finish=1, maxparallel="inf"):
         """
         Sets parallel information to the mode.
 
@@ -216,13 +217,15 @@ class Mode():
 
             >>> mode.addParallel(1,1,2}               
         """
-        data=copy.deepcopy(self.parallel)
-        data.update({ (start,finish):maxparallel }  )
-        self.parallel=data  
+        data = copy.deepcopy(self.parallel)
+        data.update({(start, finish): maxparallel})
+        self.parallel = data
+
 
 class Activity():
-    ID=0
-    def __init__(self,name="",duedate="inf",weight=1,autoselect=False):
+    ID = 0
+
+    def __init__(self, name="", duedate="inf", weight=1, autoselect=False):
         """
         OptSeq activity class.
 
@@ -236,39 +239,39 @@ class Activity():
                 - weight(optional): Panalty of one unit of tardiness. Positive integer.
                 - autoselect(optional): True or False flag that indicates the activity selects the mode automatically or not.
         """
-            
-        if name=="source" or name=="sink":
+
+        if name == "source" or name == "sink":
             print("source and sink cannnot be used as an activity name")
             raise NameError
-        if name=="" or name==None:
-            name ="__a{0}".format(Activity.ID)
-            Activity.ID +=1
-        #convert illegal characters into _ (underscore)  
-        self.name   = str(name).translate( _trans ) 
-        self.duedate=duedate
-        self.weight=weight
-        self.autoselect=autoselect
-        self.modes=[]  #list of mode objects
-            
+        if name == "" or name == None:
+            name = "__a{0}".format(Activity.ID)
+            Activity.ID += 1
+        # convert illegal characters into _ (underscore)
+        self.name = str(name).translate(_trans)
+        self.duedate = duedate
+        self.weight = weight
+        self.autoselect = autoselect
+        self.modes = []  # list of mode objects
+
     def __str__(self):
-        ret=["activity {0}".format(self.name)]
-        if self.duedate !="inf":
-                ret.append(" duedate {0} ".format(self.duedate))
-                ret.append(" weight {0} ".format(self.weight))
-        if len(self.modes)==1: #single mode 
-            ret.append(" mode {0} ".format(self.modes[0]))#print mode information
-            #ret.append(str(self.modes[0])) 
-        elif len(self.modes)>=2:
-            if self.autoselect==True:
+        ret = ["activity {0}".format(self.name)]
+        if self.duedate != "inf":
+            ret.append(" duedate {0} ".format(self.duedate))
+            ret.append(" weight {0} ".format(self.weight))
+        if len(self.modes) == 1:  # single mode
+            ret.append(" mode {0} ".format(self.modes[0]))  # print mode information
+            # ret.append(str(self.modes[0]))
+        elif len(self.modes) >= 2:
+            if self.autoselect == True:
                 ret.append(" autoselect ")
-            for m in self.modes: #multiple modes 
-                ret.append(" {0} ".format(m.name)) #print mode names
-            #ret+="\n"
+            for m in self.modes:  # multiple modes
+                ret.append(" {0} ".format(m.name))  # print mode names
+            # ret+="\n"
         else:
             ret.append(" no mode ")
         return " \n".join(ret)
 
-    def addModes(self,*modes):
+    def addModes(self, *modes):
         """
         Adds a mode or modes to the activity.
 
@@ -281,10 +284,12 @@ class Activity():
         """
         for mode in modes:
             self.modes.append(mode)
-       
+
+
 class Resource():
-    ID=0
-    def __init__(self,name="",capacity={},rhs=0,direction="<=",weight="inf"):
+    ID = 0
+
+    def __init__(self, name="", capacity={}, rhs=0, direction="<=", weight="inf"):
         """
         OptSeq resource class.
 
@@ -307,36 +312,36 @@ class Resource():
                 - weight: Weight of nonrenewable resource to compute the penalty for violating the constraint. Non-negative integer or "inf" (default).
      
         """
-        if name=="" or name==None:
-            name ="__r{0}".format(Resource.ID)
-            Resource.ID +=1
-        #convert illegal characters into _ (underscore)  
-        self.name   = str(name).translate( _trans )
+        if name == "" or name == None:
+            name = "__r{0}".format(Resource.ID)
+            Resource.ID += 1
+        # convert illegal characters into _ (underscore)
+        self.name = str(name).translate(_trans)
 
-        if type(capacity)==type(1):
-            capacity={(0,"inf"):capacity }
-            
-        self.capacity=capacity
+        if type(capacity) == type(1):
+            capacity = {(0, "inf"): capacity}
+
+        self.capacity = capacity
         self.rhs = rhs
         self.direction = direction
         self.terms = []
-        self.weight=weight
-            
+        self.weight = weight
+
     def __str__(self):
-        ret=[]
-        if self.capacity!={}:
+        ret = []
+        if self.capacity != {}:
             ret.append("resource {0} ".format(self.name))
-            capList=[]
-            for (interval,cap) in self.capacity.items():
-                (s,t)=interval
-                capList.append((s,t,cap))
+            capList = []
+            for (interval, cap) in self.capacity.items():
+                (s, t) = interval
+                capList.append((s, t, cap))
             capList.sort()
-            for (s,t,cap) in capList:
-                ret.append(" interval {0} {1} capacity {2} ".format(s,t,cap))
-            #ret.append("\n")
+            for (s, t, cap) in capList:
+                ret.append(" interval {0} {1} capacity {2} ".format(s, t, cap))
+            # ret.append("\n")
         return " \n".join(ret)
 
-    def addCapacity(self,start=0,finish=0,amount=1):
+    def addCapacity(self, start=0, finish=0, amount=1):
         """
         Adds a capacity to the resource.
 
@@ -350,11 +355,11 @@ class Resource():
 
             >>> manpower.addCapacity(0,5,2)
         """
-        
-        data=copy.deepcopy(self.capacity)
-        data.update({ (start,finish):amount }  )
-        self.capacity=data
-        
+
+        data = copy.deepcopy(self.capacity)
+        data.update({(start, finish): amount})
+        self.capacity = data
+
     def printConstraint(self):
         """
             Returns the information of the linear constraint.
@@ -363,26 +368,26 @@ class Resource():
         """
 
         f = ["nonrenewable weight {0} ".format(self.weight)]
-        if self.direction==">=" or self.direction==">" :
-            for (coeff,var,value) in self.terms:
-                f.append("{0}({1},{2}) ".format(-coeff,var.name,value.name))
+        if self.direction == ">=" or self.direction == ">":
+            for (coeff, var, value) in self.terms:
+                f.append("{0}({1},{2}) ".format(-coeff, var.name, value.name))
             f.append("<={0} \n".format(-self.rhs))
-        elif self.direction=="==" or self.direction=="=":
-            for (coeff,var,value) in self.terms:
-                f.append("{0}({1},{2}) ".format(coeff,var.name,value.name))
+        elif self.direction == "==" or self.direction == "=":
+            for (coeff, var, value) in self.terms:
+                f.append("{0}({1},{2}) ".format(coeff, var.name, value.name))
             f.append("<={0} \n".format(self.rhs))
             f.append("nonrenewable weight {0} ".format(self.weight))
-            for (coeff,var,value) in self.terms:
-                f.append("{0}({1},{2}) ".format(-coeff,var.name,value.name))
+            for (coeff, var, value) in self.terms:
+                f.append("{0}({1},{2}) ".format(-coeff, var.name, value.name))
             f.append("<={0} \n".format(-self.rhs))
         else:
-            for (coeff,var,value) in self.terms:
-                f.append("{0}({1},{2}) ".format(coeff,var.name,value.name))
+            for (coeff, var, value) in self.terms:
+                f.append("{0}({1},{2}) ".format(coeff, var.name, value.name))
             f.append("<={0} \n".format(self.rhs))
-            
+
         return "".join(f)
 
-    def addTerms(self,coeffs=[],vars=[],values=[]):
+    def addTerms(self, coeffs=[], vars=[], values=[]):
         """
         Add new terms into left-hand-side of nonrenewable resource constraint.
 
@@ -400,21 +405,21 @@ class Resource():
 
             adds one unit of nonrenewable resource (budget) if activity "act" is executed in mode "express."
 
-        """  
-                
-        if type(coeffs) !=type([]): #need a check whether coeffs is numeric ...
-            self.terms.append( (coeffs,vars,values))
-        elif type(coeffs)!=type([]) or type(vars)!=type([]) or type(values)!=type([]):
+        """
+
+        if type(coeffs) != type([]):  # need a check whether coeffs is numeric ...
+            self.terms.append((coeffs, vars, values))
+        elif type(coeffs) != type([]) or type(vars) != type([]) or type(values) != type([]):
             print("coeffs, vars, values must be lists")
             raise TypeError
-        elif len(coeffs)!=len(vars) or len(coeffs)!=len(values) or len(values)!=len(vars):
+        elif len(coeffs) != len(vars) or len(coeffs) != len(values) or len(values) != len(vars):
             print("length of coeffs, vars, values must be identical")
             raise TypeError
         else:
             for i in range(len(coeffs)):
-                self.terms.append( (coeffs[i],vars[i],values[i]))
+                self.terms.append((coeffs[i], vars[i], values[i]))
 
-    def setRhs(self,rhs=0):
+    def setRhs(self, rhs=0):
         """
         Sets the right-hand-side of linear constraint.
         
@@ -425,19 +430,19 @@ class Resource():
             
             >>> L.setRhs(10)
             
-        """ 
+        """
         self.rhs = rhs
 
-    def setDirection(self,direction="<="):
-        if direction in ["<=",">=","="]:
+    def setDirection(self, direction="<="):
+        if direction in ["<=", ">=", "="]:
             self.direction = direction
         else:
             print("direction setting error; direction should be one of '<=' or '>=' or '='")
             raise NameError
-    
+
 
 class Temporal():
-    def __init__(self,pred,succ,tempType,delay):
+    def __init__(self, pred, succ, tempType, delay):
         """
         OptSeq temporal class.
 
@@ -467,36 +472,37 @@ class Temporal():
                 - delay: Time lag between the completion (start) times of two activities.
 
         """
-            
-        self.pred=pred 
-        self.succ=succ
-        self.type=tempType
-        self.delay=delay
 
+        self.pred = pred
+        self.succ = succ
+        self.type = tempType
+        self.delay = delay
 
     def __str__(self):
-        if self.pred =="source":
-            pred="source"
-        elif self.pred=="sink":
-            pred="sink"
+        if self.pred == "source":
+            pred = "source"
+        elif self.pred == "sink":
+            pred = "sink"
         else:
-            pred=str(self.pred.name)
+            pred = str(self.pred.name)
 
-        if self.succ=="source":
-            succ="source"
-        elif self.succ=="sink":
-            succ="sink"
+        if self.succ == "source":
+            succ = "source"
+        elif self.succ == "sink":
+            succ = "sink"
         else:
-            succ=str(self.succ.name)
-            
-        ret=["temporal {0} {1}".format(pred,succ)]
-        ret.append(" type {0} delay {1} ".format(self.type,self.delay))
+            succ = str(self.succ.name)
+
+        ret = ["temporal {0} {1}".format(pred, succ)]
+        ret.append(" type {0} delay {1} ".format(self.type, self.delay))
 
         return " ".join(ret)
 
+
 class State():
-    ID=0
-    def __init__(self,name=""):
+    ID = 0
+
+    def __init__(self, name=""):
         """
         OptSeq state class.
 
@@ -507,22 +513,21 @@ class State():
                 - name: Name of state. Remark that strings in OptSeq are restricted to a-z, A-Z, 0-9,[],_ and @.
                    
         """
-        if name=="" or name==None:
-            name ="__s{0}".format(State.ID)
-            State.ID +=1
-        #convert illegal characters into _ (underscore)  
-        self.name   = str(name).translate( _trans )
-        
-        self.Value={}  #dictionary that maps time (non-negative integer) to value (non-negative integer)
+        if name == "" or name == None:
+            name = "__s{0}".format(State.ID)
+            State.ID += 1
+        # convert illegal characters into _ (underscore)
+        self.name = str(name).translate(_trans)
 
-        
+        self.Value = {}  # dictionary that maps time (non-negative integer) to value (non-negative integer)
+
     def __str__(self):
-        ret=["state {0} ".format(self.name)]
+        ret = ["state {0} ".format(self.name)]
         for v in self.Value:
-            ret.append("time {0} value {1} ".format(v,self.Value[v]))
+            ret.append("time {0} value {1} ".format(v, self.Value[v]))
         return " ".join(ret)
 
-    def addValue(self,time=0,value=0):
+    def addValue(self, time=0, value=0):
         """
         Adds a value to the state
             - Arguments:
@@ -533,15 +538,15 @@ class State():
 
             >>> state.addValue(time=5,value=1)               
         """
-        if type(time)==type(1) and type(value)==type(1):
-            self.Value[time]=value
+        if type(time) == type(1) and type(value) == type(1):
+            self.Value[time] = value
         else:
             print("time and value of the state {0} must be integer".format(self.name))
             raise TypeError
 
 
 class Model(object):
-    def __init__(self,name=""):
+    def __init__(self, name=""):
         """
         OptSeq model class.
             - Attributes:
@@ -556,48 +561,47 @@ class Model(object):
                 - tempo: List of all the tamporal constraint objects in the model.
         """
         self.name = name
-        self.activities={}  #set of activities maintained by a dictionary
-        self.modes={}       #set of modes maintained by a dictionary
-        self.resources={}   #set of resources maintained by a dictionary
-        self.temporals={}   #set of temporal constraints maintained by a dictionary
-        self.states={}      #set of states maintained by a dictionary 
-        
-        self.act=[]         #list of activity objects
-        self.res=[]         #list of resource objects
-        self.tempo=[]       #list of temporal constraint's objects
-        self.state=[]       #list of state objects
+        self.activities = {}  # set of activities maintained by a dictionary
+        self.modes = {}  # set of modes maintained by a dictionary
+        self.resources = {}  # set of resources maintained by a dictionary
+        self.temporals = {}  # set of temporal constraints maintained by a dictionary
+        self.states = {}  # set of states maintained by a dictionary
 
-        self.Params=Parameters() #controal parameters' class 
+        self.act = []  # list of activity objects
+        self.res = []  # list of resource objects
+        self.tempo = []  # list of temporal constraint's objects
+        self.state = []  # list of state objects
+
+        self.Params = Parameters()  # controal parameters' class
 
     def __str__(self):
-        ret=["Model:{0}".format(self.name)]
+        ret = ["Model:{0}".format(self.name)]
         ret.append("number of activities= {0}".format(len(self.act)))
         ret.append("number of resources= {0}".format(len(self.res)))
 
-                
         if len(self.res):
             ret.append("\nResource Information")
             for res in self.res:
                 ret.append(str(res))
-                if len(res.terms)>0:
-                    ret.append(res.printConstraint()) 
+                if len(res.terms) > 0:
+                    ret.append(res.printConstraint())
 
         for a in self.act:
-            if len(a.modes)>=2:
+            if len(a.modes) >= 2:
                 for m in a.modes:
-                    self.modes[m.name]=m
-                    
+                    self.modes[m.name] = m
+
         if len(self.modes):
             ret.append("\nMode Information")
             for i in self.modes:
-                #ret.append("{0}\n{1}".format(i,self.modes[i]))
+                # ret.append("{0}\n{1}".format(i,self.modes[i]))
                 ret.append(str(i))
                 ret.append(str(self.modes[i]))
 
         if len(self.act):
             ret.append("\nActivity Information")
             for act in self.act:
-                ret.append(str(act))        
+                ret.append(str(act))
 
         if len(self.tempo):
             ret.append("\nTemporal Constraint Information")
@@ -611,8 +615,7 @@ class Model(object):
 
         return "\n".join(ret)
 
-        
-    def addActivity(self, name="",duedate="inf",weight=1,autoselect=False):
+    def addActivity(self, name="", duedate="inf", weight=1, autoselect=False):
         """
         Add an activity to the model.
 
@@ -632,12 +635,12 @@ class Model(object):
             
             >>> a = model.addActivity("act1",20,100)                    
         """
-        activity=Activity(name,duedate,weight,autoselect)
+        activity = Activity(name, duedate, weight, autoselect)
         self.act.append(activity)
-        #self.activities[activity.name]=activity
+        # self.activities[activity.name]=activity
         return activity
-                
-    def addResource(self,name="",capacity={},rhs=0,direction="<=",weight="inf"):
+
+    def addResource(self, name="", capacity={}, rhs=0, direction="<=", weight="inf"):
         """
         Add a resource to the model.
 
@@ -660,12 +663,12 @@ class Model(object):
             >>> r=model.addResource("res2",rhs=10,direction=">=")      
 
         """
-        res=Resource(name,capacity,rhs,direction,weight)
+        res = Resource(name, capacity, rhs, direction, weight)
         self.res.append(res)
-        #self.resources[res.name]=res
+        # self.resources[res.name]=res
         return res
 
-    def addTemporal(self,pred,succ,tempType="CS",delay=0):
+    def addTemporal(self, pred, succ, tempType="CS", delay=0):
         """
         Add a temporal constraint to the model.
 
@@ -700,10 +703,10 @@ class Model(object):
 
             >>> t=model.addTemporal(act,"source",type="SS",delay=50)           
         """
-        t=Temporal(pred,succ,tempType,delay)
+        t = Temporal(pred, succ, tempType, delay)
         self.tempo.append(t)
-        #self.temporals[pred.name,succ.name]=None
-        return t        
+        # self.temporals[pred.name,succ.name]=None
+        return t
 
     def addState(self, name=""):
         """
@@ -719,70 +722,69 @@ class Model(object):
             >>> a = model.addState("state1")
                               
         """
-        s=State(name)
+        s = State(name)
         self.state.append(s)
-        #self.states[name]=s
+        # self.states[name]=s
         return s
-
 
     def update(self):
         """
         prepare a string representing the current model in the OptSeq input format
-        """        
-        makespan=self.Params.Makespan
+        """
+        makespan = self.Params.Makespan
 
-        f=[]   
-    
-        self.resources={} #dictionary of resources that maps res-name to res-object
+        f = []
+
+        self.resources = {}  # dictionary of resources that maps res-name to res-object
         for r in self.res:
-            self.resources[r.name]=r
+            self.resources[r.name] = r
             f.append(str(r))
 
-        self.states={}  #dictionary of activities that maps state-name to state-object
+        self.states = {}  # dictionary of activities that maps state-name to state-object
         for s in self.state:
-            self.states[s.name]=s
+            self.states[s.name] = s
             f.append(str(s))
-        
-        self.modes={}       #dictionary of modes that maps mode-name to mode-object
+
+        self.modes = {}  # dictionary of modes that maps mode-name to mode-object
         for a in self.act:
-            if len(a.modes)>=2:
+            if len(a.modes) >= 2:
                 for m in a.modes:
-                    self.modes[m.name]=m
-                    
-        for m in self.modes:  #print mode information
+                    self.modes[m.name] = m
+
+        for m in self.modes:  # print mode information
             f.append("mode {0} ".format(m))
             f.append(str(self.modes[m]))
 
-        self.activities={}  #dictionary of activities that maps activity-name to activity-object
+        self.activities = {}  # dictionary of activities that maps activity-name to activity-object
         for a in self.act:
-            self.activities[a.name]=a
+            self.activities[a.name] = a
             f.append(str(a))
-        
-        self.temporals={} #dictionary of temporal constraints that maps activity name pair to temporal-object
+
+        self.temporals = {}  # dictionary of temporal constraints that maps activity name pair to temporal-object
         for t in self.tempo:
-            if t.pred=="source":
-                pred="source"
-            elif t.pred=="sink":
-                pred="sink"
+            if t.pred == "source":
+                pred = "source"
+            elif t.pred == "sink":
+                pred = "sink"
             else:
-                pred=t.pred.name
-                
-            if t.succ=="source":
-                succ="source"
-            elif t.succ=="sink":
-                succ="sink"
+                pred = t.pred.name
+
+            if t.succ == "source":
+                succ = "source"
+            elif t.succ == "sink":
+                succ = "sink"
             else:
-                succ=t.succ.name
-    
-            self.temporals[(pred,succ)]=t
+                succ = t.succ.name
+
+            self.temporals[(pred, succ)] = t
             f.append(str(t))
 
-        #non-renewable constraint
+        # non-renewable constraint
         for r in self.res:
-            self.resources[r.name]=r
-            if len(r.terms)>0:
+            self.resources[r.name] = r
+            if len(r.terms) > 0:
                 f.append(r.printConstraint())
-                
+
         if makespan:
             f.append("activity sink duedate 0 \n")
         return " \n".join(f)
@@ -795,31 +797,31 @@ class Model(object):
 
             >>> model.optimize()
         """
-        LOG=self.Params.OutputFlag
+        LOG = self.Params.OutputFlag
 
         """
         SCOP input file
         """
-        f = self.update()        
-        f2 = open("optseq_input.txt","w")
+        f = self.update()
+        f2 = open("optseq_input.txt", "w")
         f2.write(f)
         f2.close()
 
         import subprocess
-        cmd = optseq+" -time "+str(self.Params.TimeLimit)+ \
-              " -backtrack  "+str(self.Params.Backtruck) +\
-              " -iteration  "+str(self.Params.MaxIteration)+\
-              " -report     "+str(self.Params.ReportInterval)+\
-              " -seed      "+str(self.Params.RandomSeed)+\
-              " -tenure    "+str(self.Params.Tenure)
+        cmd = optseq + " -time " + str(self.Params.TimeLimit) + \
+              " -backtrack  " + str(self.Params.Backtruck) + \
+              " -iteration  " + str(self.Params.MaxIteration) + \
+              " -report     " + str(self.Params.ReportInterval) + \
+              " -seed      " + str(self.Params.RandomSeed) + \
+              " -tenure    " + str(self.Params.Tenure)
 
         if self.Params.Initial:
             cmd += " -initial optseq_best_act_data.txt"
-        
-        #print "cmd=",cmd
-        
+
+        # print "cmd=",cmd
+
         try:
-            #pipe = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE,
+            # pipe = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE,
             #                        stdin=subprocess.PIPE, shell=True)
             pipe = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE,
                                     stdin=subprocess.PIPE, shell=True)
@@ -829,16 +831,16 @@ class Model(object):
             print("please check that the solver is in the path")
             exit(0)
 
-        out, err = pipe.communicate(f.encode())                 #get the result
+        out, err = pipe.communicate(f.encode())  # get the result
 
-        if err!=None:
-            if int(sys.version_info[0])>=3:
+        if err != None:
+            if int(sys.version_info[0]) >= 3:
                 err = str(err, encoding='utf-8')
-            f2 = open("optseq_error.txt","w")
+            f2 = open("optseq_error.txt", "w")
             f2.write(err)
             f2.close()
-            
-        if int(sys.version_info[0])>=3:
+
+        if int(sys.version_info[0]) >= 3:
             out = str(out, encoding='utf-8')
 
         if LOG:
@@ -850,101 +852,101 @@ class Model(object):
         """
         optseq output file
         """
-        f3 = open("optseq_output.txt","w")
+        f3 = open("optseq_output.txt", "w")
         f3.write(out)
         f3.close()
 
-        #search strings
-        s0="--- best solution ---"
-        s1="--- tardy activity ---"
-        s2="--- resource residuals ---"
-        s3="--- best activity list ---" #added for optseq 3.0 
-        s4="objective value ="
-        pos0=out.find(s0)+len(s0) #job data start position
-        pos1=out.find(s1,pos0)    #data end position
-        pos2=out.find(s2,pos1)
-        pos3=out.find(s3,pos2)
-        pos4=out.find(s4,pos3)
-        #print("data positions",pos0,pos1,pos2,pos3,pos4)
-        data=out[pos0:pos1]
-        resdata=out[pos2+len(s2):pos3]
-        data=data.splitlines()
-        reslines=resdata.splitlines()
+        # search strings
+        s0 = "--- best solution ---"
+        s1 = "--- tardy activity ---"
+        s2 = "--- resource residuals ---"
+        s3 = "--- best activity list ---"  # added for optseq 3.0
+        s4 = "objective value ="
+        pos0 = out.find(s0) + len(s0)  # job data start position
+        pos1 = out.find(s1, pos0)  # data end position
+        pos2 = out.find(s2, pos1)
+        pos3 = out.find(s3, pos2)
+        pos4 = out.find(s4, pos3)
+        # print("data positions",pos0,pos1,pos2,pos3,pos4)
+        data = out[pos0:pos1]
+        resdata = out[pos2 + len(s2):pos3]
+        data = data.splitlines()
+        reslines = resdata.splitlines()
 
-        #save the best activity list
-        bestactdata=out[pos3+len(s3):pos4]
-        f3 = open("optseq_best_act_data.txt","w")
+        # save the best activity list
+        bestactdata = out[pos3 + len(s3):pos4]
+        f3 = open("optseq_best_act_data.txt", "w")
         f3.write(bestactdata.lstrip())
         f3.close()
 
         for line in reslines:
-            if len(line)<=1:
+            if len(line) <= 1:
                 continue
-            current=line.split()
-            resname=current[0][:-1]
-            residual=current[1:]
-            count=0
-            resDic={} #residual capacity
-            while count<len(residual):
-                interval=residual[count].split(",")
-                int1=int(interval[0][1:])
-                int2=int(interval[1][:-1])
-                count+=1
-                num=int(residual[count])
-                count+=1
-                resDic[(int1,int2)]=num
-            #print(resname,residual)
-            self.resources[resname].residual=resDic
+            current = line.split()
+            resname = current[0][:-1]
+            residual = current[1:]
+            count = 0
+            resDic = {}  # residual capacity
+            while count < len(residual):
+                interval = residual[count].split(",")
+                int1 = int(interval[0][1:])
+                int2 = int(interval[1][:-1])
+                count += 1
+                num = int(residual[count])
+                count += 1
+                resDic[(int1, int2)] = num
+            # print(resname,residual)
+            self.resources[resname].residual = resDic
 
-        #job data conversion
-        execute=[]
+        # job data conversion
+        execute = []
         for i in range(len(data)):
-            replaced=data[i].replace(","," ")
-            current=replaced.split() #split by space
-            #print(current)
-            if len(current)>1:
+            replaced = data[i].replace(",", " ")
+            current = replaced.split()  # split by space
+            # print(current)
+            if len(current) > 1:
                 execute.append(current)
         for line in execute:
-            #print("line=",line)
-            actname=line[0]
-            mode=line[1]
+            # print("line=",line)
+            actname = line[0]
+            mode = line[1]
             try:
-                start=line[2]
+                start = line[2]
             except:
                 print("Problem is infeasible")
                 exit(0)
-                
-            execute=line[3:-1] #list for breakable activity
-            completion=line[-1]
-            print("{0:>10} {1:>5} {2:>5} {3:>5}".format(actname,mode,start,completion))
-            #print("execute=",execute)
-            if actname=="source":
+
+            execute = line[3:-1]  # list for breakable activity
+            completion = line[-1]
+            print("{0:>10} {1:>5} {2:>5} {3:>5}".format(actname, mode, start, completion))
+            # print("execute=",execute)
+            if actname == "source":
                 pass
-            elif actname=="sink":
+            elif actname == "sink":
                 pass
             else:
-                self.activities[actname].start=int(start)
-                self.activities[actname].completion=int(completion)
-                if mode !="---":
-                    self.activities[actname].selected=mode
-                exeDic={}
+                self.activities[actname].start = int(start)
+                self.activities[actname].completion = int(completion)
+                if mode != "---":
+                    self.activities[actname].selected = mode
+                exeDic = {}
                 for exe in execute:
-                    exedata=exe.split("--")
-                    start=exedata[0]
-                    completion=exedata[1]
-                    idx=completion.find("[")
-                    #for parallel execution
-                    if idx>0:
-                        parallel=completion[idx+1:-1]
-                        completion=completion[:idx]
-                        #print(completion,idx,parallel)
+                    exedata = exe.split("--")
+                    start = exedata[0]
+                    completion = exedata[1]
+                    idx = completion.find("[")
+                    # for parallel execution
+                    if idx > 0:
+                        parallel = completion[idx + 1:-1]
+                        completion = completion[:idx]
+                        # print(completion,idx,parallel)
                     else:
-                        parallel=1
-                    exeDic[(int(start),int(completion))]=parallel
-                self.activities[actname].execute=exeDic
+                        parallel = 1
+                    exeDic[(int(start), int(completion))] = parallel
+                self.activities[actname].execute = exeDic
         return
 
-    def write(self,filename="optseq_chart.txt"):
+    def write(self, filename="optseq_chart.txt"):
         """
         Output the gantt's chart as a text file.
 
@@ -956,109 +958,109 @@ class Model(object):
             >>> model.write("sample.txt")
 
         """
-        f=open(filename,"w")
-        
-        horizon=0
-        actList=[]
+        f = open(filename, "w")
+
+        horizon = 0
+        actList = []
         for a in self.activities:
             actList.append(a)
-            act=self.activities[a]
-            horizon=max(act.completion,horizon)
-        #print("planning horizon=",horizon)
+            act = self.activities[a]
+            horizon = max(act.completion, horizon)
+        # print("planning horizon=",horizon)
         actList.sort()
-        title=" activity    mode".center(20)+" duration |"
+        title = " activity    mode".center(20) + " duration |"
 
-        width=len(str(horizon)) #period width =largest index of time        
+        width = len(str(horizon))  # period width =largest index of time
         for t in range(horizon):
-            num=str(t+1)
-            title+=num.rjust(width)+"|" 
-        #print(title)
-        f.write(title+"\n")
-        f.write("-"*(30+(width+1)*horizon)+"|\n")
-        for a in actList: #sorted order
-            act=self.activities[a] #act: activity object 
-            actstring=act.name.center(10)[:10]            
-            if len(act.modes)>=2:
-                actstring+= str(act.selected).center(10)
-                actstring+=str(self.modes[act.selected].duration).center(10)
-                #print(" executed on resource:")
-                #print(self.modes[act.selected].requirement,m1.modes[act.selected].rtype)
+            num = str(t + 1)
+            title += num.rjust(width) + "|"
+            # print(title)
+        f.write(title + "\n")
+        f.write("-" * (30 + (width + 1) * horizon) + "|\n")
+        for a in actList:  # sorted order
+            act = self.activities[a]  # act: activity object
+            actstring = act.name.center(10)[:10]
+            if len(act.modes) >= 2:
+                actstring += str(act.selected).center(10)
+                actstring += str(self.modes[act.selected].duration).center(10)
+                # print(" executed on resource:")
+                # print(self.modes[act.selected].requirement,m1.modes[act.selected].rtype)
             else:
-                #print("executed on resource:")
-                #print(act.modes[0].requirement,act.modes[0].rtype)
-                actstring+= str(act.modes[0].name).center(10)[:10]
-                actstring+=str(act.modes[0].duration).center(10)
-            execute=[0 for t in range(horizon)]
-            for (s,c) in act.execute:
-                para=act.execute[s,c]
-                for t in range(s,c):
-                    execute[t]=int(para)
+                # print("executed on resource:")
+                # print(act.modes[0].requirement,act.modes[0].rtype)
+                actstring += str(act.modes[0].name).center(10)[:10]
+                actstring += str(act.modes[0].duration).center(10)
+            execute = [0 for t in range(horizon)]
+            for (s, c) in act.execute:
+                para = act.execute[s, c]
+                for t in range(s, c):
+                    execute[t] = int(para)
 
             for t in range(horizon):
-                if execute[t]>=2:
-                    #for res_name in self.modes[act.selected].requirement:
-                        #print(res_name)
-                    #print(m1.modes[act.selected].rtype)
-                    #print(self.modes[act.selected])
-                    actstring+="|*"+str(execute[t]).rjust(width-1)
-                elif execute[t]==1:
-                    actstring+="|"+"="*(width)
-                elif t>=act.start and t<act.completion:
-                    actstring+="|"+"."*(width)
+                if execute[t] >= 2:
+                    # for res_name in self.modes[act.selected].requirement:
+                    # print(res_name)
+                    # print(m1.modes[act.selected].rtype)
+                    # print(self.modes[act.selected])
+                    actstring += "|*" + str(execute[t]).rjust(width - 1)
+                elif execute[t] == 1:
+                    actstring += "|" + "=" * (width)
+                elif t >= act.start and t < act.completion:
+                    actstring += "|" + "." * (width)
                 else:
-                    actstring+="|"+" "*width
-            actstring+="|"
-            #print(actstring)
-            f.write(actstring+"\n")
-##    ##        print(act.name +"  starts at "+str(act.start)+" and finish at " +str(act.completion))
-##    ##        print("  and is executed :"+str(act.execute)])
+                    actstring += "|" + " " * width
+            actstring += "|"
+            # print(actstring)
+            f.write(actstring + "\n")
+        ##    ##        print(act.name +"  starts at "+str(act.start)+" and finish at " +str(act.completion))
+        ##    ##        print("  and is executed :"+str(act.execute)])
 
-        f.write("-"*(30+(width+1)*horizon)+"\n")
-        f.write("resource usage/capacity".center(30)+"| \n")
-        f.write("-"*(30+(width+1)*horizon)+"\n")
-        resList=[]
+        f.write("-" * (30 + (width + 1) * horizon) + "\n")
+        f.write("resource usage/capacity".center(30) + "| \n")
+        f.write("-" * (30 + (width + 1) * horizon) + "\n")
+        resList = []
         for r in self.resources:
             resList.append(r)
-        resList.sort()                
+        resList.sort()
         for r in resList:
-            res=self.resources[r]
-            if len(res.terms)==0: #output residual and capacity
-                rstring=res.name.center(30)
-                cap=[0 for t in range(horizon)]
-                residual=[0 for t in range(horizon)]
-                for (s,c) in res.residual:
-                    amount=res.residual[(s,c)]
-                    if c=="inf":
-                        c=horizon
-                    s=min(s,horizon)
-                    c=min(c,horizon)
-                    for t in range(s,c):
-                        residual[t]+=amount
+            res = self.resources[r]
+            if len(res.terms) == 0:  # output residual and capacity
+                rstring = res.name.center(30)
+                cap = [0 for t in range(horizon)]
+                residual = [0 for t in range(horizon)]
+                for (s, c) in res.residual:
+                    amount = res.residual[(s, c)]
+                    if c == "inf":
+                        c = horizon
+                    s = min(s, horizon)
+                    c = min(c, horizon)
+                    for t in range(s, c):
+                        residual[t] += amount
 
-                for (s,c) in res.capacity:
-                    amount=res.capacity[(s,c)]
-                    if c=="inf":
-                        c=horizon
-                    s=min(s,horizon)
-                    c=min(c,horizon)
-                    for t in range(s,c):
-                        cap[t]+=amount
-                        
-                for t in range(horizon):
-                    num=str(cap[t]-residual[t])
-                    rstring+="|"+num.rjust(width) 
-                f.write(rstring+"|\n")
+                for (s, c) in res.capacity:
+                    amount = res.capacity[(s, c)]
+                    if c == "inf":
+                        c = horizon
+                    s = min(s, horizon)
+                    c = min(c, horizon)
+                    for t in range(s, c):
+                        cap[t] += amount
 
-                rstring= str(" ").center(30)
-                        
                 for t in range(horizon):
-                    num=str(cap[t])
-                    rstring+="|"+num.rjust(width) 
-                f.write(rstring+"|\n")
-                f.write("-"*(30+(width+1)*horizon)+"\n")
+                    num = str(cap[t] - residual[t])
+                    rstring += "|" + num.rjust(width)
+                f.write(rstring + "|\n")
+
+                rstring = str(" ").center(30)
+
+                for t in range(horizon):
+                    num = str(cap[t])
+                    rstring += "|" + num.rjust(width)
+                f.write(rstring + "|\n")
+                f.write("-" * (30 + (width + 1) * horizon) + "\n")
         f.close()
 
-    def writeExcel(self,filename="optseq_chart.csv",scale=1):
+    def writeExcel(self, filename="optseq_chart.csv", scale=1):
         """
         Output the gantt's chart as a csv file for printing using Excel.
 
@@ -1070,100 +1072,99 @@ class Model(object):
             >>> model.writeExcel("sample.csv")
 
         """
-        f=open(filename,"w")
-        horizon=0
-        actList=[]
+        f = open(filename, "w")
+        horizon = 0
+        actList = []
         for a in self.activities:
             actList.append(a)
-            act=self.activities[a]
-            horizon=max(act.completion,horizon)
-        #print("planning horizon=",horizon)
-        if scale<=0:
+            act = self.activities[a]
+            horizon = max(act.completion, horizon)
+        # print("planning horizon=",horizon)
+        if scale <= 0:
             print("optseq write scale error")
             exit(0)
-        original_horizon=horizon    
-        horizon=int(horizon/scale)+1
+        original_horizon = horizon
+        horizon = int(horizon / scale) + 1
         actList.sort()
-        title=" activity ,   mode,".center(20)+" duration,"
-        width=len(str(horizon)) #period width =largest index of time        
+        title = " activity ,   mode,".center(20) + " duration,"
+        width = len(str(horizon))  # period width =largest index of time
         for t in range(horizon):
-            num=str(t+1)
-            title+=num.rjust(width)+"," 
-        f.write(title+"\n")
-        for a in actList: #sorted order
-            act=self.activities[a] #act: activity object 
-            actstring=act.name.center(10)[:10]+","            
-            if len(act.modes)>=2:
-                actstring+= str(act.selected).center(10)+","
-                actstring+=str(self.modes[act.selected].duration).center(10)+","
+            num = str(t + 1)
+            title += num.rjust(width) + ","
+        f.write(title + "\n")
+        for a in actList:  # sorted order
+            act = self.activities[a]  # act: activity object
+            actstring = act.name.center(10)[:10] + ","
+            if len(act.modes) >= 2:
+                actstring += str(act.selected).center(10) + ","
+                actstring += str(self.modes[act.selected].duration).center(10) + ","
             else:
-                actstring+= str(act.modes[0].name).center(10)[:10]+","
-                actstring+=str(act.modes[0].duration).center(10)+","
-            execute=[0 for t in range(horizon)]
-            for (s,c) in act.execute:
-                para=act.execute[s,c]
-                for t in range(s,c):
-                    t2=int(t/scale)
-                    execute[t2]=int(para)
+                actstring += str(act.modes[0].name).center(10)[:10] + ","
+                actstring += str(act.modes[0].duration).center(10) + ","
+            execute = [0 for t in range(horizon)]
+            for (s, c) in act.execute:
+                para = act.execute[s, c]
+                for t in range(s, c):
+                    t2 = int(t / scale)
+                    execute[t2] = int(para)
             for t in range(horizon):
-                if execute[t]>=2:
-                    actstring+="*"+str(execute[t]).rjust(width-1)+","
-                elif execute[t]==1:
-                    actstring+=""+"="*(width)+","
-                elif t>=int(act.start/scale) and t<int(act.completion/scale):
-                    actstring+=""+"."*(width)+","
+                if execute[t] >= 2:
+                    actstring += "*" + str(execute[t]).rjust(width - 1) + ","
+                elif execute[t] == 1:
+                    actstring += "" + "=" * (width) + ","
+                elif t >= int(act.start / scale) and t < int(act.completion / scale):
+                    actstring += "" + "." * (width) + ","
                 else:
-                    actstring+=""+" "*width+","
-            f.write(actstring+"\n")
-        resList=[]
+                    actstring += "" + " " * width + ","
+            f.write(actstring + "\n")
+        resList = []
         for r in self.resources:
             resList.append(r)
         resList.sort()
 
         for r in resList:
-            res=self.resources[r]
-            if len(res.terms)==0: #output residual and capacity
-                rstring=res.name.center(30)+", , ,"
-                cap=[0 for t in range(horizon)]
-                residual=[0 for t in range(horizon)]
-                for (s,c) in res.residual:
-                    amount=res.residual[(s,c)]
-                    if c=="inf":
-                        c=horizon
-                    s=min(s,original_horizon)
-                    c=min(c,original_horizon)
-                    s2=int(s/scale)
-                    c2=int(c/scale)
-                    for t in range(s2,c2):
-                        residual[t]+=amount
+            res = self.resources[r]
+            if len(res.terms) == 0:  # output residual and capacity
+                rstring = res.name.center(30) + ", , ,"
+                cap = [0 for t in range(horizon)]
+                residual = [0 for t in range(horizon)]
+                for (s, c) in res.residual:
+                    amount = res.residual[(s, c)]
+                    if c == "inf":
+                        c = horizon
+                    s = min(s, original_horizon)
+                    c = min(c, original_horizon)
+                    s2 = int(s / scale)
+                    c2 = int(c / scale)
+                    for t in range(s2, c2):
+                        residual[t] += amount
 
-                for (s,c) in res.capacity:
-                    amount=res.capacity[(s,c)]
-                    if c=="inf":
-                        c=horizon
-                    s=min(s,original_horizon)
-                    c=min(c,original_horizon)
-                    s2=int(s/scale)
-                    c2=int(c/scale)
-                    for t in range(s2,c2):
-                        cap[t]+=amount
-                        
+                for (s, c) in res.capacity:
+                    amount = res.capacity[(s, c)]
+                    if c == "inf":
+                        c = horizon
+                    s = min(s, original_horizon)
+                    c = min(c, original_horizon)
+                    s2 = int(s / scale)
+                    c2 = int(c / scale)
+                    for t in range(s2, c2):
+                        cap[t] += amount
+
                 for t in range(horizon):
-                    #num=str(cap[t]-residual[t])
-                    rstring+=str(residual[t]) +","
-                f.write(rstring+"\n")
+                    # num=str(cap[t]-residual[t])
+                    rstring += str(residual[t]) + ","
+                f.write(rstring + "\n")
 
-                #rstring= str(" ").center(30)+", , ,"
+                # rstring= str(" ").center(30)+", , ,"
                 #        
-                #for t in range(horizon):
+                # for t in range(horizon):
                 #    num=str(cap[t])
                 #    rstring+=""+num.rjust(width) +","
-                #f.write(rstring+"\n")
-        f.close()    
+                # f.write(rstring+"\n")
+        f.close()
 
-            
-# if __name__=="__main__":
-    
+    # if __name__=="__main__":
+
 ##    m1=Model()
 ##    #resource declaration  
 ##    machine={} #define three machines
@@ -1241,7 +1242,7 @@ class Model(object):
 ##    m1.Params.Makespan=True
 ##    m1.optimize()
 ##    m1.write("chart11.txt")
- 
+
 ##    m1=Model()
 ##
 ##    duration={(1,1):3,(1,2):3,(1,3):3,(2,1):3,(2,2):3,(2,3):3}

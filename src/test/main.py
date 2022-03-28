@@ -74,6 +74,7 @@ for item, repeat in demandlist:
 
     for f, l in temporal:
         model.addTemporal(act[f], act[l])
+
 model.Params.TimeLimit = 1
 model.Params.OutputFlag = True
 model.Params.Makespan = False

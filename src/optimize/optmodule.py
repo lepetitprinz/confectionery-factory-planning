@@ -3,29 +3,6 @@ import networkx as nx
 import datetime as dt
 
 
-def dps(BOM, item, actlist=None, actname=None):
-    if not actlist:
-        actlist = []
-    if not actname:
-        actname = item
-        actlist.append(actname)
-    else:
-        if item in actname:
-            actname = actname[actname.index(item) + len(item) + 1:]
-        if not actname:
-            actname = item
-        else:
-            actname = item + "_" + actname
-        actlist.append(actname)
-    L = BOM.predecessors(item)
-    l = []
-    for i in L:
-        l.append((i, len(BOM[i])))
-    for n, d in sorted(l, key=lambda x: x[1]):
-        dps(BOM, n, actlist, actname)
-    return actlist
-
-
 def make_activities(BOM, item, repeat=1, actlist=None, actname=None, temporal=None):
     """
     BOM: BOMGraph
