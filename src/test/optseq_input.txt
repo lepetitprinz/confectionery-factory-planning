@@ -1,490 +1,174 @@
-resource 1101  
- interval 0 inf capacity 57  
-resource 1108  
- interval 0 inf capacity 142  
-resource 1112  
- interval 0 inf capacity 185  
-resource 1115  
- interval 0 inf capacity 12  
-resource 1119  
- interval 0 inf capacity 3  
-resource 1120  
- interval 0 inf capacity 313  
-resource 1121  
- interval 0 inf capacity 111  
-resource 1122  
- interval 0 inf capacity 6  
-resource 1123  
- interval 0 inf capacity 10  
-resource 1124  
- interval 0 inf capacity 14  
-resource 1201  
- interval 0 inf capacity 135  
-resource 1205  
- interval 0 inf capacity 50  
-resource 1206  
- interval 0 inf capacity 108  
-resource 1207  
- interval 0 inf capacity 53  
-resource 1208  
- interval 0 inf capacity 141  
-resource 1209  
- interval 0 inf capacity 27  
-resource 1210  
- interval 0 inf capacity 3  
-resource 1212  
- interval 0 inf capacity 7  
-resource 1302  
- interval 0 inf capacity 193  
-resource 1303  
- interval 0 inf capacity 17  
-resource 1309  
- interval 0 inf capacity 6  
-resource 1310  
- interval 0 inf capacity 23  
-resource 1311  
- interval 0 inf capacity 66  
-resource 1313  
- interval 0 inf capacity 4  
-resource 1314  
- interval 0 inf capacity 16  
-resource 1315  
- interval 0 inf capacity 18  
-resource 1316  
- interval 0 inf capacity 36  
-resource 1317  
- interval 0 inf capacity 19  
-resource 1318  
- interval 0 inf capacity 24  
-resource 1319  
- interval 0 inf capacity 8  
-resource 1320  
- interval 0 inf capacity 51  
-resource 1321  
- interval 0 inf capacity 79  
-resource 1322  
- interval 0 inf capacity 14  
-resource 1323  
- interval 0 inf capacity 53  
-resource 1324  
- interval 0 inf capacity 120  
-resource 1325  
- interval 0 inf capacity 38  
-resource 1326  
- interval 0 inf capacity 84  
-resource 2101  
- interval 0 inf capacity 19  
-resource 2102  
- interval 0 inf capacity 23  
-resource 2103  
- interval 0 inf capacity 64  
-resource 2104  
- interval 0 inf capacity 88  
-resource 2105  
- interval 0 inf capacity 74  
-resource 2106  
- interval 0 inf capacity 25  
-resource 2107  
- interval 0 inf capacity 56  
-resource 2108  
- interval 0 inf capacity 78  
-resource 2109  
- interval 0 inf capacity 70  
-resource 2110  
- interval 0 inf capacity 71  
-resource 2111  
- interval 0 inf capacity 73  
-resource 2112  
- interval 0 inf capacity 265  
-resource 2113  
- interval 0 inf capacity 138  
-resource 2114  
- interval 0 inf capacity 10  
-resource 2201  
- interval 0 inf capacity 151  
-resource 2202  
- interval 0 inf capacity 17  
-resource 2203  
- interval 0 inf capacity 43  
-resource 2204  
- interval 0 inf capacity 11  
-resource 2209  
- interval 0 inf capacity 26  
-resource 2210  
- interval 0 inf capacity 20  
-resource 2213  
- interval 0 inf capacity 5  
-resource 2214  
- interval 0 inf capacity 29  
-resource 2215  
- interval 0 inf capacity 23  
-resource 2216  
- interval 0 inf capacity 25  
-resource 2217  
- interval 0 inf capacity 14  
-resource 2218  
- interval 0 inf capacity 31  
-resource 2219  
- interval 0 inf capacity 30  
-resource 2220  
- interval 0 inf capacity 19  
-resource 2301  
- interval 0 inf capacity 73  
-resource 2302  
- interval 0 inf capacity 3  
-resource 2303  
- interval 0 inf capacity 91  
-resource 2304  
- interval 0 inf capacity 27  
-resource 2305  
- interval 0 inf capacity 63  
-resource 2306  
- interval 0 inf capacity 87  
-resource 3101  
- interval 0 inf capacity 354  
-resource 3102  
- interval 0 inf capacity 238  
-resource 3103  
- interval 0 inf capacity 53  
-resource 3104  
- interval 0 inf capacity 57  
-resource 3105  
- interval 0 inf capacity 190  
-resource 3106  
- interval 0 inf capacity 34  
-resource 3107  
- interval 0 inf capacity 91  
-resource 3108  
- interval 0 inf capacity 263  
-resource 3201  
- interval 0 inf capacity 20  
-resource 3202  
- interval 0 inf capacity 24  
-resource 3203  
- interval 0 inf capacity 150  
-resource 3204  
- interval 0 inf capacity 243  
-resource 3205  
- interval 0 inf capacity 85  
-resource 3207  
- interval 0 inf capacity 86  
-resource 4101  
- interval 0 inf capacity 154  
-resource 4102  
- interval 0 inf capacity 20  
-resource 4103  
- interval 0 inf capacity 74  
-resource 4104  
- interval 0 inf capacity 34  
-resource 4105  
- interval 0 inf capacity 74  
-resource 4106  
- interval 0 inf capacity 153  
-resource 4107  
- interval 0 inf capacity 74  
-resource 4108  
- interval 0 inf capacity 93  
-resource 4110  
- interval 0 inf capacity 25  
-resource 4111  
- interval 0 inf capacity 110  
-resource 4112  
- interval 0 inf capacity 61  
-resource 4113  
- interval 0 inf capacity 82  
-resource 4114  
- interval 0 inf capacity 67  
-resource 4115  
- interval 0 inf capacity 86  
-resource 4201  
- interval 0 inf capacity 427  
-resource 4203  
- interval 0 inf capacity 157  
-resource 4204  
- interval 0 inf capacity 211  
-resource 4205  
- interval 0 inf capacity 40  
-resource 4206  
- interval 0 inf capacity 66  
-resource 4208  
- interval 0 inf capacity 67  
-resource 4210  
- interval 0 inf capacity 77  
-resource 4211  
- interval 0 inf capacity 52  
-resource 4214  
- interval 0 inf capacity 5  
-resource 4215  
- interval 0 inf capacity 11  
-resource 4220  
- interval 0 inf capacity 12  
-resource 5101  
- interval 0 inf capacity 68  
-resource 5102  
- interval 0 inf capacity 29  
-resource 5103  
- interval 0 inf capacity 3  
-resource 5104  
- interval 0 inf capacity 22  
-resource 5105  
- interval 0 inf capacity 127  
-resource 6110  
- interval 0 inf capacity 47  
-resource 6111  
- interval 0 inf capacity 96  
-resource 6112  
- interval 0 inf capacity 160  
-resource 6113  
- interval 0 inf capacity 49  
-resource 6114  
- interval 0 inf capacity 7  
-resource 6115  
- interval 0 inf capacity 42  
-resource 6116  
- interval 0 inf capacity 225  
-resource 6117  
- interval 0 inf capacity 100  
-resource 6118  
- interval 0 inf capacity 23  
-resource 6119  
- interval 0 inf capacity 32  
-resource 6120  
- interval 0 inf capacity 10  
-resource 6121  
- interval 0 inf capacity 94  
-resource 6122  
- interval 0 inf capacity 48  
-resource 6123  
- interval 0 inf capacity 81  
-resource 6127  
- interval 0 inf capacity 13  
-resource 6128  
- interval 0 inf capacity 111  
-resource 7110  
- interval 0 inf capacity 28  
-resource 7111  
- interval 0 inf capacity 12  
-resource 7120  
- interval 0 inf capacity 10  
-resource 7121  
- interval 0 inf capacity 36  
-resource 7122  
- interval 0 inf capacity 9  
-resource 7123  
- interval 0 inf capacity 3  
-resource 7130  
- interval 0 inf capacity 49  
-resource 7131  
- interval 0 inf capacity 3  
-resource 7132  
+resource RES_ZEC_PACK  
  interval 0 inf capacity 1  
-resource 7141  
- interval 0 inf capacity 72  
-resource 7150  
- interval 0 inf capacity 27  
-resource 7151  
- interval 0 inf capacity 80  
-resource 7160  
- interval 0 inf capacity 203  
-resource 7170  
- interval 0 inf capacity 66  
-resource 7180  
- interval 0 inf capacity 3  
-resource 7190  
- interval 0 inf capacity 95  
-resource 7200  
- interval 0 inf capacity 20  
-resource 8110  
- interval 0 inf capacity 275  
-resource 8111  
- interval 0 inf capacity 59  
-resource 8112  
- interval 0 inf capacity 143  
-resource 8113  
- interval 0 inf capacity 352  
-resource 8115  
- interval 0 inf capacity 108  
-resource 8116  
- interval 0 inf capacity 1030  
-resource 8117  
- interval 0 inf capacity 100  
-resource 9011  
+resource RES_HER_PACK  
  interval 0 inf capacity 1  
-resource X100  
- interval 0 inf capacity 6  
-resource X101  
- interval 0 inf capacity 986  
-resource X102  
- interval 0 inf capacity 123  
-resource X103  
- interval 0 inf capacity 112  
-resource X104  
- interval 0 inf capacity 72  
-resource X105  
- interval 0 inf capacity 9  
-resource X106  
- interval 0 inf capacity 8  
-resource X107  
+resource RES_ZEC  
  interval 0 inf capacity 1  
-resource X108  
- interval 0 inf capacity 4  
-resource X109  
+resource RES_HER  
  interval 0 inf capacity 1  
-resource X110  
- interval 0 inf capacity 100  
-resource X111  
- interval 0 inf capacity 6  
-resource X113  
- interval 0 inf capacity 1  
-resource X114  
- interval 0 inf capacity 5  
-resource X115  
- interval 0 inf capacity 96  
-resource X116  
- interval 0 inf capacity 14  
-resource X117  
- interval 0 inf capacity 9  
-resource X118  
- interval 0 inf capacity 18  
-resource X119  
- interval 0 inf capacity 11  
-resource X120  
- interval 0 inf capacity 44  
-resource X121  
- interval 0 inf capacity 7  
-resource X122  
- interval 0 inf capacity 6  
-resource X123  
- interval 0 inf capacity 59  
-resource X124  
- interval 0 inf capacity 259  
-resource X125  
- interval 0 inf capacity 146  
-resource X127  
- interval 0 inf capacity 16  
-resource X128  
- interval 0 inf capacity 51  
-resource X129  
- interval 0 inf capacity 24  
-resource X130  
- interval 0 inf capacity 102  
-resource X131  
- interval 0 inf capacity 6  
-resource X133  
- interval 0 inf capacity 5  
-resource X143  
- interval 0 inf capacity 10  
-resource X145  
- interval 0 inf capacity 2  
-resource X146  
- interval 0 inf capacity 17  
-resource X148  
- interval 0 inf capacity 12  
-resource X155  
- interval 0 inf capacity 1  
-resource X161  
- interval 0 inf capacity 4  
-resource X175  
- interval 0 inf capacity 50  
-resource X200  
- interval 0 inf capacity 8  
-resource X201  
- interval 0 inf capacity 26  
-resource X202  
- interval 0 inf capacity 249  
-resource X203  
- interval 0 inf capacity 33  
-resource X208  
- interval 0 inf capacity 3  
-resource X211  
- interval 0 inf capacity 12  
-resource X213  
- interval 0 inf capacity 1  
-resource X216  
- interval 0 inf capacity 435  
-resource X217  
- interval 0 inf capacity 309  
-resource X218  
- interval 0 inf capacity 806  
-resource X219  
- interval 0 inf capacity 45  
-resource X220  
- interval 0 inf capacity 94  
-resource X221  
- interval 0 inf capacity 217  
-resource X224  
- interval 0 inf capacity 1  
-resource X229  
- interval 0 inf capacity 16  
-resource X239  
- interval 0 inf capacity 33  
-resource X245  
- interval 0 inf capacity 1  
-resource X247  
- interval 0 inf capacity 296  
-resource X267  
- interval 0 inf capacity 44  
-resource X272  
- interval 0 inf capacity 1  
-resource X276  
- interval 0 inf capacity 2  
-resource X280  
- interval 0 inf capacity 2  
-resource 0000  
- interval 0 inf capacity 999999  
-activity BADGE0 
- duedate 399256.82477393333  
+activity AB0 
+ duedate 8640  
  weight 1  
- mode  duration 99  
- 2214 interval 0 17 requirement 1  
- 2215 interval 17 34 requirement 1  
- 2216 interval 34 51 requirement 1  
- 2217 interval 51 65 requirement 1  
- 2218 interval 65 82 requirement 1  
- 2219 interval 82 99 requirement 1  
- break interval 0 0  
- break interval 17 17  
- break interval 34 34  
- break interval 51 51  
- break interval 65 65  
- break interval 82 82   
-activity BHG0_BADGE0 
- mode  duration 0  
- 0000 interval 0 0 requirement 1   
-activity BEJDJ0_BADGE0 
- mode  duration 0  
- 0000 interval 0 0 requirement 1   
-activity DCEF0 
- duedate 399256.82477393333  
+ mode  duration 60  
+ RES_HER_PACK interval 0 60 requirement 1  
+ break interval 0 0   
+activity AE0_AB0 
+ mode  duration 20  
+ RES_HER interval 0 20 requirement 1  
+ break interval 0 0   
+activity AE1_AB0 
+ mode  duration 20  
+ RES_HER interval 0 20 requirement 1  
+ break interval 0 0   
+activity AE2_AB0 
+ mode  duration 20  
+ RES_HER interval 0 20 requirement 1  
+ break interval 0 0   
+activity AE3_AB0 
+ mode  duration 20  
+ RES_HER interval 0 20 requirement 1  
+ break interval 0 0   
+activity AE4_AB0 
+ mode  duration 20  
+ RES_HER interval 0 20 requirement 1  
+ break interval 0 0   
+activity AE5_AB0 
+ mode  duration 20  
+ RES_HER interval 0 20 requirement 1  
+ break interval 0 0   
+activity AE6_AB0 
+ mode  duration 20  
+ RES_HER interval 0 20 requirement 1  
+ break interval 0 0   
+activity AE7_AB0 
+ mode  duration 20  
+ RES_HER interval 0 20 requirement 1  
+ break interval 0 0   
+activity AE8_AB0 
+ mode  duration 20  
+ RES_HER interval 0 20 requirement 1  
+ break interval 0 0   
+activity AE9_AB0 
+ mode  duration 20  
+ RES_HER interval 0 20 requirement 1  
+ break interval 0 0   
+activity AE10_AB0 
+ mode  duration 20  
+ RES_HER interval 0 20 requirement 1  
+ break interval 0 0   
+activity AE11_AB0 
+ mode  duration 20  
+ RES_HER interval 0 20 requirement 1  
+ break interval 0 0   
+activity AC0 
+ duedate 14400  
  weight 1  
- mode  duration 99  
- 2214 interval 0 17 requirement 1  
- 2215 interval 17 34 requirement 1  
- 2216 interval 34 51 requirement 1  
- 2217 interval 51 65 requirement 1  
- 2218 interval 65 82 requirement 1  
- 2219 interval 82 99 requirement 1  
- break interval 0 0  
- break interval 17 17  
- break interval 34 34  
- break interval 51 51  
- break interval 65 65  
- break interval 82 82   
-activity BAEGA0_DCEF0 
- mode  duration 0  
- 0000 interval 0 0 requirement 1   
-activity BFFEJ0_DCEF0 
- mode  duration 0  
- 0000 interval 0 0 requirement 1   
-activity BCJBF0_DCEF0 
- mode  duration 0  
- 0000 interval 0 0 requirement 1   
-activity IFDF0_DCEF0 
- mode  duration 0  
- 0000 interval 0 0 requirement 1   
-temporal BHG0_BADGE0 BADGE0  type CS delay 0  
-temporal BEJDJ0_BADGE0 BADGE0  type CS delay 0  
-temporal BAEGA0_DCEF0 DCEF0  type CS delay 0  
-temporal BFFEJ0_DCEF0 DCEF0  type CS delay 0  
-temporal BCJBF0_DCEF0 DCEF0  type CS delay 0  
-temporal IFDF0_DCEF0 DCEF0  type CS delay 0 
+ mode  duration 40  
+ RES_HER_PACK interval 0 40 requirement 1  
+ break interval 0 0   
+activity AE0_AC0 
+ mode  duration 20  
+ RES_HER interval 0 20 requirement 1  
+ break interval 0 0   
+activity AE1_AC0 
+ mode  duration 20  
+ RES_HER interval 0 20 requirement 1  
+ break interval 0 0   
+activity AE2_AC0 
+ mode  duration 20  
+ RES_HER interval 0 20 requirement 1  
+ break interval 0 0   
+activity AE3_AC0 
+ mode  duration 20  
+ RES_HER interval 0 20 requirement 1  
+ break interval 0 0   
+activity AE4_AC0 
+ mode  duration 20  
+ RES_HER interval 0 20 requirement 1  
+ break interval 0 0   
+activity AD0 
+ duedate 10080  
+ weight 1  
+ mode  duration 20  
+ RES_HER_PACK interval 0 20 requirement 1  
+ break interval 0 0   
+activity AE0_AD0 
+ mode  duration 20  
+ RES_HER interval 0 20 requirement 1  
+ break interval 0 0   
+activity AF0 
+ duedate 7200  
+ weight 1  
+ mode  duration 20  
+ RES_ZEC_PACK interval 0 20 requirement 1  
+ break interval 0 0   
+activity AA0_AF0 
+ mode  duration 10  
+ RES_ZEC interval 0 10 requirement 1  
+ break interval 0 0   
+activity AA1_AF0 
+ mode  duration 10  
+ RES_ZEC interval 0 10 requirement 1  
+ break interval 0 0   
+activity AG0 
+ duedate 11520  
+ weight 1  
+ mode  duration 30  
+ RES_ZEC_PACK interval 0 30 requirement 1  
+ break interval 0 0   
+activity AA0_AG0 
+ mode  duration 10  
+ RES_ZEC interval 0 10 requirement 1  
+ break interval 0 0   
+activity AA1_AG0 
+ mode  duration 10  
+ RES_ZEC interval 0 10 requirement 1  
+ break interval 0 0   
+activity AA2_AG0 
+ mode  duration 10  
+ RES_ZEC interval 0 10 requirement 1  
+ break interval 0 0   
+activity AA3_AG0 
+ mode  duration 10  
+ RES_ZEC interval 0 10 requirement 1  
+ break interval 0 0   
+activity AA4_AG0 
+ mode  duration 10  
+ RES_ZEC interval 0 10 requirement 1  
+ break interval 0 0   
+activity AH0 
+ duedate 0  
+ weight 1  
+ mode  duration 10  
+ RES_ZEC_PACK interval 0 10 requirement 1  
+ break interval 0 0   
+activity AA0_AH0 
+ mode  duration 10  
+ RES_ZEC interval 0 10 requirement 1  
+ break interval 0 0   
+temporal AE0_AB0 AB0  type CS delay 0  
+temporal AE1_AB0 AB0  type CS delay 0  
+temporal AE2_AB0 AB0  type CS delay 0  
+temporal AE3_AB0 AB0  type CS delay 0  
+temporal AE4_AB0 AB0  type CS delay 0  
+temporal AE5_AB0 AB0  type CS delay 0  
+temporal AE6_AB0 AB0  type CS delay 0  
+temporal AE7_AB0 AB0  type CS delay 0  
+temporal AE8_AB0 AB0  type CS delay 0  
+temporal AE9_AB0 AB0  type CS delay 0  
+temporal AE10_AB0 AB0  type CS delay 0  
+temporal AE11_AB0 AB0  type CS delay 0  
+temporal AE0_AC0 AC0  type CS delay 0  
+temporal AE1_AC0 AC0  type CS delay 0  
+temporal AE2_AC0 AC0  type CS delay 0  
+temporal AE3_AC0 AC0  type CS delay 0  
+temporal AE4_AC0 AC0  type CS delay 0  
+temporal AE0_AD0 AD0  type CS delay 0  
+temporal AA0_AF0 AF0  type CS delay 0  
+temporal AA1_AF0 AF0  type CS delay 0  
+temporal AA0_AG0 AG0  type CS delay 0  
+temporal AA1_AG0 AG0  type CS delay 0  
+temporal AA2_AG0 AG0  type CS delay 0  
+temporal AA3_AG0 AG0  type CS delay 0  
+temporal AA4_AG0 AG0  type CS delay 0  
+temporal AA0_AH0 AH0  type CS delay 0 

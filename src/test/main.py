@@ -58,7 +58,6 @@ for item, repeat in demandlist:
             print("debugging #002")
             print(ddf)
 
-            ddf.minutes[index]
             act[a] = model.addActivity(name=a, duedate=int(ddf.minutes[index]))
         else:
             act[a] = model.addActivity(name=a)

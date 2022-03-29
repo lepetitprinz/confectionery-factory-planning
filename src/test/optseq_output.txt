@@ -1,4 +1,93 @@
-# reading data ...
-line 436: parse error befor/at `.'
+# reading data ... done: 0.00(s)
+# random seed: 1
+# tabu tenure: 1
+# cpu time limit: 1.00(s)
+# iteration limit: 1073741823
+# computing all-pairs longest paths and strongly connected components ... done
+#scc 34
+objective value = 30 (cpu time = 0.00(s), iteration = 0)
+0: 0.00(s): 30/30
+objective value = 20 (cpu time = 0.00(s), iteration = 1)
 
-no feasible schedule found.
+--- best solution ---
+source,---, 0 0
+sink,---, 420 420
+AB0,---, 360 360--420 420
+AE0_AB0,---, 0 240--260 260
+AE1_AB0,---, 0 280--300 300
+AE2_AB0,---, 0 120--140 140
+AE3_AB0,---, 0 300--320 320
+AE4_AB0,---, 0 220--240 240
+AE5_AB0,---, 0 100--120 120
+AE6_AB0,---, 0 340--360 360
+AE7_AB0,---, 0 60--80 80
+AE8_AB0,---, 0 320--340 340
+AE9_AB0,---, 0 0--20 20
+AE10_AB0,---, 0 200--220 220
+AE11_AB0,---, 0 80--100 100
+AC0,---, 280 280--320 320
+AE0_AC0,---, 0 160--180 180
+AE1_AC0,---, 0 260--280 280
+AE2_AC0,---, 0 20--40 40
+AE3_AC0,---, 0 180--200 200
+AE4_AC0,---, 0 140--160 160
+AD0,---, 60 60--80 80
+AE0_AD0,---, 0 40--60 60
+AF0,---, 80 100--120 120
+AA0_AF0,---, 0 70--80 80
+AA1_AF0,---, 0 10--20 20
+AG0,---, 70 70--100 100
+AA0_AG0,---, 0 20--30 30
+AA1_AG0,---, 0 60--70 70
+AA2_AG0,---, 0 40--50 50
+AA3_AG0,---, 0 50--60 60
+AA4_AG0,---, 0 30--40 40
+AH0,---, 10 10--20 20
+AA0_AH0,---, 0 0--10 10
+--- tardy activity ---
+AH0: 20
+--- resource residuals ---
+RES_ZEC_PACK: [0,10] 1 [10,20] 0 [20,70] 1 [70,120] 0 [120,1073741823] 1 
+RES_HER_PACK: [0,60] 1 [60,80] 0 [80,280] 1 [280,320] 0 [320,360] 1 [360,420] 0 
+RES_ZEC: [0,80] 0 [80,1073741823] 1 
+RES_HER: [0,360] 0 [360,1073741823] 1 
+
+--- best activity list ---
+source ---
+AE9_AB0 ---
+AE2_AC0 ---
+AA0_AH0 ---
+AA1_AF0 ---
+AE0_AD0 ---
+AD0 ---
+AE7_AB0 ---
+AE11_AB0 ---
+AE5_AB0 ---
+AE2_AB0 ---
+AE4_AC0 ---
+AH0 ---
+AA0_AG0 ---
+AE0_AC0 ---
+AE3_AC0 ---
+AA4_AG0 ---
+AE10_AB0 ---
+AE4_AB0 ---
+AE0_AB0 ---
+AE1_AC0 ---
+AC0 ---
+AE1_AB0 ---
+AE3_AB0 ---
+AA2_AG0 ---
+AE8_AB0 ---
+AE6_AB0 ---
+AB0 ---
+AA3_AG0 ---
+AA1_AG0 ---
+AG0 ---
+AA0_AF0 ---
+AF0 ---
+sink ---
+
+objective value = 20
+cpu time = 0.00/1.00(s)
+iteration = 2/4319

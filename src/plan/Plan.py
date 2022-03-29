@@ -16,16 +16,18 @@ class Plan(object):
         self.demand_item = None
 
         # Model configuration
-        self.time_limit = None
+        self.time_limit = 10
         self.output_flag = True
         self.make_span = False
 
     def init(self, dmd_qty, bom_route, operation):
         self.demand_item = set(dmd_qty.index)
 
+        # Initiate model
         model = Model()
 
-        model, res = self._add_resource(model=model, res=self.mst_map['res'])
+        model, res = self._add_resource_new(model=model, res=self.mst_map['res'])
+        # model, res = self._add_resource(model=model, res=self.mst_map['res'])
         model = self._add_activity(model=model, demand=dmd_qty, bom_route=bom_route, oper=operation, res=res)
 
         model.Params.TimeLimit = self.time_limit
@@ -68,6 +70,10 @@ class Plan(object):
         f.close()
 
         self.bestsol_write_csv(line, oper=operation)
+
+    def _add_resource_new(self, model: Model, res):
+        print("")
+        pass
 
     @staticmethod
     def _add_resource(model: Model, res):

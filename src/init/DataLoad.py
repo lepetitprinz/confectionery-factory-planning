@@ -48,14 +48,12 @@ class DataLoad(object):
         return demand
 
     def load_mst(self) -> dict:
-        bom = self.io.get_df_from_db(sql=self.sql_conf.sql_bom_mst())
-        item = self.io.get_df_from_db(sql=self.sql_conf.sql_item_route())
+        bom = self.io.get_df_from_db(sql=self.sql_conf.sql_bom_route())
         oper = self.io.get_df_from_db(sql=self.sql_conf.sql_operation())
-        res = self.io.get_df_from_db(sql=self.sql_conf.sql_res_mst())
+        res = self.io.get_df_from_db(sql=self.sql_conf.sql_res_cnt_capa())
 
         # Filtering
         bom = bom[['parent_item', 'child_item', 'rate']]
-        item = item[['item_cd', 'res_cd']]
         oper = oper[['item_cd', 'operation_no', 'wc_cd', 'schd_time', 'time_uom']]
 
         # Rename columns
@@ -63,7 +61,6 @@ class DataLoad(object):
 
         mst = {
             'bom': bom,
-            'item': item,
             'oper': oper,
             'res': res
         }
