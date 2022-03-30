@@ -21,40 +21,39 @@ class SqlConfig(object):
         return sql
 
     @staticmethod
-    def sql_res_item():
+    def sql_res_grp_item():
         sql = """
            SELECT PLANT_CD
                 , ITEM_CD
-                , PROD_VER_CD  AS RES_CD
+                , PROD_VER_CD  AS RES_GRP_CD
              FROM M4S_I305400
         """
         return sql
 
     @staticmethod
-    def sql_res_cnt_capa():
+    def sql_res_grp():
         sql = """
             SELECT PLANT_CD
-                 , RES_GRP_CD AS RES_CD
-                 , COUNT(RES_CD) AS RES_CNT
-                 , AVG(RES_CAPA_VAL) AS RES_CAPA
+                 , RES_GRP_CD
+                 , RES_CD
+                 , RES_CAPA_VAL AS CAPACITY
+                 , CAPA_UNIT_CD
               FROM M4S_I305090
-             GROUP BY PLANT_CD
-                    , RES_GRP_CD
+             WHERE USE_YN = 'Y'
         """
         return sql
 
     @staticmethod
     def sql_demand():
         sql = """
-            SELECT TOP 1 IF_VRSN_ID
-                 , FP_VRSN_ID
-                 , FP_KEY AS DEMAND_ID
+            SELECT TOP 1 FP_VRSN_ID
+                 , FP_KEY AS DMD_ID
                  , DP_KEY
-                 , ITEM_CD
                  , PLANT_CD 
-                 , RES_CD AS WC_CD
+                 , ITEM_CD
+                 , RES_CD
                  --, REQ_FP_YYMMDD
-                 , '20221231' AS DUEDATE
+                 , '20221231' AS DUE_DATE
                  --, REQ_FP_QTY AS QTY
                  , 1 AS QTY
               FROM M4S_I405020

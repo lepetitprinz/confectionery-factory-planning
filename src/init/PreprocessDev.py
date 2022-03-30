@@ -1,6 +1,7 @@
 import datetime
 import common.util as util
 
+from typing import List, Tuple, Dict, Any
 import numpy as np
 import pandas as pd
 import networkx as nx
@@ -11,9 +12,9 @@ class PreprocessDev(object):
     # Column name setting
     col_plant = 'plant_cd'
     col_sku = 'item_cd'
+    col_res_grp = 'res_grp_cd'
     col_res = 'res_cd'
-    col_res_cnt = 'res_cnt'
-    col_res_capacity = 'res_capa'
+    col_capacity = 'capacity'
     col_qty = 'qty'
     col_route_from = 'from_item'
     col_route_to = 'to_item'
@@ -21,6 +22,10 @@ class PreprocessDev(object):
     col_from_to_rate = 'rate'
     col_duration = 'duration'
     col_due_date = 'due_date'
+
+    # Column usage setting
+    use_col_dmd = ['dmd_id', 'item_cd', 'qty', 'due_date']
+    use_col_res_grp = ['plant_cd', 'res_grp_cd', 'res_cd', 'capacity']
 
     def __init__(self):
         # configuration
@@ -32,28 +37,29 @@ class PreprocessDev(object):
         self.res_map = {}
 
     def set_dmd_info(self, data: pd.DataFrame):
-        # rename columns
-        data = data.rename(columns={'wc_cd': self.col_res, 'duedate': self.col_due_date})
-
         # Get plant list of demand list
         dmd_plant_list = list(set(data[self.col_plant]))
 
         # Change data type
-        data[self.col_qty] = np.ceil(data[self.col_qty])
         data[self.col_sku] = data[self.col_sku].astype(str)
         data[self.col_res] = data[self.col_res].astype(str)
         data[self.col_due_date] = data[self.col_due_date].astype(str)
         data[self.col_due_date] = pd.to_datetime(data[self.col_due_date])
+        data[self.col_qty] = np.ceil(data[self.col_qty]).astype(int)    # Ceiling quantity
 
         # Add columns
         data = self.calc_deadline(data=data)
 
         # group demand by each plant
-        dmd_by_plant = {}
-        dmd_plant_item_map = {}
+        dmd_by_plant, dmd_plant_item_map = {}, {}
         for plant in dmd_plant_list:
+            # Filter by each plant
             dmd = data[data[self.col_plant] == plant]
-            dmd_by_plant[plant] = dmd
+
+            # Convert form of demand data
+            dmd_by_plant[plant] = self.convert_dmd_form(data=dmd)
+
+            # all of demand item list by plant
             dmd_plant_item_map[plant] = list(set(dmd[self.col_sku]))
 
         self.dmd_plant_list = dmd_plant_list
@@ -61,26 +67,40 @@ class PreprocessDev(object):
 
         return dmd_plant_list, dmd_by_plant
 
-    def set_res_cnt_capa(self, data) -> dict:
+    def convert_dmd_form(self, data: pd.DataFrame) -> List[Tuple[Any]]:
+        data_use = data[self.use_col_dmd].copy()
+        data_tuple = [tuple(row) for row in data_use.to_numpy()]
+
+        return data_tuple
+
+    def set_res_grp(self, data) -> dict:
+        # Choose columns used in model
+        data = data[self.use_col_res_grp].copy()
+
         # Change data type
         data[self.col_res] = data[self.col_res].astype(str)
-        data[self.col_res_cnt] = data[self.col_res_cnt].astype(int)
-        data[self.col_res_capacity] = data[self.col_res_capacity].astype(int)
+        data[self.col_capacity] = data[self.col_capacity].astype(int)
 
         # Choose plants of demand list
         data = data[data[self.col_plant].isin(self.dmd_plant_list)].copy()
 
         # Group resource by each plant
-        res_cnt_capa_by_plant = {}
+        res_grp_by_plant = {}
         for plant in self.dmd_plant_list:
-            res_cnt_capa = data[data[self.col_plant] == plant]
-            res_cnt_capa = res_cnt_capa[[self.col_res, self.col_res_cnt]].set_index(self.col_res)
-            res_cnt_capa_map = res_cnt_capa.to_dict()[self.col_res_cnt]
-            res_cnt_capa_by_plant[plant] = res_cnt_capa_map
+            res_grp_df = data[data[self.col_plant] == plant]
 
-        return res_cnt_capa_by_plant
+            res_grp_to_res = {}
+            res_grp_list = list(set(res_grp_df[self.col_res_grp].values))
+            for res_grp in res_grp_list:
+                res_grp_filtered = res_grp_df[res_grp_df[self.col_res_grp] == res_grp].copy()
+                res_grp_to_res[res_grp] = [tuple(row) for row in
+                                           res_grp_filtered[[self.col_res, self.col_capacity]].to_numpy()]
 
-    def set_res_item(self, data) -> dict:
+            res_grp_by_plant[plant] = res_grp_to_res
+
+        return res_grp_by_plant
+
+    def set_res_grp_item(self, data) -> dict:
         # Change data type
         data[self.col_res] = data[self.col_res].astype(str)
         data[self.col_sku] = data[self.col_sku].astype(str)

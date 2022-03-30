@@ -25,8 +25,9 @@ class Plan(object):
 
         # Initiate model
         model = Model()
+        model.Params
 
-        model, res = self._add_resource_new(model=model, res=self.mst_map['res'])
+        model, res = self._add_resource(model=model, res=self.mst_map['res'])
         # model, res = self._add_resource(model=model, res=self.mst_map['res'])
         model = self._add_activity(model=model, demand=dmd_qty, bom_route=bom_route, oper=operation, res=res)
 
@@ -70,10 +71,6 @@ class Plan(object):
         f.close()
 
         self.bestsol_write_csv(line, oper=operation)
-
-    def _add_resource_new(self, model: Model, res):
-        print("")
-        pass
 
     @staticmethod
     def _add_resource(model: Model, res):

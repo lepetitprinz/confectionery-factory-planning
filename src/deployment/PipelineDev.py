@@ -2,7 +2,7 @@ from dao.DataIO import DataIO
 from common.SqlConfig import SqlConfig
 from init.DataLoadDev import DataLoadDev
 from init.PreprocessDev import PreprocessDev
-from plan.Plan import Plan
+from Model.OptSeqModel import OptSeqModel
 
 
 class PipelineDev(object):
@@ -11,7 +11,7 @@ class PipelineDev(object):
         self.sql_conf = SqlConfig()
 
         # Factory Information
-        self.dmd_fac_list = []
+        self.dmd_plant_list = []
         self.mapping_info = {}
         self.mst = {}
 
@@ -26,20 +26,28 @@ class PipelineDev(object):
         # Data preprocessing
         prep = PreprocessDev()
 
-        self.dmd_fac_list, dmd_by_plant = prep.set_dmd_info(data=demand)    # Demand
-        res_cnt_capa_by_plant = prep.set_res_cnt_capa(data=mst['res_cnt_capa'])    # Resource
-        res_item_by_plant = prep.set_res_item(data=mst['res_item'])
-        bom_by_plant = prep.set_bom_route_info(data=mst['bom_route'])
-        oper_by_plant = prep.set_oper_info(data=mst['operation'])
+        # Demand
+        self.dmd_plant_list, dmd_by_plant = prep.set_dmd_info(data=demand)    # Demand
 
-        mst_map, demand, dmd_qty, bom_route, operation = prep.run(mst=mst, demand=demand)
+        # Resource
+        res_grp_by_plant = prep.set_res_grp(data=mst['resource'])    # Resource
+        res_grp_item_by_plant = prep.set_res_grp_item(data=mst['res_grp_item'])
+
+        # Bom route
+        bom_by_plant = prep.set_bom_route_info(data=mst['bom_route'])
+        # oper_by_plant = prep.set_oper_info(data=mst['operation'])
 
         # Model
-        plan = Plan(mst=mst, mst_map=mst_map, demand=demand)
-        model = plan.init(
-            dmd_qty=dmd_qty,
-            bom_route=bom_route,
-            operation=operation
-        )
-        plan.run(model=model)
-        # plan.after_process(operation=operation)
+        for plant in self.dmd_plant_list:
+            opt_seq = OptSeqModel(
+                item_res_grp=None,
+                res_grp=res_grp_by_plant[plant],
+                res_grp_item=res_grp_item_by_plant[plant],
+                res_grp_duration={}
+            )
+
+            # Initialize model
+            model = opt_seq.init(
+                dmd_list=dmd_by_plant[plant]
+            )
+            # plan.after_process(operation=operation)

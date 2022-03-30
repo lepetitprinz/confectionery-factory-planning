@@ -1,6 +1,16 @@
 import string
 
 
+def generate_name(a: str, b: str):
+    name = a + '_' + b
+    return name
+
+
+def generate_route(from_nm: str, to_nm: str):
+    route = from_nm + '-' + to_nm
+    return route
+
+
 def generate_alphabet_code(n, b):
     code = []
     alphabet = string.ascii_uppercase
