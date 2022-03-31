@@ -9,7 +9,11 @@ from collections import defaultdict
 
 
 class PreprocessDev(object):
+    # Time setting
+    time_uom = 'sec'    # min / sec
+
     # Column name setting
+    col_dmd = 'dmd_id'
     col_plant = 'plant_cd'
     col_sku = 'item_cd'
     col_res_grp = 'res_grp_cd'
@@ -26,6 +30,7 @@ class PreprocessDev(object):
     # Column usage setting
     use_col_dmd = ['dmd_id', 'item_cd', 'qty', 'due_date']
     use_col_res_grp = ['plant_cd', 'res_grp_cd', 'res_cd', 'capacity']
+    use_col_item_res_duration = ['plant_cd', 'item_cd', 'res_grp_cd', 'duration']
 
     def __init__(self):
         # configuration
@@ -51,7 +56,7 @@ class PreprocessDev(object):
         data = self.calc_deadline(data=data)
 
         # group demand by each plant
-        dmd_by_plant, dmd_plant_item_map = {}, {}
+        dmd_by_plant, dmd_plant_item_map, dmd_due_date = {}, {}, {}
         for plant in dmd_plant_list:
             # Filter by each plant
             dmd = data[data[self.col_plant] == plant]
@@ -62,16 +67,25 @@ class PreprocessDev(object):
             # all of demand item list by plant
             dmd_plant_item_map[plant] = list(set(dmd[self.col_sku]))
 
+            dmd_due_date[plant] = self.set_dmd_due_date(data=dmd)
+
         self.dmd_plant_list = dmd_plant_list
         self.dmd_plant_item_map = dmd_plant_item_map
 
-        return dmd_plant_list, dmd_by_plant
+        return dmd_plant_list, dmd_by_plant, dmd_due_date
 
     def convert_dmd_form(self, data: pd.DataFrame) -> List[Tuple[Any]]:
         data_use = data[self.use_col_dmd].copy()
         data_tuple = [tuple(row) for row in data_use.to_numpy()]
 
         return data_tuple
+
+    def set_dmd_due_date(self, data: pd.DataFrame):
+        dmd_due_date = defaultdict(lambda: defaultdict())
+        for dmd, item, due_date in zip(data[self.col_dmd], data[self.col_sku], data[self.col_due_date]):
+            dmd_due_date[dmd][item] = due_date
+
+        return dmd_due_date
 
     def set_res_grp(self, data) -> dict:
         # Choose columns used in model
@@ -100,9 +114,9 @@ class PreprocessDev(object):
 
         return res_grp_by_plant
 
-    def set_res_grp_item(self, data) -> dict:
+    def set_item_res_grp(self, data: pd.DataFrame) -> dict:
         # Change data type
-        data[self.col_res] = data[self.col_res].astype(str)
+        data[self.col_res_grp] = data[self.col_res_grp].astype(str)
         data[self.col_sku] = data[self.col_sku].astype(str)
 
         # Choose plants of demand list
@@ -117,14 +131,43 @@ class PreprocessDev(object):
             res_item = res_item[res_item[self.col_sku].isin(self.dmd_plant_item_map[plant])]
 
             res_item_list = defaultdict(list)
-            for res, item in zip(res_item[self.col_res], res_item[self.col_sku]):
+            for res, item in zip(res_item[self.col_res_grp], res_item[self.col_sku]):
                 res_item_list[item].append(res)
 
             res_item_by_plant[plant] = res_item_list
 
         return res_item_by_plant
 
-    def set_bom_route_info(self, data):
+    def set_item_res_duration(self, data: pd.DataFrame):
+        # Choose columns used in model
+        data = data[self.use_col_item_res_duration].copy()
+
+        # Change data type
+        data[self.col_res_grp] = data[self.col_res_grp].astype(str)
+        data[self.col_sku] = data[self.col_sku].astype(str)
+        data[self.col_duration] = data[self.col_duration].astype(int)
+
+        # Group bom route by each plant
+        item_res_duration_by_plant = {}
+        for plant in self.dmd_plant_list:
+            # Filter data contained in each plant
+            item_res_duration = data[data[self.col_plant] == plant].copy()
+
+            # Filter only items of each plant involved in demand
+            item_res_duration = item_res_duration[item_res_duration[self.col_sku].isin(self.dmd_plant_item_map[plant])]
+
+            item_res_grp_duration_map = defaultdict(lambda: defaultdict())
+            for item, res_grp, duration in zip(
+                    item_res_duration[self.col_sku],
+                    item_res_duration[self.col_res_grp],
+                    item_res_duration[self.col_duration]
+            ):
+                item_res_grp_duration_map[item][res_grp] = duration
+            item_res_duration_by_plant[plant] = item_res_grp_duration_map
+
+        return item_res_duration_by_plant
+
+    def set_bom_route_info(self, data: pd.DataFrame):
         # rename columns
         data = data.rename(columns={'child_item': self.col_route_from, 'parent_item': self.col_route_to})
 
@@ -158,28 +201,6 @@ class PreprocessDev(object):
             }
 
         return bom_route_by_plant
-
-    def set_oper_info(self, data):
-        # rename columns
-        data = data.rename(columns={'wc_cd': self.col_res, 'schd_time': self.col_duration})
-
-        # Change data type
-        data[self.col_sku] = data[self.col_sku].astype(str)
-        data[self.col_res] = data[self.col_res].astype(str)
-        data[self.col_duration] = np.ceil(data[self.col_duration])
-
-        # Group bom route by each plant
-        oper_by_plant = {}
-        for plant in self.dmd_plant_list:
-            # Filter data contained in each plant
-            operation = data[data[self.col_plant] == plant].copy()
-
-            # Filter only items of each plant involved in demand
-            operation = operation[operation[self.col_sku].isin(self.dmd_plant_item_map[plant])]
-
-            oper_by_plant[plant] = operation
-
-        return oper_by_plant
 
     def generate_item_code_map(self, data):
         # get unique item list
@@ -307,7 +328,14 @@ class PreprocessDev(object):
     def calc_deadline(self, data):
         # due_date_min = data[self.col_due_date].min()
         # data['days'] = data[self.due_date_col] - due_date_min
-        data['days'] = data[self.col_due_date] - datetime.datetime.now()
-        data['minutes'] = data['days'] / np.timedelta64(1, "m")
+        days = data[self.col_due_date] - datetime.datetime.now()   # ToDo : need to revise start day
+
+        due_date = None
+        if self.time_uom == 'min':
+            due_date = np.round(days / np.timedelta64(1, 'm'), 0)
+        elif self.time_uom == 'sec':
+            due_date = np.round(days / np.timedelta64(1, 's'), 0)
+
+        data[self.col_due_date] = due_date.astype(int)
 
         return data

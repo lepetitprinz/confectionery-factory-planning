@@ -21,7 +21,7 @@ class SqlConfig(object):
         return sql
 
     @staticmethod
-    def sql_res_grp_item():
+    def sql_item_res_grp():
         sql = """
            SELECT PLANT_CD
                 , ITEM_CD
@@ -55,20 +55,20 @@ class SqlConfig(object):
                  --, REQ_FP_YYMMDD
                  , '20221231' AS DUE_DATE
                  --, REQ_FP_QTY AS QTY
-                 , 1 AS QTY
+                 , 10000 AS QTY
               FROM M4S_I405020
         """
         return sql
 
     @staticmethod
-    def sql_operation():
+    def sql_item_res_duration():
         sql = """
             SELECT PLANT_CD
                  , ITEM_CD
-                 , ROUTE_CD AS OPERATION_NO
-                 , RES_CD AS WC_CD
-                 , ROUND(100 * (CAPA_USE_RATE), 0) AS SCHD_TIME
-                 , 'MIN' AS TIME_UOM
+                 , ROUTE_CD
+                 , RES_CD AS RES_GRP_CD
+                 , ROUND(60 * CAPA_USE_RATE, 0) AS DURATION
+                 , 'SEC' AS TIME_UOM
               FROM M4S_I305110
              WHERE CAPA_USE_RATE IS NOT NULL
                AND USE_YN = 'Y'

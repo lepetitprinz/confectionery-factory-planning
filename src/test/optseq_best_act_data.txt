@@ -1,35 +1,3 @@
-source ---
-AE9_AB0 ---
-AE2_AC0 ---
-AA0_AH0 ---
-AA1_AF0 ---
-AE0_AD0 ---
-AD0 ---
-AE7_AB0 ---
-AE11_AB0 ---
-AE5_AB0 ---
-AE2_AB0 ---
-AE4_AC0 ---
-AH0 ---
-AA0_AG0 ---
-AE0_AC0 ---
-AE3_AC0 ---
-AA4_AG0 ---
-AE10_AB0 ---
-AE4_AB0 ---
-AE0_AB0 ---
-AE1_AC0 ---
-AC0 ---
-AE1_AB0 ---
-AE3_AB0 ---
-AA2_AG0 ---
-AE8_AB0 ---
-AE6_AB0 ---
-AB0 ---
-AA3_AG0 ---
-AA1_AG0 ---
-AG0 ---
-AA0_AF0 ---
-AF0 ---
-sink ---
+361: invalid arguments (setRequirements).
 
+no feasible schedule found.

@@ -16,9 +16,9 @@ class DataLoadDev(object):
     def load_info(self) -> dict:
         info = {
             'bom_route': self.io.get_df_from_db(sql=self.sql_conf.sql_bom_route()),
-            'operation': self.io.get_df_from_db(sql=self.sql_conf.sql_operation()),
-            'resource': self.io.get_df_from_db(sql=self.sql_conf.sql_res_grp()),
-            'res_grp_item': self.io.get_df_from_db(sql=self.sql_conf.sql_res_grp_item()),
+            'item_res_duration': self.io.get_df_from_db(sql=self.sql_conf.sql_item_res_duration()),
+            'res_grp': self.io.get_df_from_db(sql=self.sql_conf.sql_res_grp()),
+            'item_res_grp': self.io.get_df_from_db(sql=self.sql_conf.sql_item_res_grp()),
         }
 
         return info

@@ -49,7 +49,7 @@ class DataLoad(object):
 
     def load_mst(self) -> dict:
         bom = self.io.get_df_from_db(sql=self.sql_conf.sql_bom_route())
-        oper = self.io.get_df_from_db(sql=self.sql_conf.sql_operation())
+        oper = self.io.get_df_from_db(sql=self.sql_conf.sql_item_res_duration())
         res = self.io.get_df_from_db(sql=self.sql_conf.sql_res_cnt_capa())
 
         # Filtering

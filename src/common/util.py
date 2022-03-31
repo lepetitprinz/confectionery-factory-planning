@@ -2,7 +2,7 @@ import string
 
 
 def generate_name(a: str, b: str):
-    name = a + '_' + b
+    name = a + '/' + b
     return name
 
 

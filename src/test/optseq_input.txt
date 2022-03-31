@@ -1,174 +1,366 @@
-resource RES_ZEC_PACK  
- interval 0 inf capacity 1  
-resource RES_HER_PACK  
- interval 0 inf capacity 1  
-resource RES_ZEC  
- interval 0 inf capacity 1  
-resource RES_HER  
- interval 0 inf capacity 1  
-activity AB0 
- duedate 8640  
+resource Res[dummy]  
+ interval 0 inf capacity 10000000  
+resource PC011  
+ interval 0 inf capacity 102000  
+resource PB014  
+ interval 0 inf capacity 132000  
+resource PJ008  
+ interval 0 inf capacity 42000  
+resource PA003  
+ interval 0 inf capacity 192000  
+resource PD000  
+ interval 0 inf capacity 222000  
+resource PH005  
+ interval 0 inf capacity 42000  
+resource PA002  
+ interval 0 inf capacity 78000  
+resource PL001  
+ interval 0 inf capacity 36000  
+resource PJ012  
+ interval 0 inf capacity 18000  
+resource PB009  
+ interval 0 inf capacity 84000  
+resource 2216  
+ interval 0 inf capacity 30000  
+resource PB017  
+ interval 0 inf capacity 72000  
+resource PB007  
+ interval 0 inf capacity 90000  
+resource PC024  
+ interval 0 inf capacity 252000  
+resource PF013  
+ interval 0 inf capacity 6000  
+resource PB072  
+ interval 0 inf capacity 6000  
+resource PD006  
+ interval 0 inf capacity 48000  
+resource PA000  
+ interval 0 inf capacity 48000  
+resource PH003  
+ interval 0 inf capacity 36000  
+resource PG010  
+ interval 0 inf capacity 6000  
+resource X120  
+ interval 0 inf capacity 6000  
+resource PC020  
+ interval 0 inf capacity 642000  
+resource X130  
+ interval 0 inf capacity 6000  
+resource X219  
+ interval 0 inf capacity 6000  
+resource 2209  
+ interval 0 inf capacity 12000  
+resource PK003  
+ interval 0 inf capacity 12000  
+resource PG000  
+ interval 0 inf capacity 30000  
+resource PB031  
+ interval 0 inf capacity 234000  
+resource X128  
+ interval 0 inf capacity 6000  
+resource PH008  
+ interval 0 inf capacity 6000  
+resource PC025  
+ interval 0 inf capacity 54000  
+resource PB018  
+ interval 0 inf capacity 66000  
+resource 2218  
+ interval 0 inf capacity 54000  
+resource PB038  
+ interval 0 inf capacity 6000  
+resource PF009  
+ interval 0 inf capacity 6000  
+resource PH007  
+ interval 0 inf capacity 6000  
+resource PB027  
+ interval 0 inf capacity 24000  
+resource PH006  
+ interval 0 inf capacity 36000  
+resource 2215  
+ interval 0 inf capacity 66000  
+resource PR000  
+ interval 0 inf capacity 198000  
+resource PD003  
+ interval 0 inf capacity 108000  
+resource 2210  
+ interval 0 inf capacity 54000  
+resource PC022  
+ interval 0 inf capacity 12000  
+resource 2214  
+ interval 0 inf capacity 42000  
+resource 2108  
+ interval 0 inf capacity 72000  
+resource PN000  
+ interval 0 inf capacity 24000  
+resource PE002  
+ interval 0 inf capacity 756000  
+resource 2306  
+ interval 0 inf capacity 234000  
+resource PC017  
+ interval 0 inf capacity 18000  
+resource PC028  
+ interval 0 inf capacity 114000  
+resource PF002  
+ interval 0 inf capacity 6000  
+resource PA006  
+ interval 0 inf capacity 2688000  
+resource PH000  
+ interval 0 inf capacity 156000  
+resource PC034  
+ interval 0 inf capacity 30000  
+resource X202  
+ interval 0 inf capacity 6000  
+resource PC001  
+ interval 0 inf capacity 150000  
+resource PB019  
+ interval 0 inf capacity 330000  
+resource PB000  
+ interval 0 inf capacity 60000  
+resource PB046  
+ interval 0 inf capacity 18000  
+resource PB045  
+ interval 0 inf capacity 6000  
+resource PC030  
+ interval 0 inf capacity 60000  
+resource PA001  
+ interval 0 inf capacity 198000  
+resource 2107  
+ interval 0 inf capacity 72000  
+resource PB025  
+ interval 0 inf capacity 234000  
+resource PG007  
+ interval 0 inf capacity 6000  
+resource PG001  
+ interval 0 inf capacity 72000  
+resource PB013  
+ interval 0 inf capacity 192000  
+resource PF000  
+ interval 0 inf capacity 24000  
+resource PB032  
+ interval 0 inf capacity 24000  
+resource PF007  
+ interval 0 inf capacity 42000  
+resource PK000  
+ interval 0 inf capacity 216000  
+resource PC018  
+ interval 0 inf capacity 6000  
+resource PB030  
+ interval 0 inf capacity 126000  
+resource PB023  
+ interval 0 inf capacity 48000  
+resource PC010  
+ interval 0 inf capacity 168000  
+resource PB033  
+ interval 0 inf capacity 24000  
+resource PC038  
+ interval 0 inf capacity 12000  
+resource PB008  
+ interval 0 inf capacity 150000  
+resource PB003  
+ interval 0 inf capacity 138000  
+resource PE001  
+ interval 0 inf capacity 612000  
+resource PC035  
+ interval 0 inf capacity 12000  
+resource PA007  
+ interval 0 inf capacity 36000  
+resource PB024  
+ interval 0 inf capacity 552000  
+resource 2109  
+ interval 0 inf capacity 30000  
+resource PK001  
+ interval 0 inf capacity 78000  
+resource 2104  
+ interval 0 inf capacity 204000  
+resource PC000  
+ interval 0 inf capacity 252000  
+resource PI002  
+ interval 0 inf capacity 36000  
+resource 2301  
+ interval 0 inf capacity 150000  
+resource PB016  
+ interval 0 inf capacity 438000  
+resource 2217  
+ interval 0 inf capacity 42000  
+resource PB001  
+ interval 0 inf capacity 72000  
+resource PF006  
+ interval 0 inf capacity 12000  
+resource PB010  
+ interval 0 inf capacity 24000  
+resource PB006  
+ interval 0 inf capacity 24000  
+resource 2213  
+ interval 0 inf capacity 24000  
+resource PC016  
+ interval 0 inf capacity 96000  
+resource PC007  
+ interval 0 inf capacity 6000  
+resource 2113  
+ interval 0 inf capacity 96000  
+resource PC005  
+ interval 0 inf capacity 54000  
+resource PD005  
+ interval 0 inf capacity 30000  
+resource PJ005  
+ interval 0 inf capacity 6000  
+resource PC003  
+ interval 0 inf capacity 36000  
+resource PC013  
+ interval 0 inf capacity 30000  
+resource 2105  
+ interval 0 inf capacity 156000  
+resource X221  
+ interval 0 inf capacity 6000  
+resource PC009  
+ interval 0 inf capacity 6000  
+resource PA004  
+ interval 0 inf capacity 468000  
+resource PB015  
+ interval 0 inf capacity 162000  
+resource PC019  
+ interval 0 inf capacity 6000  
+resource PK004  
+ interval 0 inf capacity 6000  
+resource PC021  
+ interval 0 inf capacity 138000  
+resource PE000  
+ interval 0 inf capacity 456000  
+resource PC008  
+ interval 0 inf capacity 150000  
+resource PC002  
+ interval 0 inf capacity 18000  
+resource PF005  
+ interval 0 inf capacity 348000  
+resource PH002  
+ interval 0 inf capacity 36000  
+resource X216  
+ interval 0 inf capacity 6000  
+resource X217  
+ interval 0 inf capacity 6000  
+resource PB005  
+ interval 0 inf capacity 666000  
+resource PB029  
+ interval 0 inf capacity 42000  
+resource PH004  
+ interval 0 inf capacity 12000  
+resource PG002  
+ interval 0 inf capacity 18000  
+resource 2114  
+ interval 0 inf capacity 48000  
+resource 2112  
+ interval 0 inf capacity 102000  
+resource PF001  
+ interval 0 inf capacity 6000  
+resource PB012  
+ interval 0 inf capacity 144000  
+resource PC004  
+ interval 0 inf capacity 6000  
+resource PB002  
+ interval 0 inf capacity 126000  
+resource PK002  
+ interval 0 inf capacity 2922000  
+resource X247  
+ interval 0 inf capacity 6000  
+resource __r0  
+ interval 0 inf capacity 0  
+resource PJ004  
+ interval 0 inf capacity 24000  
+resource PI001  
+ interval 0 inf capacity 114000  
+resource 2219  
+ interval 0 inf capacity 42000  
+resource PE003  
+ interval 0 inf capacity 84000  
+resource PB004  
+ interval 0 inf capacity 18000  
+resource PP000  
+ interval 0 inf capacity 6000  
+resource PI003  
+ interval 0 inf capacity 66000  
+resource PD001  
+ interval 0 inf capacity 762000  
+resource PL000  
+ interval 0 inf capacity 804000  
+resource PB050  
+ interval 0 inf capacity 6000  
+resource PC012  
+ interval 0 inf capacity 108000  
+resource PG003  
+ interval 0 inf capacity 144000  
+resource PB022  
+ interval 0 inf capacity 48000  
+resource PB020  
+ interval 0 inf capacity 54000  
+resource PB021  
+ interval 0 inf capacity 318000  
+resource 2106  
+ interval 0 inf capacity 36000  
+resource PA005  
+ interval 0 inf capacity 66000  
+resource PC014  
+ interval 0 inf capacity 36000  
+resource PQ000  
+ interval 0 inf capacity 18000  
+resource PJ009  
+ interval 0 inf capacity 6000  
+resource PD002  
+ interval 0 inf capacity 282000  
+resource PB051  
+ interval 0 inf capacity 6000  
+resource X119  
+ interval 0 inf capacity 6000  
+resource X218  
+ interval 0 inf capacity 6000  
+resource PB028  
+ interval 0 inf capacity 12000  
+resource PD004  
+ interval 0 inf capacity 72000  
+resource PC023  
+ interval 0 inf capacity 402000  
+resource PH001  
+ interval 0 inf capacity 222000  
+resource 2111  
+ interval 0 inf capacity 66000  
+resource PB056  
+ interval 0 inf capacity 18000  
+resource X229  
+ interval 0 inf capacity 6000  
+resource X220  
+ interval 0 inf capacity 6000  
+resource 2110  
+ interval 0 inf capacity 72000  
+resource PJ006  
+ interval 0 inf capacity 12000  
+resource PC015  
+ interval 0 inf capacity 450000  
+resource 2304  
+ interval 0 inf capacity 12000  
+resource PO000  
+ interval 0 inf capacity 42000  
+resource 2103  
+ interval 0 inf capacity 90000  
+resource IT001  
+ interval 0 inf capacity 6000  
+resource PD010  
+ interval 0 inf capacity 6000  
+resource PB026  
+ interval 0 inf capacity 132000  
+resource PB044  
+ interval 0 inf capacity 6000  
+resource PF003  
+ interval 0 inf capacity 24000  
+resource PI000  
+ interval 0 inf capacity 276000  
+resource X129  
+ interval 0 inf capacity 6000  
+resource PB049  
+ interval 0 inf capacity 6000  
+activity Act[dummy] 
+ mode  duration 0  
+ Res[dummy] interval 0 inf requirement 1   
+activity Act[FP_10001967_5124687] 
+ duedate 23695171  
  weight 1  
- mode  duration 60  
- RES_HER_PACK interval 0 60 requirement 1  
- break interval 0 0   
-activity AE0_AB0 
- mode  duration 20  
- RES_HER interval 0 20 requirement 1  
- break interval 0 0   
-activity AE1_AB0 
- mode  duration 20  
- RES_HER interval 0 20 requirement 1  
- break interval 0 0   
-activity AE2_AB0 
- mode  duration 20  
- RES_HER interval 0 20 requirement 1  
- break interval 0 0   
-activity AE3_AB0 
- mode  duration 20  
- RES_HER interval 0 20 requirement 1  
- break interval 0 0   
-activity AE4_AB0 
- mode  duration 20  
- RES_HER interval 0 20 requirement 1  
- break interval 0 0   
-activity AE5_AB0 
- mode  duration 20  
- RES_HER interval 0 20 requirement 1  
- break interval 0 0   
-activity AE6_AB0 
- mode  duration 20  
- RES_HER interval 0 20 requirement 1  
- break interval 0 0   
-activity AE7_AB0 
- mode  duration 20  
- RES_HER interval 0 20 requirement 1  
- break interval 0 0   
-activity AE8_AB0 
- mode  duration 20  
- RES_HER interval 0 20 requirement 1  
- break interval 0 0   
-activity AE9_AB0 
- mode  duration 20  
- RES_HER interval 0 20 requirement 1  
- break interval 0 0   
-activity AE10_AB0 
- mode  duration 20  
- RES_HER interval 0 20 requirement 1  
- break interval 0 0   
-activity AE11_AB0 
- mode  duration 20  
- RES_HER interval 0 20 requirement 1  
- break interval 0 0   
-activity AC0 
- duedate 14400  
- weight 1  
- mode  duration 40  
- RES_HER_PACK interval 0 40 requirement 1  
- break interval 0 0   
-activity AE0_AC0 
- mode  duration 20  
- RES_HER interval 0 20 requirement 1  
- break interval 0 0   
-activity AE1_AC0 
- mode  duration 20  
- RES_HER interval 0 20 requirement 1  
- break interval 0 0   
-activity AE2_AC0 
- mode  duration 20  
- RES_HER interval 0 20 requirement 1  
- break interval 0 0   
-activity AE3_AC0 
- mode  duration 20  
- RES_HER interval 0 20 requirement 1  
- break interval 0 0   
-activity AE4_AC0 
- mode  duration 20  
- RES_HER interval 0 20 requirement 1  
- break interval 0 0   
-activity AD0 
- duedate 10080  
- weight 1  
- mode  duration 20  
- RES_HER_PACK interval 0 20 requirement 1  
- break interval 0 0   
-activity AE0_AD0 
- mode  duration 20  
- RES_HER interval 0 20 requirement 1  
- break interval 0 0   
-activity AF0 
- duedate 7200  
- weight 1  
- mode  duration 20  
- RES_ZEC_PACK interval 0 20 requirement 1  
- break interval 0 0   
-activity AA0_AF0 
- mode  duration 10  
- RES_ZEC interval 0 10 requirement 1  
- break interval 0 0   
-activity AA1_AF0 
- mode  duration 10  
- RES_ZEC interval 0 10 requirement 1  
- break interval 0 0   
-activity AG0 
- duedate 11520  
- weight 1  
- mode  duration 30  
- RES_ZEC_PACK interval 0 30 requirement 1  
- break interval 0 0   
-activity AA0_AG0 
- mode  duration 10  
- RES_ZEC interval 0 10 requirement 1  
- break interval 0 0   
-activity AA1_AG0 
- mode  duration 10  
- RES_ZEC interval 0 10 requirement 1  
- break interval 0 0   
-activity AA2_AG0 
- mode  duration 10  
- RES_ZEC interval 0 10 requirement 1  
- break interval 0 0   
-activity AA3_AG0 
- mode  duration 10  
- RES_ZEC interval 0 10 requirement 1  
- break interval 0 0   
-activity AA4_AG0 
- mode  duration 10  
- RES_ZEC interval 0 10 requirement 1  
- break interval 0 0   
-activity AH0 
- duedate 0  
- weight 1  
- mode  duration 10  
- RES_ZEC_PACK interval 0 10 requirement 1  
- break interval 0 0   
-activity AA0_AH0 
- mode  duration 10  
- RES_ZEC interval 0 10 requirement 1  
- break interval 0 0   
-temporal AE0_AB0 AB0  type CS delay 0  
-temporal AE1_AB0 AB0  type CS delay 0  
-temporal AE2_AB0 AB0  type CS delay 0  
-temporal AE3_AB0 AB0  type CS delay 0  
-temporal AE4_AB0 AB0  type CS delay 0  
-temporal AE5_AB0 AB0  type CS delay 0  
-temporal AE6_AB0 AB0  type CS delay 0  
-temporal AE7_AB0 AB0  type CS delay 0  
-temporal AE8_AB0 AB0  type CS delay 0  
-temporal AE9_AB0 AB0  type CS delay 0  
-temporal AE10_AB0 AB0  type CS delay 0  
-temporal AE11_AB0 AB0  type CS delay 0  
-temporal AE0_AC0 AC0  type CS delay 0  
-temporal AE1_AC0 AC0  type CS delay 0  
-temporal AE2_AC0 AC0  type CS delay 0  
-temporal AE3_AC0 AC0  type CS delay 0  
-temporal AE4_AC0 AC0  type CS delay 0  
-temporal AE0_AD0 AD0  type CS delay 0  
-temporal AA0_AF0 AF0  type CS delay 0  
-temporal AA1_AF0 AF0  type CS delay 0  
-temporal AA0_AG0 AG0  type CS delay 0  
-temporal AA1_AG0 AG0  type CS delay 0  
-temporal AA2_AG0 AG0  type CS delay 0  
-temporal AA3_AG0 AG0  type CS delay 0  
-temporal AA4_AG0 AG0  type CS delay 0  
-temporal AA0_AH0 AH0  type CS delay 0 
+ mode [<optimize.optseq.Mode object at 0x000001A3B8B4BCD0>]  
+temporal Act[FP_10001967_5124687] Act[dummy]  type CS delay 0 

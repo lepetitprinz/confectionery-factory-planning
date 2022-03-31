@@ -27,11 +27,12 @@ class PipelineDev(object):
         prep = PreprocessDev()
 
         # Demand
-        self.dmd_plant_list, dmd_by_plant = prep.set_dmd_info(data=demand)    # Demand
+        self.dmd_plant_list, dmd_by_plant, dmd_due_date = prep.set_dmd_info(data=demand)    # Demand
 
         # Resource
-        res_grp_by_plant = prep.set_res_grp(data=mst['resource'])    # Resource
-        res_grp_item_by_plant = prep.set_res_grp_item(data=mst['res_grp_item'])
+        res_grp_by_plant = prep.set_res_grp(data=mst['res_grp'])    # Resource
+        item_res_grp_by_plant = prep.set_item_res_grp(data=mst['item_res_grp'])
+        item_res_grp_duration_by_plant = prep.set_item_res_duration(data=mst['item_res_duration'])
 
         # Bom route
         bom_by_plant = prep.set_bom_route_info(data=mst['bom_route'])
@@ -40,14 +41,16 @@ class PipelineDev(object):
         # Model
         for plant in self.dmd_plant_list:
             opt_seq = OptSeqModel(
-                item_res_grp=None,
-                res_grp=res_grp_by_plant[plant],
-                res_grp_item=res_grp_item_by_plant[plant],
-                res_grp_duration={}
+                dmd_due_date=dmd_due_date[plant],
+                item_res_grp=item_res_grp_by_plant[plant],
+                item_res_grp_duration=item_res_grp_duration_by_plant[plant],
             )
 
             # Initialize model
             model = opt_seq.init(
-                dmd_list=dmd_by_plant[plant]
+                dmd_list=dmd_by_plant[plant],
+                res_grp_list=res_grp_by_plant[plant]
+
             )
+            opt_seq.optimize(model=model)
             # plan.after_process(operation=operation)
