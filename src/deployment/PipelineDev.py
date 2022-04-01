@@ -36,7 +36,6 @@ class PipelineDev(object):
 
         # Bom route
         bom_by_plant = prep.set_bom_route_info(data=mst['bom_route'])
-        # oper_by_plant = prep.set_oper_info(data=mst['operation'])
 
         # Model
         for plant in self.dmd_plant_list:

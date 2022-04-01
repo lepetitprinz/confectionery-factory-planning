@@ -28,7 +28,7 @@ class PreprocessDev(object):
     col_due_date = 'due_date'
 
     # Column usage setting
-    use_col_dmd = ['dmd_id', 'item_cd', 'qty', 'due_date']
+    use_col_dmd = ['dmd_id', 'item_cd', 'res_grp_cd', 'qty', 'due_date']
     use_col_res_grp = ['plant_cd', 'res_grp_cd', 'res_cd', 'capacity']
     use_col_item_res_duration = ['plant_cd', 'item_cd', 'res_grp_cd', 'duration']
 
@@ -47,7 +47,7 @@ class PreprocessDev(object):
 
         # Change data type
         data[self.col_sku] = data[self.col_sku].astype(str)
-        data[self.col_res] = data[self.col_res].astype(str)
+        data[self.col_res_grp] = data[self.col_res_grp].astype(str)
         data[self.col_due_date] = data[self.col_due_date].astype(str)
         data[self.col_due_date] = pd.to_datetime(data[self.col_due_date])
         data[self.col_qty] = np.ceil(data[self.col_qty]).astype(int)    # Ceiling quantity

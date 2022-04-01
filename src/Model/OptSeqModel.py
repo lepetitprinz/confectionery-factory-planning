@@ -4,8 +4,8 @@ from optimize.optseq import Model, Mode, Parameters
 
 
 class OptSeqModel(object):
-    time_limit = 100
-    make_span = False
+    time_limit = 10
+    make_span = True
     optput_flag = True
 
     def __init__(self, dmd_due_date: dict, item_res_grp: dict, item_res_grp_duration: dict):
@@ -15,11 +15,13 @@ class OptSeqModel(object):
         self.item_res_grp = item_res_grp    # item -> available resource group list
 
         # Duration
-        self.res_grp_default_duration = 0
-        self.item_res_grp_duration = item_res_grp_duration   # Resource group -> Making time
+        self.res_grp_default_duration = 1
+        self.item_res_grp_duration_per_unit = item_res_grp_duration   # Resource group -> Making time
 
-        self.add_dummy_activity = True
+        # Dummy configuration
+        self.add_dummy_activity = False    # True / False
         self.dummy_activity = None
+        self.dummy_capacity = 100000
 
     def init(self, dmd_list: list, res_grp_list):
         model = Model(name='lotte')
@@ -33,6 +35,7 @@ class OptSeqModel(object):
         model = self.set_activity(
             model=model,
             dmd_list=dmd_list,
+            res_grp_list=res_grp_list,
             model_res=model_res
         )
 
@@ -46,47 +49,82 @@ class OptSeqModel(object):
         print("")
 
     def set_dummy_activity(self, model: Model,):
-        dummy_activity = model.addActivity(name='Act[dummy]', duedate="inf")
+        dummy_activity = model.addActivity(name='Act[dummy]', duedate=23614158)
+
+        # Define the mode
         dummy_mode = Mode(name='Mode[dummy]', duration=0)
-        dummy_res = model.addResource(name='Res[dummy]', capacity=10000000)
 
         # Add dummy resource
-        dummy_mode.addResource(resource=dummy_res)  # ToDo: need to revise
-        dummy_mode.addResource(resource=dummy_res, requirement=1)    # ToDo: need to revise
+        dummy_mode.addResource(    # ToDo: need to revise
+            resource=model.addResource(name='Res[dummy]', capacity=self.dummy_capacity),
+            requirement={(0, 1): 1}
+        )
+        # dummy_mode.addParallel(    # ToDo: need to revise
+        #     start=0,
+        #     finish=1000000,
+        #     maxparallel=self.dummy_capacity
+        # )
 
         # Add dummy mode
         dummy_activity.addModes(dummy_mode)
 
         self.dummy_activity = dummy_activity
 
-    def set_activity(self, model: Model, dmd_list: list, model_res):
+    # Set work defined
+    def set_activity(self, model: Model, dmd_list: list, res_grp_list: list, model_res):
         activity = {}
-        for dmd_id, item_cd, qty, due_date in dmd_list:
-            act_name = util.generate_name(dmd_id, item_cd)
-            activity[act_name] = model.addActivity(name=f'Act[{act_name}]', duedate=due_date)
+        for dmd_id, item_cd, res_grp_cd, qty, due_date in dmd_list:
+            act_name = util.generate_name(name_list=[dmd_id, item_cd, res_grp_cd])
+            activity[act_name] = model.addActivity(
+                name=f'Act[{act_name}]',    # Work name
+                # duedate=due_date,           # Delivery date of work
+                duedate='inf',
+                weight=1                    # Penalty per unit time when the work completion time is rate for delivery
+            )
+
+            # Calculate duration
+            duration_per_unit = self.item_res_grp_duration_per_unit[item_cd].get(
+                res_grp_cd, self.res_grp_default_duration
+            )
+            duration = qty * duration_per_unit
 
             # Set mode
-            mode_list = self.set_mode(dmd_id=dmd_id, item_cd=item_cd, model_res=model_res)
+            mode_list = self.set_mode(
+                res_list=res_grp_list[res_grp_cd],
+                model_res=model_res[res_grp_cd],
+                duration=duration,
+            )
 
             # add mode list to activity
             activity[act_name].addModes(mode_list)
 
-            if self.add_dummy_activity:
-                model.addTemporal(pred=activity[act_name], succ=self.dummy_activity, delay=0)
+            model.addTemporal(pred="source", succ=activity[act_name], delay=0)
+            model.addTemporal(pred=activity[act_name], succ="sink", delay=0)
+
+            # if self.add_dummy_activity:
+            #     model.addTemporal(pred=activity[act_name], succ=self.dummy_activity, delay=0)
 
         return model
 
-    def set_mode(self, dmd_id: str, item_cd: str, model_res) -> list:
+    # Set work processing method
+    def set_mode(self, res_list: list, model_res, duration: int) -> list:
         mode_list = []
-        for res_grp in self.item_res_grp[item_cd]:
+        for res_cd, capacity in res_list:
             # Make each mode (set each available resource)
             mode = Mode(
-                name=f'Mode[{res_grp}]',
-                duration=self.item_res_grp_duration[item_cd].get(res_grp, self.res_grp_default_duration)
+                name=f'Mode[{res_cd}]',
+                duration=duration    # Duration : the working time of the mode
             )
 
+            # Add break for each mode
+            mode.addBreak(start=0, finish=0)
+
             # Add resource for each mode(resource)
-            self.add_resource(mode=mode, dmd_id=dmd_id, item_cd=item_cd, res_grp=res_grp, model_res=model_res)
+            mode = self.add_resource(
+                mode=mode,
+                resource=model_res[res_cd],
+                duration=duration
+            )
 
             mode_list.append(mode)
 
@@ -95,40 +133,27 @@ class OptSeqModel(object):
     def set_resource(self, model: Model, res_grp_list):
         model_res_grp = {}
         for res_grp, res_list in res_grp_list.items():
-            res_grp_capa = 0
+            model_res = {}
             for res, capacity in res_list:
-                res_grp_capa += capacity
+                # Add the resource
+                add_res = model.addResource(name=res, capacity=capacity)
 
-            # Add the resource group
-            add_res_grp = model.addResource(name=res_grp, capacity=res_grp_capa)
-            model_res_grp[res_grp] = add_res_grp
+                # Add the capacity of resource
+                add_res.addCapacity(start=0, finish="inf", amount=capacity)   # ToDo: need to revise start, finish
+
+                model_res[res] = add_res
+            model_res_grp[res_grp] = model_res
 
         return model_res_grp
 
-    # def set_resource(self, model: Model, res_grp_list):
-    #     model_res_grp = {}
-    #     for res_grp, res_list in res_grp_list.items():
-    #         model_res_list = []
-    #         for res, capacity in res_list:
-    #             # Add the resource
-    #             model_res = model.addResource(name=res, capacity=capacity)
-    #             # Add the capacity of resource
-    #             model_res.addCapacity(start=0, finish="inf", amount=capacity)   # ToDo: need to revise start, finish
-    #             model_res_list.append(model_res)
-    #
-    #         model_res_grp[res_grp] = model_res_list
-    #
-    #     return model_res_grp
-
-    def add_resource(self, mode: Mode, dmd_id: str, item_cd: str, res_grp: str, model_res: dict):
-        # res_list = model_res[res_grp]
-        # due_date = self.dmd_due_date[dmd_id][item_cd]
-        #
-        mode.addResource(resource=model_res[res_grp], requirement=1)  # ToDo: need to revise requirement
-        # mode.addResource(resource=model_res[res_grp], requirement={(0, 9): 1})    # ToDo: need to revise requirement
-
-        # resource list of resource group
-        mode.addParallel(start=0, finish=100, maxparallel=list(model_res[res_grp].capacity.values())[0])
+    # Add the specified resource which amount required when executing the mode
+    def add_resource(self, mode: Mode, resource, duration: int):
+        # Add resource
+        mode.addResource(    # ToDo: need to revise requirement
+            resource=resource,
+            requirement={(0, duration): 1},    # requirement : gives the required amount of resources
+            # requirement={(0, 1): 1}  # requirement : gives the required amount of resources
+        )
 
         return mode
 

@@ -1,9 +1,8 @@
 import string
 
 
-def generate_name(a: str, b: str):
-    name = a + '/' + b
-    return name
+def generate_name(name_list: list):
+    return '/'.join(name_list)
 
 
 def generate_route(from_nm: str, to_nm: str):
