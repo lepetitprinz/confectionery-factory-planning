@@ -16,8 +16,10 @@ class PreprocessDev(object):
     col_dmd = 'dmd_id'
     col_plant = 'plant_cd'
     col_sku = 'item_cd'
-    col_res_grp = 'res_grp_cd'
     col_res = 'res_cd'
+    col_res_grp = 'res_grp_cd'
+    col_res_map = 'res_map_cd'
+    col_res_type = 'res_type_cd'
     col_capacity = 'capacity'
     col_qty = 'qty'
     col_route_from = 'from_item'
@@ -29,7 +31,8 @@ class PreprocessDev(object):
 
     # Column usage setting
     use_col_dmd = ['dmd_id', 'item_cd', 'res_grp_cd', 'qty', 'due_date']
-    use_col_res_grp = ['plant_cd', 'res_grp_cd', 'res_cd', 'capacity']
+    use_col_res_grp = ['plant_cd', 'res_grp_cd', 'res_cd', 'capacity', 'res_type_cd']
+    use_col_res_people_map = ['plant_cd', 'res_grp_cd', 'res_cd', 'res_map_cd']
     use_col_item_res_duration = ['plant_cd', 'item_cd', 'res_grp_cd', 'duration']
 
     def __init__(self):
@@ -88,11 +91,15 @@ class PreprocessDev(object):
         return dmd_due_date
 
     def set_res_grp(self, data) -> dict:
+        # Rename columns
+        data = data.rename(columns={'res_capa_val': self.col_capacity})
+
         # Choose columns used in model
         data = data[self.use_col_res_grp].copy()
 
         # Change data type
         data[self.col_res] = data[self.col_res].astype(str)
+        data[self.col_res_grp] = data[self.col_res_grp].astype(str)
         data[self.col_capacity] = data[self.col_capacity].astype(int)
 
         # Choose plants of demand list
@@ -103,16 +110,45 @@ class PreprocessDev(object):
         for plant in self.dmd_plant_list:
             res_grp_df = data[data[self.col_plant] == plant]
 
-            res_grp_to_res = {}
             res_grp_list = list(set(res_grp_df[self.col_res_grp].values))
+            res_grp_to_res = {}
             for res_grp in res_grp_list:
                 res_grp_filtered = res_grp_df[res_grp_df[self.col_res_grp] == res_grp].copy()
-                res_grp_to_res[res_grp] = [tuple(row) for row in
-                                           res_grp_filtered[[self.col_res, self.col_capacity]].to_numpy()]
+                res_grp_to_res[res_grp] = [tuple(row) for row in res_grp_filtered[[self.col_res, self.col_capacity,
+                                                                                   self.col_res_type]].to_numpy()]
 
             res_grp_by_plant[plant] = res_grp_to_res
 
         return res_grp_by_plant
+
+    def set_res_people(self, data: pd.DataFrame):
+        # Choose columns used in model
+        data = data[self.use_col_res_people_map].copy()
+
+        # Change data type
+        data[self.col_res] = data[self.col_res].astype(str)
+        data[self.col_res_grp] = data[self.col_res_grp].astype(str)
+        data[self.col_res_map] = data[self.col_res_map].astype(str)
+
+        # Choose plants of demand list
+        data = data[data[self.col_plant].isin(self.dmd_plant_list)].copy()
+
+        # Group resource by each plant
+        res_people_by_plant = {}
+        for plant in self.dmd_plant_list:
+            res_people_df = data[data[self.col_plant] == plant]
+
+            res_grp_list = list(set(res_people_df[self.col_res_grp].values))
+            res_to_people = {}
+            for res_grp in res_grp_list:
+                res_people_filtered = res_people_df[res_people_df[self.col_res_grp] == res_grp].copy()
+                res_map_to_res = defaultdict(list)
+                for res_map, res_cd in zip(res_people_filtered[self.col_res_map], res_people_filtered[self.col_res]):
+                    res_map_to_res[res_map].append(res_cd)
+                res_to_people[res_grp] = res_map_to_res
+            res_people_by_plant[plant] = res_to_people
+
+        return res_people_by_plant
 
     def set_item_res_grp(self, data: pd.DataFrame) -> dict:
         # Change data type

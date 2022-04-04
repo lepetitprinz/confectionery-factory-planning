@@ -12,7 +12,7 @@ class SqlConfig(object):
                  --, REQ_FP_YYMMDD
                  , '20221231' AS DUE_DATE
                  --, REQ_FP_QTY AS QTY
-                 , 10000 AS QTY
+                 , 10 AS QTY
               FROM M4S_I405020
         """
         return sql
@@ -54,6 +54,7 @@ class SqlConfig(object):
                  , RES_GRP_CD
                  , RES_CD
                  , RES_CAPA_VAL AS CAPACITY
+                 , RES_TYPE_CD
                  , CAPA_UNIT_CD
               FROM M4S_I305090
              WHERE USE_YN = 'Y'
@@ -67,7 +68,7 @@ class SqlConfig(object):
                  , ITEM_CD
                  , ROUTE_CD
                  , RES_CD AS RES_GRP_CD
-                 , ROUND(60 * CAPA_USE_RATE, 0) AS DURATION -- production time per 1 unit                  , 'SEC' AS TIME_UOM
+                 , ROUND(100 * 60 * CAPA_USE_RATE, 0) AS DURATION -- production time per 1 box                  , 'SEC' AS TIME_UOM
               FROM M4S_I305110
              WHERE CAPA_USE_RATE IS NOT NULL
                AND USE_YN = 'Y'

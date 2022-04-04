@@ -19,6 +19,14 @@ class DataLoadDev(object):
             'item_res_duration': self.io.get_df_from_db(sql=self.sql_conf.sql_item_res_duration()),
             'res_grp': self.io.get_df_from_db(sql=self.sql_conf.sql_res_grp()),
             'item_res_grp': self.io.get_df_from_db(sql=self.sql_conf.sql_item_res_grp()),
+            'res_people': self.io.load_object(
+                file_path=os.path.join(self.base_dir, 'data', 'res_people.csv'),
+                data_type='csv'
+            ),
+            'res_people_map': self.io.load_object(
+                file_path=os.path.join(self.base_dir, 'data', 'res_people_map.csv'),
+                data_type='csv'
+            )
         }
 
         return info
