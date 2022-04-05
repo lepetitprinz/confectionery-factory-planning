@@ -1,4 +1,4 @@
-from deployment.PipelineDev import PipelineDev
+from deployment.Pipeline import Pipeline
 
-pipeline = PipelineDev()
+pipeline = Pipeline()
 pipeline.run()

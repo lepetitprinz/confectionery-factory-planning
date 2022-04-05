@@ -2,7 +2,7 @@ import string
 
 
 def generate_name(name_list: list):
-    return '/'.join(name_list)
+    return '@'.join(name_list)
 
 
 def generate_route(from_nm: str, to_nm: str):

@@ -5,7 +5,7 @@ from optimize.optseq import Model, Mode, Parameters
 
 class OptSeqModel(object):
     time_limit = 10
-    make_span = True
+    make_span = False
     optput_flag = True
 
     def __init__(self, dmd_due_date: dict, item_res_grp: dict, item_res_grp_duration: dict,
@@ -16,16 +16,11 @@ class OptSeqModel(object):
         # Resource instance attribute
         self.item_res_grp = item_res_grp    # item -> available resource group list
         self.res_to_people_by_plant = res_to_people_by_plant
-        self.add_res_people_yn = True
+        self.add_res_people_yn = False    # True / False
 
         # Duration instance attribute
         self.res_grp_default_duration = 1
         self.item_res_grp_duration_per_unit = item_res_grp_duration   # Resource group -> Making time
-
-        # Dummy configuration instance attribute
-        self.add_dummy_activity = False    # True / False
-        self.dummy_activity = None
-        self.dummy_capacity = 100000
 
     def set_max_due_date(self):
         due_list = []
@@ -50,9 +45,6 @@ class OptSeqModel(object):
 
         model = Model(name='lotte')
 
-        if self.add_dummy_activity:
-            self.set_dummy_activity(model=model)
-
         # merge
         res_grp_all = self.merge_res_grp(res_grp_list=res_grp_list, res_grp_people_list=res_grp_people_list)
 
@@ -75,28 +67,6 @@ class OptSeqModel(object):
         model.optimize()
         print("")
 
-    def set_dummy_activity(self, model: Model,):
-        dummy_activity = model.addActivity(name='Act[dummy]', duedate=23614158)
-
-        # Define the mode
-        dummy_mode = Mode(name='Mode[dummy]', duration=0)
-
-        # Add dummy resource
-        dummy_mode.addResource(    # ToDo: need to revise
-            resource=model.addResource(name='Res[dummy]', capacity=self.dummy_capacity),
-            requirement={(0, 1): 1}
-        )
-        # dummy_mode.addParallel(    # ToDo: need to revise
-        #     start=0,
-        #     finish=1000000,
-        #     maxparallel=self.dummy_capacity
-        # )
-
-        # Add dummy mode
-        dummy_activity.addModes(dummy_mode)
-
-        self.dummy_activity = dummy_activity
-
     # Set work defined
     def set_activity(self, model: Model, dmd_list: list, res_grp_list: list, model_res):
         activity = {}
@@ -116,30 +86,21 @@ class OptSeqModel(object):
             duration = qty * duration_per_unit
 
             # Set mode
-            mode_list = self.set_mode(
+            activity[act_name] = self.set_mode(
+                act=activity[act_name],
                 res_list=res_grp_list[res_grp_cd],
                 model_res=model_res[res_grp_cd],
                 duration=duration,
                 res_grp_cd=res_grp_cd
             )
 
-            # add mode list to activity
-            activity[act_name].addModes(mode_list)
-
-            model.addTemporal(pred="source", succ=activity[act_name], delay=0)
-            model.addTemporal(pred=activity[act_name], succ="sink", delay=0)
-
-            # if self.add_dummy_activity:
-            #     model.addTemporal(pred=activity[act_name], succ=self.dummy_activity, delay=0)
-
         return model
 
     # Set work processing method
-    def set_mode(self, res_list: list, model_res, duration: int, res_grp_cd: str) -> list:
-        mode_list = []
+    def set_mode(self, act,  res_list: list, model_res, duration: int, res_grp_cd: str) -> list:
         for res_cd, capacity, res_type in res_list:
             if res_type == 'NOR':
-            # Make each mode (set each available resource)
+                # Make each mode (set each available resource)
                 mode = Mode(
                     name=f'Mode[{res_cd}]',
                     duration=duration    # Duration : the working time of the mode
@@ -165,9 +126,10 @@ class OptSeqModel(object):
                         duration=duration
                     )
 
-                mode_list.append(mode)
+                # add mode list to activity
+                act.addModes(mode)
 
-        return mode_list
+        return act
 
     def set_resource(self, model: Model, res_grp_list):
         model_res_grp = {}

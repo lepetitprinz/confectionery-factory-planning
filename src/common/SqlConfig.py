@@ -3,7 +3,7 @@ class SqlConfig(object):
     @staticmethod
     def sql_demand():
         sql = """
-            SELECT TOP 1 FP_VRSN_ID
+            SELECT FP_VRSN_ID
                  , FP_KEY AS DMD_ID
                  , DP_KEY
                  , PLANT_CD 
@@ -12,7 +12,7 @@ class SqlConfig(object):
                  --, REQ_FP_YYMMDD
                  , '20221231' AS DUE_DATE
                  --, REQ_FP_QTY AS QTY
-                 , 10 AS QTY
+                 , 100 AS QTY
               FROM M4S_I405020
         """
         return sql

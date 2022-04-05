@@ -5,7 +5,7 @@ import os
 import pandas as pd
 import numpy as np
 
-base_dir = os.path.join('..', '..', 'data')
+base_dir = os.path.join('..', '..', 'data', 'test')
 
 bom = pd.read_csv(os.path.join(base_dir, "bom.csv"))
 wcdf = pd.read_csv(os.path.join(base_dir, "wc.csv"))

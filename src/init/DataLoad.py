@@ -13,67 +13,31 @@ class DataLoad(object):
         self.sql_conf = sql_conf
         self.base_dir = os.path.join('..', '..')
 
-    def load_mst_temp(self) -> dict:
-        bom = self.io.load_object(file_path=os.path.join(self.base_dir, 'data', 'bom.csv'), data_type='csv')
-        item = self.io.load_object(file_path=os.path.join(self.base_dir, 'data', 'item.csv'), data_type='csv')
-        oper = self.io.load_object(file_path=os.path.join(self.base_dir, 'data', 'operation.csv'), data_type='csv')
-        res = self.io.load_object(file_path=os.path.join(self.base_dir, 'data', 'wc.csv'), data_type='csv')
-
-        # change upper case to lower
-        bom.columns = [col.lower() for col in bom.columns]
-        item.columns = [col.lower() for col in item.columns]
-        oper.columns = [col.lower() for col in oper.columns]
-        res.columns = [col.lower() for col in res.columns]
-
-        # Rename columns
-        bom = bom.rename(columns={'parent_item': 'to', 'child_item': 'from'})
-
-        # Change data type
-        bom['rate'] = bom['rate'].astype(int)
-        oper['schd_time'] = bom['schd_time'].astype(int)
-
-        mst = {
-            'bom': bom,
-            'item': item,
-            'oper': oper,
-            'res': res
+    def load_info(self) -> dict:
+        info = {
+            'bom_route': self.io.get_df_from_db(sql=self.sql_conf.sql_bom_route()),
+            'item_res_duration': self.io.get_df_from_db(sql=self.sql_conf.sql_item_res_duration()),
+            'res_grp': self.io.get_df_from_db(sql=self.sql_conf.sql_res_grp()),
+            'item_res_grp': self.io.get_df_from_db(sql=self.sql_conf.sql_item_res_grp()),
+            'res_people': self.io.load_object(
+                file_path=os.path.join(self.base_dir, 'data', 'res_people.csv'),
+                data_type='csv'
+            ),
+            'res_people_map': self.io.load_object(
+                file_path=os.path.join(self.base_dir, 'data', 'res_people_map.csv'),
+                data_type='csv'
+            )
         }
 
-        return mst
-
-    def load_demand_temp(self) -> pd.DataFrame:
-        demand = self.io.load_object(file_path=os.path.join(self.base_dir, 'data', 'demand.csv'), data_type='csv')
-        demand.columns = [col.lower() for col in demand.columns]
-
-        return demand
-
-    def load_mst(self) -> dict:
-        bom = self.io.get_df_from_db(sql=self.sql_conf.sql_bom_route())
-        oper = self.io.get_df_from_db(sql=self.sql_conf.sql_item_res_duration())
-        res = self.io.get_df_from_db(sql=self.sql_conf.sql_res_cnt_capa())
-
-        # Filtering
-        bom = bom[['parent_item', 'child_item', 'rate']]
-        oper = oper[['item_cd', 'operation_no', 'wc_cd', 'schd_time', 'time_uom']]
-
-        # Rename columns
-        bom = bom.rename(columns={'parent_item': 'to', 'child_item': 'from'})
-
-        mst = {
-            'bom': bom,
-            'oper': oper,
-            'res': res
-        }
-
-        return mst
+        return info
 
     def load_demand(self) -> pd.DataFrame:
         demand = self.io.get_df_from_db(sql=self.sql_conf.sql_demand())
 
         # Temp
-        demand = demand[['demand_id', 'item_cd', 'duedate', 'qty']].copy()
+        # demand = demand[['demand_id', 'item_cd', 'duedate', 'qty']].copy()
 
         # Change data type
-        demand['qty'] = demand['qty'].astype(int)
+        # demand['qty'] = demand['qty'].astype(int)
 
         return demand
