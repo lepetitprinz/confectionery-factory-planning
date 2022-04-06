@@ -38,6 +38,7 @@ class Preprocess(object):
     def __init__(self):
         # configuration
         self.dmd_plant_list = []
+        self.dmd_res_list_by_plant = []
         self.dmd_plant_item_map = {}
         self.item_code_map = {}
         self.item_code_rev_map = {}
@@ -59,12 +60,13 @@ class Preprocess(object):
         data = self.calc_deadline(data=data)
 
         # group demand by each plant
-        dmd_by_plant, dmd_plant_item_map, dmd_due_date = {}, {}, {}
+        dmd_by_plant, dmd_plant_item_map, dmd_due_date, dmd_res_list_by_plant = {}, {}, {}, {}
         for plant in dmd_plant_list:
             # Filter by each plant
             dmd = data[data[self.col_plant] == plant]
 
             # Convert form of demand data
+            dmd_res_list_by_plant[plant] = list(set(dmd[self.col_res_grp].values))
             dmd_by_plant[plant] = self.convert_dmd_form(data=dmd)
 
             # all of demand item list by plant
@@ -74,6 +76,7 @@ class Preprocess(object):
 
         self.dmd_plant_list = dmd_plant_list
         self.dmd_plant_item_map = dmd_plant_item_map
+        self.dmd_res_list_by_plant = dmd_res_list_by_plant
 
         return dmd_plant_list, dmd_by_plant, dmd_due_date
 
@@ -109,7 +112,10 @@ class Preprocess(object):
         res_grp_by_plant = {}
         for plant in self.dmd_plant_list:
             res_grp_df = data[data[self.col_plant] == plant]
+            # Filter
+            res_grp_df = res_grp_df[res_grp_df[self.col_res_grp].isin(self.dmd_res_list_by_plant[plant])]
 
+            #
             res_grp_list = list(set(res_grp_df[self.col_res_grp].values))
             res_grp_to_res = {}
             for res_grp in res_grp_list:

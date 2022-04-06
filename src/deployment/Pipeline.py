@@ -3,6 +3,7 @@ from common.SqlConfig import SqlConfig
 from init.DataLoad import DataLoad
 from init.Preprocess import Preprocess
 from Model.OptSeqModel import OptSeqModel
+from Model.PostProcess import PostProcess
 
 
 class Pipeline(object):
@@ -56,4 +57,7 @@ class Pipeline(object):
 
             )
             opt_seq.optimize(model=model)
-            # plan.after_process(operation=operation)
+
+            # Post Process after optimization
+            pp = PostProcess()
+            pp.get_opt_result()

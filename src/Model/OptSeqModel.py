@@ -8,6 +8,11 @@ class OptSeqModel(object):
     make_span = False
     optput_flag = True
 
+    res_type_capa_map = {
+        'NOR': 1,
+        'PPL': 2
+    }
+
     def __init__(self, dmd_due_date: dict, item_res_grp: dict, item_res_grp_duration: dict,
                  res_to_people_by_plant: dict):
         self.dmd_due_date = dmd_due_date
@@ -16,7 +21,7 @@ class OptSeqModel(object):
         # Resource instance attribute
         self.item_res_grp = item_res_grp    # item -> available resource group list
         self.res_to_people_by_plant = res_to_people_by_plant
-        self.add_res_people_yn = False    # True / False
+        self.add_res_people_yn = True    # True / False
 
         # Duration instance attribute
         self.res_grp_default_duration = 1
@@ -117,14 +122,17 @@ class OptSeqModel(object):
                 )
 
                 if self.add_res_people_yn:
-                    people_list = self.res_to_people_by_plant[res_grp_cd][res_cd]
+                    res_to_peple_dict = self.res_to_people_by_plant.get(res_grp_cd, None)
+                    if res_to_peple_dict is not None:
+                        people_list = res_to_peple_dict[res_cd]
 
-                    mode = self.add_resource_people(
-                        mode=mode,
-                        model_res=model_res,
-                        people_list=people_list,
-                        duration=duration
-                    )
+                        # Add people
+                        mode = self.add_resource_people(
+                            mode=mode,
+                            model_res=model_res,
+                            people_list=people_list,
+                            duration=duration
+                        )
 
                 # add mode list to activity
                 act.addModes(mode)
@@ -138,9 +146,6 @@ class OptSeqModel(object):
             for res, capacity, res_type in res_list:
                 # Add the resource
                 add_res = model.addResource(res, {(0, self.max_due_date): 1})
-
-                # Add the capacity of resource    # ToDo: need to revise start, finish
-                # add_res.addCapacity(start=0, finish=self.max_due_date, amount=1)
 
                 model_res[res] = add_res
             model_res_grp[res_grp] = model_res
