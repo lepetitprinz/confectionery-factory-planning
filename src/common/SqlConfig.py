@@ -1,6 +1,18 @@
 
 class SqlConfig(object):
     @staticmethod
+    def sql_calendar():
+        sql = """
+            SELECT YYMMDD
+                 , YY
+                 , YYMM
+                 , WEEK
+                 , START_WEEK_DAY
+              FROM M4S_I002030
+        """
+        return sql
+
+    @staticmethod
     def sql_demand():
         sql = """
             SELECT FP_VRSN_ID
@@ -10,7 +22,7 @@ class SqlConfig(object):
                  , ITEM_CD
                  , RES_CD AS RES_GRP_CD
                  --, REQ_FP_YYMMDD
-                 , '20221231' AS DUE_DATE
+                 , '20220415' AS DUE_DATE
                  --, REQ_FP_QTY AS QTY
                  , 100 AS QTY
               FROM M4S_I405020

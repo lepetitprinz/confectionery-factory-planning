@@ -229,7 +229,7 @@ class Activity():
         """
         OptSeq activity class.
 
-        You can create an activity object by adding an activity to a model (using Model.addActivity)
+        You can create an activity object by adding an activity to a model (using model.addActivity)
         instead of by using an Activity constructor.    
 
             - Arguments:
@@ -506,7 +506,7 @@ class State():
         """
         OptSeq state class.
 
-        You can create a state object by adding a state to a model (using Model.addState)
+        You can create a state object by adding a state to a model (using model.addState)
         instead of by using a State constructor.    
 
             - Arguments:
@@ -575,7 +575,7 @@ class Model(object):
         self.Params = Parameters()  # controal parameters' class
 
     def __str__(self):
-        ret = ["Model:{0}".format(self.name)]
+        ret = ["model:{0}".format(self.name)]
         ret.append("number of activities= {0}".format(len(self.act)))
         ret.append("number of resources= {0}".format(len(self.res)))
 
@@ -1165,7 +1165,7 @@ class Model(object):
 
     # if __name__=="__main__":
 
-##    m1=Model()
+##    m1=model()
 ##    #resource declaration  
 ##    machine={} #define three machines
 ##    for j in range(1,4):
@@ -1243,7 +1243,7 @@ class Model(object):
 ##    m1.optimize()
 ##    m1.write("chart11.txt")
 
-##    m1=Model()
+##    m1=model()
 ##
 ##    duration={(1,1):3,(1,2):3,(1,3):3,(2,1):3,(2,2):3,(2,3):3}
 ##    setup={(1,1):1,(1,2):5,(2,1):5,(2,2):1}
@@ -1287,7 +1287,7 @@ class Model(object):
 ##    m1.optimize()
 ##    ###m1.write("chart1.txt")    
 
-#     m1=Model()                
+#     m1=model()
 # 
 #     due={1:5,2:9,3:6,4:4}
 #     duration={1:1, 2:2, 3:3, 4:4 }

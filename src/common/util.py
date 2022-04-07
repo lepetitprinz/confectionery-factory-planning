@@ -1,4 +1,28 @@
+import os
 import string
+
+
+def make_path(path: str, module: str, name: str, extension: str):
+    path_dir = os.path.join(path, module)
+    # make the directory if directory does not exist
+    if not os.path.isdir(path_dir):
+        os.mkdir(path_dir)
+
+    path = os.path.join(path_dir, name + '.' + extension)
+
+    return path
+
+
+def make_version_path(path: str, module: str, name: str, version: str, extension: str):
+    path_dir = os.path.join(path, module)
+
+    # make the directory if directory does not exist
+    if not os.path.isdir(path_dir):
+        os.mkdir(path_dir)
+
+    path = os.path.join(path_dir, name + '_' + version + '.' + extension)
+
+    return path
 
 
 def generate_name(name_list: list):

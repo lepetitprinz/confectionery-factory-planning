@@ -1,0 +1,8 @@
+{
+    "rdms": "mssql+pymssql",
+    "host": "",
+    "database": "biscm",
+    "port": "1433",
+    "user": "matrix",
+    "password": "Diam0nd123!"
+}
