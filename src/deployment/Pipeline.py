@@ -123,4 +123,4 @@ class Pipeline(object):
         if self.step_cfg['cls_pp']:
             # Post Process after optimization
             pp = PostProcess()
-            pp.get_opt_result()
+            pp.post_process()

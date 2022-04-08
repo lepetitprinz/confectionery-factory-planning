@@ -10,9 +10,9 @@ default_path = {
 
 step_cfg = {
     'cls_load': False,
-    'cls_prep': False,
+    'cls_prep': True,
     'cls_model': False,
-    'cls_pp': True,
+    'cls_pp': False,
 }
 
 exec_cfg = {
