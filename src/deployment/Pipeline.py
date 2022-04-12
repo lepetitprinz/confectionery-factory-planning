@@ -1,6 +1,7 @@
 import common.util as util
 from dao.DataIO import DataIO
-from common.SqlConfig import SqlConfig
+from common.SqlConfigEngine import SqlConfig
+# from common.SqlConfig import SqlConfig
 from init.Init import Init
 from init.DataLoad import DataLoad
 from init.Preprocess import Preprocess
@@ -21,6 +22,7 @@ class Pipeline(object):
 
         # Factory information instance attribute
         self.fp_version = ''
+        self.plant_start_time = None
 
     def run(self):
         # ============================================= #
@@ -34,6 +36,7 @@ class Pipeline(object):
         # Set initialized object
         self.pipeline_path = init.pipeline_path
         self.fp_version = init.fp_version
+        self.plant_start_time = init.plant_start_time
 
         # ============================================= #
         # 2. Load dataset
@@ -69,9 +72,6 @@ class Pipeline(object):
             dmd_prep = prep.set_dmd_info(data=demand)    # Demand
             res_prep = prep.set_res_info(data=master)    # Resource
 
-            # Bom route
-            # bom_by_plant = prep.set_bom_route_info(data=master['bom_route'])
-
             # Save the preprocessed demand
             if self.exec_cfg['save_step_yn']:
                 self.io.save_object(data=dmd_prep, file_path=self.pipeline_path['prep_demand'], data_type='binary')
@@ -98,8 +98,7 @@ class Pipeline(object):
                 # Instantiate model
                 model = opt_seq.init(
                     dmd_list=dmd_prep['plant_dmd_list'][plant],
-                    res_grp_list=res_prep['plant_res_grp'][plant],
-                    res_human_list=res_prep['plant_res_human'][plant]
+                    res_grp_list=res_prep['plant_res_grp'][plant]
                 )
 
                 if self.exec_cfg['save_step_yn']:

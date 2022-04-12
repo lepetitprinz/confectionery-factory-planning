@@ -80,7 +80,7 @@ class SqlConfig(object):
                  , ITEM_CD
                  , ROUTE_CD
                  , RES_CD AS RES_GRP_CD
-                 , ROUND(100 * 60 * CAPA_USE_RATE, 0) AS DURATION -- production time per 1 box                  , 'SEC' AS TIME_UOM
+                 , ROUND(60 * CAPA_USE_RATE, 0) AS DURATION -- production time per 1 box                  , 'SEC' AS TIME_UOM
               FROM M4S_I305110
              WHERE CAPA_USE_RATE IS NOT NULL
                AND USE_YN = 'Y'

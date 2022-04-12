@@ -13,11 +13,16 @@ class Init(object):
 
         self.calendar = None
         self.fp_version = ''
+        self.plant_start_time = None
 
     def run(self):
         self.set_calendar()
         self.set_fp_version()
         self.set_pipeline_path()
+        self.set_plant_start_time()
+
+    def set_plant_start_time(self):
+        self.plant_start_time = dt.datetime.today()
 
     def set_calendar(self):
         self.calendar = self.io.get_df_from_db(sql=self.sql_conf.sql_calendar())

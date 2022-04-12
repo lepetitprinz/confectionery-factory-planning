@@ -3,7 +3,8 @@ import common.util as util
 
 import numpy as np
 import pandas as pd
-import networkx as nx
+import datetime as dt
+# import networkx as nx
 from typing import List, Tuple, Dict, Any
 
 
@@ -20,6 +21,7 @@ class Preprocess(object):
     col_res_map = 'res_map_cd'
     col_res_type = 'res_type_cd'
     col_capacity = 'capacity'
+    col_capa_unit = 'capa_unit_cd'
     col_qty = 'qty'
     col_route_from = 'from_item'
     col_route_to = 'to_item'
@@ -30,7 +32,7 @@ class Preprocess(object):
 
     # Column usage setting
     use_col_dmd = ['dmd_id', 'item_cd', 'res_grp_cd', 'qty', 'due_date']
-    use_col_res_grp = ['plant_cd', 'res_grp_cd', 'res_cd', 'capacity', 'res_type_cd']
+    use_col_res_grp = ['plant_cd', 'res_grp_cd', 'res_cd', 'capacity', 'capa_unit_cd','res_type_cd']
     use_col_res_people_map = ['plant_cd', 'res_grp_cd', 'res_cd', 'res_map_cd']
     use_col_item_res_duration = ['plant_cd', 'item_cd', 'res_grp_cd', 'duration']
 
@@ -44,19 +46,24 @@ class Preprocess(object):
         self.oper_map = {}
         self.res_map = {}
 
+    def calc_due_date(self, data):
+        data[self.col_due_date] = data[self.col_due_date] * 24 * 60 * 60
+        data[self.col_due_date] = data[self.col_due_date].astype(int)
+
+        return data
+
     def set_dmd_info(self, data: pd.DataFrame) -> dict:
         # Get plant list of demand list
         plant_dmd_list = list(set(data[self.col_plant]))
 
+        self.calc_due_date(data=data)
+        # data = self.calc_deadline(data=data)
+
         # Change data type
+        # data[self.col_due_date] = pd.to_datetime(data[self.col_due_date])
         data[self.col_sku] = data[self.col_sku].astype(str)
         data[self.col_res_grp] = data[self.col_res_grp].astype(str)
-        data[self.col_due_date] = data[self.col_due_date].astype(str)
-        data[self.col_due_date] = pd.to_datetime(data[self.col_due_date])
         data[self.col_qty] = np.ceil(data[self.col_qty]).astype(int)    # Ceiling quantity
-
-        # Add columns
-        data = self.calc_deadline(data=data)
 
         # Group demand by each plant
         plant_dmd, plant_dmd_item, plant_dmd_res, plant_dmd_due = {}, {}, {}, {}
@@ -91,14 +98,14 @@ class Preprocess(object):
 
     def set_res_info(self, data: dict) -> dict:
         plant_res_grp = self.set_res_grp(data=data['res_grp'])
-        plant_res_human = self.set_res_grp(data=data['res_human'])
-        plant_res_human_map = self.set_res_human_map(data=data['res_human_map'])
+        # plant_res_human = self.set_res_grp(data=data['res_human'])
+        # plant_res_human_map = self.set_res_human_map(data=data['res_human_map'])
         plant_item_res_grp_duration = self.set_item_res_duration(data=data['item_res_duration'])
 
         res_prep = {
             'plant_res_grp': plant_res_grp,
-            'plant_res_human': plant_res_human,
-            'plant_res_human_map': plant_res_human_map,
+            # 'plant_res_human': plant_res_human,
+            # 'plant_res_human_map': plant_res_human_map,
             'plant_item_res_grp_duration': plant_item_res_grp_duration,
         }
 
@@ -145,8 +152,8 @@ class Preprocess(object):
             # Resource group -> (resource / capacity / resource type)
             res_grp_to_res = {}
             for res_grp, group in res_grp_df.groupby(self.col_res_grp):
-                res_grp_to_res[res_grp] = [tuple(row) for row in group[[self.col_res, self.col_capacity,
-                                                                        self.col_res_type]].to_numpy()]
+                res_grp_to_res[res_grp] = [tuple(row) for row in group[
+                    [self.col_res, self.col_capacity, self.col_capa_unit, self.col_res_type]].to_numpy()]
 
             res_grp_by_plant[plant] = res_grp_to_res
 
@@ -216,41 +223,6 @@ class Preprocess(object):
 
         return item_res_duration_by_plant
 
-    def set_bom_route_info(self, data: pd.DataFrame):
-        # rename columns
-        data = data.rename(columns={'child_item': self.col_route_from, 'parent_item': self.col_route_to})
-
-        # Change data type
-        data[self.col_route_from] = data[self.col_route_from].astype(str)
-        data[self.col_route_to] = data[self.col_route_to].astype(str)
-        data[self.col_bom_lvl] = data[self.col_bom_lvl].astype(int)
-        data[self.col_from_to_rate] = np.ceil(data[self.col_from_to_rate])
-
-        # Choose plants of demand list
-        data = data[data[self.col_plant].isin(self.plant_dmd_list)].copy()
-
-        # Group bom route by each plant
-        bom_route_by_plant = {}
-        for plant in self.plant_dmd_list:
-            # Filter data contained in each plant
-            bom_route = data[data[self.col_plant] == plant].copy()
-
-            # Filter only items of each plant involved in demand
-            bom_route = bom_route[bom_route[self.col_route_to].isin(self.plant_dmd_item[plant])]
-
-            # Generate item <-> code map
-            bom_map = self.generate_item_code_map(data=bom_route)
-
-            # draw bom route graph
-            route_graph = self.draw_graph(data=bom_route, data_map=bom_map)
-
-            bom_route_by_plant[plant] = {
-                'map': bom_map,
-                'graph': route_graph
-            }
-
-        return bom_route_by_plant
-
     def generate_item_code_map(self, data):
         # get unique item list
         item_list = list(set(data[self.col_route_from].values) | set(data[self.col_route_to].values))
@@ -263,116 +235,6 @@ class Preprocess(object):
             code_to_item[code] = item
 
         return {'item_to_code': item_to_code, 'code_to_item': code_to_item}
-
-    def draw_graph(self, data: pd.DataFrame, data_map):
-        _, route_graph = nx.DiGraph(), nx.DiGraph()
-
-        for route_from, route_to, rate in zip(
-                data[self.col_route_from],
-                data[self.col_route_to],
-                data[self.col_from_to_rate]
-        ):
-            _.add_edge(route_from, route_to, rate=rate)
-            route_graph.add_edge(
-                data_map['item_to_code'][route_from],
-                data_map['item_to_code'][route_to],
-                rate=rate)
-
-        return route_graph
-
-    def prep_bom(self, data: pd.DataFrame):
-        # get unique item list
-        bom_list = list(set(data['from'].values) | set(data['to'].values))
-
-        # item vs code mapping
-        self.item_code_map = {item: util.generate_alphabet_code(i, 10) for i, item in enumerate(bom_list)}
-        self.item_code_rev_map = {util.generate_alphabet_code(i, 10): item for i, item in enumerate(bom_list)}
-        bom_map = {
-            'item_code_map': self.item_code_map,
-            'item_code_rev_map': self.item_code_rev_map
-        }
-
-        return bom_map
-
-    def run(self, mst, demand):
-        mst_map, operation = self.prep_mst(data=mst)
-
-        demand, dmd_qty = self.prep_demand(data=demand)
-
-        bom_route = self.make_bom_route(bom=mst['bom'])
-
-        return mst_map, demand, dmd_qty, bom_route, operation
-
-    def prep_mst(self, data):
-        bom_map = self.prep_bom(data=data['bom'])
-        operation, oper_map = self.prep_oper(data=data['oper'])
-        res_map = self.prep_res(data=data['res'])
-
-        mst_map = {
-            'bom': bom_map,
-            'oper': oper_map,
-            'res': res_map
-        }
-
-        return mst_map, operation
-
-    def prep_demand(self, data: pd.DataFrame):
-        data[self.col_due_date] = self.change_data_type(data=data['duedate'], data_type='str')
-        data[self.col_due_date] = self.change_data_type(data=data[self.col_due_date], data_type='datetime')
-        demand = self.calc_deadline(data=data)
-
-        demand['code'] = [self.item_code_map[item] for item in demand['item_cd']]
-        dmd_qty = demand.groupby("code")['qty'].sum()
-
-        return demand, dmd_qty
-
-    def make_bom_route(self, bom: pd.DataFrame):
-        _, bom_route = nx.DiGraph(), nx.DiGraph()
-
-        for bom_from, bom_to, rate in zip(bom['from'], bom['to'], bom['rate']):
-            _.add_edge(bom_from, bom_to, rate=rate)
-            bom_route.add_edge(self.item_code_map[bom_from], self.item_code_map[bom_to], rate=rate)
-
-        return bom_route
-
-    def prep_bom(self, data: pd.DataFrame):
-        # get unique item list
-        bom_list = list(set(data['from'].values) | set(data['to'].values))
-
-        # item vs code mapping
-        self.item_code_map = {item: util.generate_alphabet_code(i, 10) for i, item in enumerate(bom_list)}
-        self.item_code_rev_map = {util.generate_alphabet_code(i, 10): item for i, item in enumerate(bom_list)}
-        bom_map = {
-            'item_code_map': self.item_code_map,
-            'item_code_rev_map': self.item_code_rev_map
-        }
-
-        return bom_map
-
-    def prep_oper(self, data: pd.DataFrame) -> dict:
-        # Filter
-        data = data[data['item_cd'].isin(list(self.item_code_map))].copy()
-        data['code'] = [self.item_code_map[item] for item in data['item_cd']]
-        data['schd_time'] = np.ceil(data['schd_time'])
-
-        # Todo: need to correct code
-        oper_map = dict(list(map(lambda x: (x[0], x[1]), data.groupby('code'))))
-
-        return data, oper_map
-
-    def prep_res(self, data: pd.DataFrame) -> dict:
-        res_map = {code: num for code, num in zip(data['wc_cd'], data['wc_num'])}
-
-        return res_map
-
-    @staticmethod
-    def change_data_type(data, data_type: str):
-        if data_type == 'str':
-            data = data.astype(str)
-        elif data_type == 'datetime':
-            data = pd.to_datetime(data)
-
-        return data
 
     def calc_deadline(self, data):
         # due_date_min = data[self.col_due_date].min()
@@ -388,3 +250,63 @@ class Preprocess(object):
         data[self.col_due_date] = due_date.astype(int)
 
         return data
+
+    # def set_bom_route_info(self, data: pd.DataFrame):
+    #     # rename columns
+    #     data = data.rename(columns={'child_item': self.col_route_from, 'parent_item': self.col_route_to})
+    #
+    #     # Change data type
+    #     data[self.col_route_from] = data[self.col_route_from].astype(str)
+    #     data[self.col_route_to] = data[self.col_route_to].astype(str)
+    #     data[self.col_bom_lvl] = data[self.col_bom_lvl].astype(int)
+    #     data[self.col_from_to_rate] = np.ceil(data[self.col_from_to_rate])
+    #
+    #     # Choose plants of demand list
+    #     data = data[data[self.col_plant].isin(self.plant_dmd_list)].copy()
+    #
+    #     # Group bom route by each plant
+    #     bom_route_by_plant = {}
+    #     for plant in self.plant_dmd_list:
+    #         # Filter data contained in each plant
+    #         bom_route = data[data[self.col_plant] == plant].copy()
+    #
+    #         # Filter only items of each plant involved in demand
+    #         bom_route = bom_route[bom_route[self.col_route_to].isin(self.plant_dmd_item[plant])]
+    #
+    #         # Generate item <-> code map
+    #         bom_map = self.generate_item_code_map(data=bom_route)
+    #
+    #         # draw bom route graph
+    #         route_graph = self.draw_graph(data=bom_route, data_map=bom_map)
+    #
+    #         bom_route_by_plant[plant] = {
+    #             'map': bom_map,
+    #             'graph': route_graph
+    #         }
+    #
+    #     return bom_route_by_plant
+
+    # def make_bom_route(self, bom: pd.DataFrame):
+    #     _, bom_route = nx.DiGraph(), nx.DiGraph()
+    #
+    #     for bom_from, bom_to, rate in zip(bom['from'], bom['to'], bom['rate']):
+    #         _.add_edge(bom_from, bom_to, rate=rate)
+    #         bom_route.add_edge(self.item_code_map[bom_from], self.item_code_map[bom_to], rate=rate)
+    #
+    #     return bom_route
+
+    # def draw_graph(self, data: pd.DataFrame, data_map):
+    #     _, route_graph = nx.DiGraph(), nx.DiGraph()
+    #
+    #     for route_from, route_to, rate in zip(
+    #             data[self.col_route_from],
+    #             data[self.col_route_to],
+    #             data[self.col_from_to_rate]
+    #     ):
+    #         _.add_edge(route_from, route_to, rate=rate)
+    #         route_graph.add_edge(
+    #             data_map['item_to_code'][route_from],
+    #             data_map['item_to_code'][route_to],
+    #             rate=rate)
+    #
+    #     return route_graph

@@ -19,34 +19,40 @@ class OptSeqModel(object):
 
         # Demand instance attribute
         self.dmd_due_date = dmd_due
-        self.max_due_date = ''
+        self.max_due_date = 0
+        self.max_due_day = 0
 
         # Resource instance attribute
-        self.res_human_map = res_info['plant_res_human_map'][plant]
-        self.add_res_people_yn = True    # True / False
+        self.add_res_people_yn = False    # True / False
+        self.res_human_map = {}
+
+        # Capacity instance attribute
+        self.sec_of_day = 86400
+        self.capa_type = 'daily_capa'
+        self.res_start_time_of_day = 0
 
         # Duration instance attribute
         self.res_grp_default_duration = 1
         self.item_res_grp_duration_per_unit = res_info['plant_item_res_grp_duration'][plant]
 
-    def init(self, dmd_list: list, res_grp_list: dict, res_human_list: dict):
+    def init(self, dmd_list: list, res_grp_list: dict):
         self.set_max_due_date()
 
         model = Model(name='lotte')
 
         # merge
-        res_grp_all = self.merge_res_grp(
-            res_grp_list=res_grp_list,
-            res_human_list=res_human_list
-        )
+        # res_grp_list = self.merge_res_grp(
+        #     res_grp_list=res_grp_list,
+        #     res_human_list=res_human_list
+        # )
 
         # Set resource
-        model_res = self.set_resource(model=model, res_grp_list=res_grp_all)
+        model_res = self.set_resource(model=model, res_grp_list=res_grp_list)
 
         model = self.set_activity(
             model=model,
             dmd_list=dmd_list,
-            res_grp_list=res_grp_all,
+            res_grp_list=res_grp_list,
             model_res=model_res
         )
 
@@ -63,6 +69,7 @@ class OptSeqModel(object):
         due_list = sorted(due_list, reverse=True)
 
         self.max_due_date = due_list[0]
+        self.max_due_day = round(due_list[0] / self.sec_of_day)
 
     @staticmethod
     def merge_res_grp(res_grp_list, res_human_list):
@@ -79,14 +86,14 @@ class OptSeqModel(object):
         print("")
 
     # Set work defined
-    def set_activity(self, model: Model, dmd_list: list, res_grp_list: list, model_res):
+    def set_activity(self, model: Model, dmd_list: list, res_grp_list: dict, model_res):
         activity = {}
         for dmd_id, item_cd, res_grp_cd, qty, due_date in dmd_list:
             act_name = util.generate_name(name_list=[dmd_id, item_cd, res_grp_cd])
             activity[act_name] = model.addActivity(
                 name=f'Act[{act_name}]',    # Work name
                 duedate=due_date,
-                weight=1                    # Penalty per unit time when the work completion time is rate for delivery
+                weight=1    # Penalty per unit time when the work completion time is rate for delivery
             )
 
             # Calculate duration
@@ -119,7 +126,7 @@ class OptSeqModel(object):
     # Set work processing method
     def set_mode(self, act,  res_list: list, model_res, duration: int, res_grp_cd: str) -> list:
         for res_cd, capacity, res_type in res_list:
-            if res_type == 'NOR':
+            if res_type == 'NOR':    # Check if resource is machine
                 # Make each mode (set each available resource)
                 mode = Mode(
                     name=f'Mode[{res_cd}]',
@@ -158,14 +165,28 @@ class OptSeqModel(object):
         model_res_grp = {}
         for res_grp, res_list in res_grp_list.items():
             model_res = {}
-            for res, capacity, res_type in res_list:
+            for res, capacity, unit_cd, res_type in res_list:
                 # Add the resource
-                add_res = model.addResource(res, {(0, self.max_due_date): 1})
-
+                add_res = model.addResource(name=res)
+                add_res = self.set_capacity(res=add_res, capacity=capacity, unit_cd=unit_cd)
                 model_res[res] = add_res
             model_res_grp[res_grp] = model_res
 
         return model_res_grp
+
+    def set_capacity(self, res, capacity, unit_cd):
+        if self.capa_type == 'daily_capa':
+            capa = 0
+            if unit_cd == 'MIN':
+                capa = capacity * 60
+            elif unit_cd == 'SEC':
+                capa = capacity
+
+            for i in range(self.max_due_day + 1):
+                start_time = i * self.sec_of_day
+                res.addCapacity(start_time, start_time + capa, 1)
+
+        return res
 
     # Add the specified resource which amount required when executing the mode
     def add_resource(self, mode: Mode, resource, duration: int):
