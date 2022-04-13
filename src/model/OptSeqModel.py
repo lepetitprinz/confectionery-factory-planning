@@ -1,10 +1,10 @@
 import common.util as util
 
-from optimize.optseq import Model, Mode, Parameters
+from optimize.optseq import Model, Mode, Parameters, Activity, Resource
 
 
 class OptSeqModel(object):
-    time_limit = 10
+    time_limit = 30
     make_span = False
     optput_flag = True
 
@@ -13,7 +13,10 @@ class OptSeqModel(object):
         'PPL': 2
     }
 
-    def __init__(self, plant: str, dmd_due: dict, res_info: dict):
+    def __init__(self, cstr_cfg: dict, plant: str, dmd_due: dict, item_res_grp_duration: dict):
+        # Constraint attribute
+        self.cstr_cfg = cstr_cfg
+
         # Plant instance attribute
         self.plant = plant
 
@@ -27,13 +30,14 @@ class OptSeqModel(object):
         self.res_human_map = {}
 
         # Capacity instance attribute
+        self.work_days = 5
         self.sec_of_day = 86400
         self.capa_type = 'daily_capa'
         self.res_start_time_of_day = 0
 
         # Duration instance attribute
         self.res_grp_default_duration = 1
-        self.item_res_grp_duration_per_unit = res_info['plant_item_res_grp_duration'][plant]
+        self.item_res_grp_duration_per_unit = item_res_grp_duration
 
     def init(self, dmd_list: list, res_grp_list: dict):
         self.set_max_due_date()
@@ -83,7 +87,6 @@ class OptSeqModel(object):
     @staticmethod
     def optimize(model: Model):
         model.optimize()
-        print("")
 
     # Set work defined
     def set_activity(self, model: Model, dmd_list: list, res_grp_list: dict, model_res):
@@ -91,7 +94,7 @@ class OptSeqModel(object):
         for dmd_id, item_cd, res_grp_cd, qty, due_date in dmd_list:
             act_name = util.generate_name(name_list=[dmd_id, item_cd, res_grp_cd])
             activity[act_name] = model.addActivity(
-                name=f'Act[{act_name}]',    # Work name
+                name=f'Act[{act_name}]',
                 duedate=due_date,
                 weight=1    # Penalty per unit time when the work completion time is rate for delivery
             )
@@ -102,6 +105,7 @@ class OptSeqModel(object):
             # Set mode
             activity[act_name] = self.set_mode(
                 act=activity[act_name],
+                dmd_id=dmd_id,
                 res_list=res_grp_list[res_grp_cd],
                 model_res=model_res[res_grp_cd],
                 duration=duration,
@@ -119,17 +123,18 @@ class OptSeqModel(object):
         else:
             duration_per_unit = item_res_grp_duration.get(res_grp_cd, self.res_grp_default_duration)
 
-        duration = qty * duration_per_unit
+        duration = int(qty * duration_per_unit)
 
         return duration
 
     # Set work processing method
-    def set_mode(self, act,  res_list: list, model_res, duration: int, res_grp_cd: str) -> list:
-        for res_cd, capacity, res_type in res_list:
+    def set_mode(self, act: Activity, dmd_id: str, res_list: list, model_res, duration: int, res_grp_cd: str) -> list:
+        for res_cd, capacity, unit_cd, res_type in res_list:
             if res_type == 'NOR':    # Check if resource is machine
                 # Make each mode (set each available resource)
                 mode = Mode(
-                    name=f'Mode[{res_cd}]',
+                    # name=f'Mode[{res_cd}]',
+                    name=f'Mode[{dmd_id}@{res_cd}]',
                     duration=duration    # Duration : the working time of the mode
                 )
 
@@ -166,21 +171,26 @@ class OptSeqModel(object):
         for res_grp, res_list in res_grp_list.items():
             model_res = {}
             for res, capacity, unit_cd, res_type in res_list:
-                # Add the resource
-                add_res = model.addResource(name=res)
-                add_res = self.set_capacity(res=add_res, capacity=capacity, unit_cd=unit_cd)
+                # Add resource object
+                add_res = model.addResource(name=res, capacity={(0, "inf"): 1})
+
+                # Add capacity of each resource
+                if self.cstr_cfg['apply_res_capacity']:
+                    add_res = self.set_capacity(res=add_res, capacity=capacity, unit_cd=unit_cd)
+
+                # map resource code to model resource object
                 model_res[res] = add_res
             model_res_grp[res_grp] = model_res
 
         return model_res_grp
 
-    def set_capacity(self, res, capacity, unit_cd):
+    def set_capacity(self, res: Resource, capacity, unit_cd):
         if self.capa_type == 'daily_capa':
             capa = 0
             if unit_cd == 'MIN':
-                capa = capacity * 60
+                capa = capacity * 60 // self.work_days
             elif unit_cd == 'SEC':
-                capa = capacity
+                capa = capacity // self.work_days
 
             for i in range(self.max_due_day + 1):
                 start_time = i * self.sec_of_day

@@ -223,19 +223,6 @@ class Preprocess(object):
 
         return item_res_duration_by_plant
 
-    def generate_item_code_map(self, data):
-        # get unique item list
-        item_list = list(set(data[self.col_route_from].values) | set(data[self.col_route_to].values))
-        item_list = sorted(item_list)
-
-        item_to_code, code_to_item = {}, {}
-        for i, item in enumerate(item_list):
-            code = util.generate_alphabet_code(i, 10)
-            item_to_code[item] = code
-            code_to_item[code] = item
-
-        return {'item_to_code': item_to_code, 'code_to_item': code_to_item}
-
     def calc_deadline(self, data):
         # due_date_min = data[self.col_due_date].min()
         # data['days'] = data[self.due_date_col] - due_date_min

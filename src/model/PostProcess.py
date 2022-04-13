@@ -1,3 +1,5 @@
+import common.util as util
+
 import os
 import numpy as np
 import pandas as pd
@@ -8,57 +10,214 @@ import matplotlib.pyplot as plt
 
 
 class PostProcess(object):
-    default_demand = ['source', 'sink']
+    # class attribute
+    default_activity = ['source', 'sink']
     res_schd_cols = ['res_cd', 'start_num', 'end_num', 'capacity']
     act_cols = ['dmd_id', 'item_cd', 'res_grp', 'resource', 'start_num', 'end_num']
-    time_unit = 'sec'
-    gantt_time_unit = 'h'    # h / m / s
-    gantt_time_map = {'h': 3600, 'm': 60}
+    split_symbol = '@'
 
-    def __init__(self):
+    # optseq output instance attribute
+    act_start_phase = '--- best solution ---'
+    act_end_phase = '--- tardy activity ---'
+    res_start_phase = '--- resource residuals ---'
+    es_end_phase = '--- best activity list ---'
+
+    def __init__(self, exec_cfg: dict, fp_version: str, item_mst, plant_start_time, res_grp, item_res_grp_duration):
         # Execute instance attribute
-        self.save_optseq_result_yn = False
-        self.draw_graph_yn = True
+        self.exec_cfg = exec_cfg
+        self.fp_version = fp_version
 
         # path instance attribute
         self.optseq_output_path = os.path.join('..', 'test', 'optseq_output.txt')
         self.save_path = os.path.join('..', '..', 'result')
 
         # time instance attribute
-        self.start_time = self.set_start_time()
+        self.plant_start_time = plant_start_time
         self.choose_human_capa = True
         self.used_res_filter_yn = False
 
-        # optseq output instance attribute
-        self.act_start_phase = '--- best solution ---'
-        self.act_end_phase = '--- tardy activity ---'
-        self.res_start_phase = '--- resource residuals ---'
-        self.res_end_phase = '--- best activity list ---'
+        # Timeline
+        self.item_mst = item_mst
+        self.split_hour = dt.timedelta(hours=12)
+        self.res_grp = res_grp
+        self.res_to_res_grp = {}
+        self.item_res_grp_duration = item_res_grp_duration
+        self.item_avg_duration = {}
 
     def post_process(self):
+        self.set_res_to_res_grp()
+        self.item_res_grp_avg_duration()
+
+        # Save the original result
+        self.save_org_result()
+
         # Best activity
         self.post_process_act()
 
         # Resource usage timeline
-        self.post_process_res()
+        # self.post_process_res()
+
+    def set_res_to_res_grp(self):
+        res_grp = self.res_grp.copy()
+        res_to_res_grp = {}
+        for res_grp_cd, res_list in res_grp.items():
+            for res_cd, _, _, _ in res_list:
+                res_to_res_grp[res_cd] = res_grp_cd
+
+        self.res_to_res_grp = res_to_res_grp
+
+    def item_res_grp_avg_duration(self):
+        duration = self.item_res_grp_duration.copy()
+        item_avg_duration = {}
+        for item_cd, res_grp_rate in duration.items():
+            rate_list = []
+            for res_grp_cd, rate in res_grp_rate.items():
+                rate_list.append(rate)
+            avg_duration = sum(rate_list) / len(rate_list)
+            item_avg_duration[item_cd] = avg_duration
+
+        self.item_avg_duration = item_avg_duration
 
     def post_process_act(self):
         # Get the best sequence result
         activity = self.get_best_activity()
+
+        # Post processing
         activity_df = self.conv_to_df(data=activity, kind='activity')
+        activity_df = self.conv_res_format(data=activity_df)
+        activity_df = self.fill_na(data=activity_df)
+        activity_df = self.change_timeline(data=activity_df)
+        qty_df = self.calc_timeline_prod_qty(data=activity_df)
 
-        if self.save_optseq_result_yn:
-            self.save_opt_result(data=activity_df)
+        if self.exec_cfg['save_step_yn']:
+            self.save_opt_result(data=activity_df, name='act.csv')
+            self.save_opt_result(data=qty_df, name='qty.csv')
 
-        if self.draw_graph_yn:
+        if self.exec_cfg['save_graph_yn']:
             self.draw_gantt(data=activity_df)
+
+    def calc_timeline_prod_qty(self, data: pd.DataFrame):
+        timeline_list = []
+        for res_cd, res_df in data.groupby('resource'):
+            for item_cd, item_df in res_df.groupby('item_cd'):
+                for start, end in zip(item_df['start'], item_df['end']):
+                    timeline_list.extend(self.calc_duration(res_cd, item_cd, start, end))
+
+        qty_df = pd.DataFrame(timeline_list, columns=['res_cd', 'item_cd', 'date', 'type', 'duration'])
+        qty_df = self.set_item_res_capa_rate(data=qty_df)
+        qty_df['duration'] = qty_df['duration'] / np.timedelta64(1, 's')
+        qty_df['qty'] = np.round(qty_df['duration'] / qty_df['capa_rate'], 2)
+
+        # Data processing
+        qty_df = qty_df.drop(columns=['duration'])
+
+        # Add naming information
+        item_mst = self.item_mst[['item_cd', 'item_nm']].copy()
+        qty_df = pd.merge(qty_df, item_mst, how='left', on='item_cd')
+
+        qty_df['res_grp_cd'] = [self.res_to_res_grp.get(res_cd, 'UNDEFINED') for res_cd in qty_df['res_cd']]
+        qty_df = qty_df[['res_grp_cd', 'res_cd', 'item_cd', 'item_nm', 'date', 'type', 'qty']]
+
+        return qty_df
+
+    def set_item_res_capa_rate(self, data):
+        capa_rate_list = []
+        for item_cd, res_cd in zip(data['item_cd'], data['res_cd']):
+            res_grp = self.res_to_res_grp.get(res_cd, None)
+            if res_grp is not None:
+                capa_rate = self.item_res_grp_duration[item_cd][res_grp]
+            else:
+                capa_rate = self.item_avg_duration[item_cd]
+            capa_rate_list.append(capa_rate)
+
+        data['capa_rate'] = capa_rate_list
+
+        return data
+
+    def calc_duration(self, res_cd, item_cd, start, end):
+        start_day = dt.datetime.strptime(dt.datetime.strftime(start, '%Y%m%d'), '%Y%m%d')
+        start_time = dt.timedelta(hours=start.hour, minutes=start.minute, seconds=start.second)
+        end_day = dt.datetime.strptime(dt.datetime.strftime(end, '%Y%m%d'), '%Y%m%d')
+        end_time = dt.timedelta(hours=end.hour, minutes=end.minute, seconds=end.second)
+
+        diff_day = (end_day - start_day).days
+
+        timeline = []
+        if diff_day == 0:
+            duration_day = dt.timedelta(hours=0)
+            duration_night = dt.timedelta(hours=0)
+            if end_time < self.split_hour:
+                duration_day = end_time - start_time
+            elif start_time > self.split_hour:
+                duration_night = end_time - start_time
+            else:
+                duration_day = self.split_hour - start_time
+                duration_night = end_time - self.split_hour
+
+            timeline.append([res_cd, item_cd, start_day, 'D', duration_day])
+            timeline.append([res_cd, item_cd, start_day, 'N', duration_night])
+
+        elif diff_day == 1:
+            prev_duration_day, prev_duration_night = self.calc_timeline_prev(start_time=start_time)
+            next_duration_day, next_duration_night = self.calc_timeline_next(end_time=end_time)
+
+            timeline.append([res_cd, item_cd, start_day, 'D', prev_duration_day])
+            timeline.append([res_cd, item_cd, start_day, 'N', prev_duration_night])
+            timeline.append([res_cd, item_cd, end_day, 'D', next_duration_day])
+            timeline.append([res_cd, item_cd, end_day, 'N', next_duration_night])
+
+        else:
+            prev_duration_day, prev_duration_night = self.calc_timeline_prev(start_time=start_time)
+            next_duration_day, next_duration_night = self.calc_timeline_next(end_time=end_time)
+
+            timeline.append([res_cd, item_cd, start_day, 'D', prev_duration_day])
+            timeline.append([res_cd, item_cd, start_day, 'N', prev_duration_night])
+            timeline.append([res_cd, item_cd, end_day, 'D', next_duration_day])
+            timeline.append([res_cd, item_cd, end_day, 'N', next_duration_night])
+
+            for i in range(diff_day-1):
+                timeline.append([res_cd, item_cd, start_day + dt.timedelta(days=i+1), 'D', self.split_hour])
+                timeline.append([res_cd, item_cd, start_day + dt.timedelta(days=i+1), 'N', self.split_hour])
+
+        return timeline
+
+    def calc_timeline_prev(self, start_time):
+        # Previous day
+        duration_day = dt.timedelta(hours=0)
+        if start_time < self.split_hour:
+            duration_day = self.split_hour - start_time
+            duration_night = self.split_hour
+        else:
+            duration_night = dt.timedelta(hours=24) - start_time
+
+        return duration_day, duration_night
+
+    def calc_timeline_next(self, end_time):
+        duration_night = dt.timedelta(hours=0)
+        if end_time < self.split_hour:
+            duration_day = end_time
+        else:
+            duration_day = self.split_hour
+            duration_night = end_time - self.split_hour
+
+        return duration_day, duration_night
+
+    def fill_na(self, data: pd.DataFrame) -> pd.DataFrame:
+        data['resource'] = data['resource'].fillna('UNDEFINED')
+
+        return data
+
+    def conv_res_format(self, data: pd.DataFrame):
+        data['resource'] = data['resource'].str.split(self.split_symbol).str[1]
+
+        return data
 
     def post_process_res(self):
         # Get the resource timeline result
         res_schedule = self.get_res_result()
         res_schd_df = self.conv_to_df(data=res_schedule, kind='resource')
 
-        if self.save_optseq_result_yn:
+        if self.exec_cfg['save_step_yn']:
             self.save_opt_result(data=res_schd_df)
 
         # if self.draw_graph_yn:
@@ -120,7 +279,7 @@ class PostProcess(object):
                     break
                 if add_phase_yn and line.strip() != '':
                     demand, resource, schedule = line.strip().split(',')
-                    if demand not in self.default_demand:
+                    if demand not in self.default_activity:
                         demand_id, item_cd, res_grp = demand.split('@')
                         schedule = schedule.strip().split(' ')
                         duration_start = int(schedule[0])
@@ -148,40 +307,26 @@ class PostProcess(object):
 
         return df
 
-    def change_time_freq(self, data):
-        data['start_num'] = np.round(data['start_num'] / self.gantt_time_map[self.gantt_time_unit], 2)
-        data['end_num'] = np.round(data['end_num'] / self.gantt_time_map[self.gantt_time_unit], 2)
-
-        return data
-
     def change_timeline(self, data: pd.DataFrame):
 
         data['start'] = data['start_num'].apply(
-            lambda x: self.start_time + dt.timedelta(seconds=x)
+            lambda x: self.plant_start_time + dt.timedelta(seconds=x)
         )
         data['end'] = data['end_num'].apply(
-            lambda x: self.start_time + dt.timedelta(seconds=x)
+            lambda x: self.plant_start_time + dt.timedelta(seconds=x)
         )
-        # data['duration'] = data['end'] - data['start']
-
-        # # Change the time frequency
-        # data['duration'] = np.ceil(data['duration'] / np.timedelta64(1, self.gantt_time_unit))
-        # data['duration'] = data['duration'].apply(lambda x: dt.timedelta(hours=x))
 
         data = data.drop(columns=['start_num', 'end_num'])
 
         return data
 
-    def save_opt_result(self, data: pd.DataFrame):
-        data.to_csv(os.path.join(self.save_path, 'opt_result.csv'), index=False)
-
-    def draw_gantt(self, data: pd.DataFrame):
-        data = self.change_timeline(data=data)
+    def draw_gantt(self, data: pd.DataFrame) -> None:
+        # data = self.change_timeline(data=data)
 
         self.draw_activity(data=data, kind='demand')
         self.draw_activity(data=data, kind='resource')
 
-    def draw_activity(self, data, kind: str):
+    def draw_activity(self, data, kind: str) -> None:
         if kind == 'demand':
             # By demand
             fig_dmd = px.timeline(data, x_start='start', x_end='end', y='dmd_id', color='resource',
@@ -192,41 +337,45 @@ class PostProcess(object):
 
         elif kind == 'resource':
             # By resource
-            fig_res = px.timeline(data, x_start='start', x_end='end', y='resource', color='dmd_id',
-                                  color_discrete_sequence=px.colors.qualitative.Set3)
-            fig_res.update_yaxes(autorange="reversed")
-            fig_res.write_html(os.path.join(self.save_path, 'gantt', 'gantt_act_res.html'))  # Save the graph
-            # fig.write_image(os.path.join(self.save_path, 'gantt', 'gantt_activity.png')
+            fig = px.timeline(data, x_start='start', x_end='end', y='resource', color='dmd_id',
+                              color_discrete_sequence=px.colors.qualitative.Set3)
+            fig.update_yaxes(autorange="reversed")
 
-    def draw_human_usage(self, data):
+            # Save the graph
+            self.save_fig(fig=fig, name='gantt_act_res.html')
+            plt.close()
+
+    def draw_human_usage(self, data) -> None:
         data = data[data['capacity'] == 0].copy()
 
         fig = px.timeline(data, x_start='start', x_end='end', y='res_cd', color='res_cd')
         fig.update_yaxes(autorange="reversed")
 
         # Save the graph
-        fig.write_html(os.path.join(self.save_path, 'gantt', 'gantt_resource.html'))
-        # fig.write_image(os.path.join(self.save_path, 'gantt', 'gantt_activity.png'))
+        self.save_fig(fig=fig, name='gantt_resource.html')
         plt.close()
 
-    def set_start_time(self):
-        start_time = dt.datetime.today() \
-            .replace(microsecond=0) \
-            .replace(second=0) \
-            .replace(minute=0) \
-            .replace(hour=0)
+    def save_org_result(self) -> None:
+        save_dir = os.path.join(self.save_path, 'opt', 'org', self.fp_version)
+        util.make_dir(path=save_dir)
 
-        return start_time
+        result = open(os.path.join(save_dir, self.fp_version + '_result.txt'), 'w')
+        with open(self.optseq_output_path, 'r') as f:
+            for line in f:
+                result.write(line)
 
-        # def draw_activity_bak(self, data):
-        #     fig, ax = plt.subplots(1, figsize=(16, 6))
-        #     ax.barh(data['dmd_id'], data['duration'], left=data['start'])
-        #
-        #     # Ticks
-        #     xticks = pd.date_range(self.start_time, end=data['end'].max(), freq='H')
-        #     xticks_labels = xticks.strftime('%m/%d %H:%M')
-        #     ax.set_xticks(xticks[::6])
-        #     ax.set_xticklabels(xticks_labels[::6])
-        #
-        #     fig.write_image(os.path.join(self.save_path, 'gantt', 'gantt_activity.png'))
-        #     plt.close()
+        f.close()
+        result.close()
+
+    def save_opt_result(self, data: pd.DataFrame, name: str) -> None:
+        save_dir = os.path.join(self.save_path, 'opt', 'csv', self.fp_version)
+        util.make_dir(path=save_dir)
+
+        data.to_csv(os.path.join(save_dir, self.fp_version + '_' + name), index=False, encoding='cp949')
+
+    def save_fig(self, fig, name: str) -> None:
+        save_dir = os.path.join(self.save_path, 'gantt', self.fp_version)
+        util.make_dir(path=save_dir)
+
+        fig.write_html(os.path.join(save_dir, name))
+        # fig.write_image(os.path.join(save_dir, name))
