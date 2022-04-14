@@ -1,6 +1,6 @@
 import os
-
 import pandas as pd
+from typing import Dict
 
 
 class DataLoad(object):
@@ -14,14 +14,30 @@ class DataLoad(object):
         self.base_dir = os.path.join('..', '..')
         self.fp_version = fp_version
 
-    def load_master(self) -> dict:
+    def load_demand(self) -> pd.DataFrame:
+        demand = self.io.get_df_from_db(sql=self.sql_conf.sql_demand(**{'fp_version': self.fp_version}))
+
+        return demand
+
+    def load_master(self) -> Dict[str, pd.DataFrame]:
+        fp_version = {'fp_version': self.fp_version}
+
         info = {
-            'item': self.io.get_df_from_db(sql=self.sql_conf.sql_item_master(**{'fp_version': self.fp_version})),
+            'item': self.io.get_df_from_db(
+                sql=self.sql_conf.sql_item_master(**fp_version)
+            ),
             'res_grp': self.io.get_df_from_db(
-                sql=self.sql_conf.sql_res_grp(**{'fp_version': self.fp_version})
+                sql=self.sql_conf.sql_res_grp(**fp_version)
+            ),
+            'res_grp_nm': self.io.get_df_from_db(
+                sql=self.sql_conf.sql_res_grp_nm()
             ),
             'item_res_duration': self.io.get_df_from_db(
-                sql=self.sql_conf.sql_item_res_duration(**{'fp_version': self.fp_version})
+                sql=self.sql_conf.sql_item_res_duration(**fp_version)
+            ),
+            'job_change': self.io.load_object(
+                file_path=os.path.join(self.base_dir, 'data', 'job_change.csv'),
+                data_type='csv',
             ),
             'res_human': self.io.load_object(
                 file_path=os.path.join(self.base_dir, 'data', 'res_people.csv'),
@@ -35,7 +51,3 @@ class DataLoad(object):
 
         return info
 
-    def load_demand(self) -> pd.DataFrame:
-        demand = self.io.get_df_from_db(sql=self.sql_conf.sql_demand(**{'fp_version': self.fp_version}))
-
-        return demand

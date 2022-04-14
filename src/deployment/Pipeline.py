@@ -1,7 +1,6 @@
 import common.util as util
 from dao.DataIO import DataIO
 from common.SqlConfigEngine import SqlConfigEngine
-# from common.SqlConfig import SqlConfig
 from init.Init import Init
 from init.DataLoad import DataLoad
 from init.Preprocess import Preprocess
@@ -76,7 +75,7 @@ class Pipeline(object):
         # ============================================= #
         # 3. Data preprocessing
         # ============================================= #
-        dmd_prep, res_prep = (None, None)
+        dmd_prep, res_prep, job_change = (None, None, None)
         if self.step_cfg['cls_prep']:
             print("Step: Data Preprocessing")
 
@@ -96,6 +95,7 @@ class Pipeline(object):
             # Preprocess demand & resource dataset
             dmd_prep = prep.set_dmd_info(data=demand)    # Demand
             res_prep = prep.set_res_info(data=master)    # Resource
+            plant_job_change = prep.set_plant_job_change(demand=demand, master=master)
 
             # Save the preprocessed demand
             if self.exec_cfg['save_step_yn']:
@@ -107,6 +107,11 @@ class Pipeline(object):
                 self.io.save_object(
                     data=res_prep,
                     file_path=self.pipeline_path['prep_resource'],
+                    data_type='binary'
+                )
+                self.io.save_object(
+                    data=plant_job_change,
+                    file_path=self.pipeline_path['job_change'],
                     data_type='binary'
                 )
 
@@ -125,6 +130,10 @@ class Pipeline(object):
                     file_path=self.pipeline_path['prep_resource'],
                     data_type='binary'
                 )
+                job_change = self.io.load_object(
+                    file_path=self.pipeline_path['job_change'],
+                    data_type='binary'
+                )
 
             # Model by plant
             for plant in dmd_prep['plant_dmd_list']:
@@ -132,7 +141,8 @@ class Pipeline(object):
                     cstr_cfg=self.cstr_cfg,
                     plant=plant,
                     dmd_due=dmd_prep['plant_dmd_due'][plant],
-                    item_res_grp_duration=res_prep['plant_item_res_grp_duration'][plant]
+                    item_res_duration=res_prep['plant_item_res_duration'][plant],
+                    job_change=job_change[plant]
                 )
 
                 # Instantiate model
@@ -180,11 +190,13 @@ class Pipeline(object):
             # Post Process after optimization
             for plant in dmd_prep['plant_dmd_list']:
                 pp = PostProcess(
+                    io=self.io,
+                    sql_conf=self.sql_conf,
                     exec_cfg=self.exec_cfg,
                     fp_version=self.fp_version,
+                    plant_cd=plant,
                     plant_start_time=self.plant_start_time,
                     item_mst=master['item'],
-                    res_grp=res_prep['plant_res_grp'][plant],
-                    item_res_grp_duration=res_prep['plant_item_res_grp_duration'][plant]
+                    res_mst=res_prep
                 )
                 pp.post_process()

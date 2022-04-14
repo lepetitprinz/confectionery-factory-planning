@@ -10,8 +10,11 @@ from sqlalchemy.exc import SQLAlchemyError
 class SqlSession(object):
     def __init__(self):
         # Create Engine Format(Microsoft SQL Server)
+        # self.url = config.RDMS + '://' + config.USER + ':' + config.PASSWORD + \
+        #            '@' + config.HOST + ':' + config.PORT + '/' + config.DATABASE
+
         self.url = config.RDMS + '://' + config.USER + ':' + config.PASSWORD + \
-                   '@' + config.HOST + ':' + config.PORT + '/' + config.DATABASE
+                   '@' + config.HOST + ':' + config.PORT + '/' + config.DATABASE + '?charset=utf8'
 
         self.engine = None
         self._connection = None

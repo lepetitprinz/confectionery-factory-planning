@@ -10,7 +10,11 @@ import matplotlib.pyplot as plt
 
 
 class PostProcess(object):
-    # class attribute
+    # Columns instance attribute
+    col_fp_version_id = 'fp_vrsn_id'
+    col_fp_version_seq = 'fp_vrsn_seq'
+    col_date = 'yymmdd'
+
     default_activity = ['source', 'sink']
     res_schd_cols = ['res_cd', 'start_num', 'end_num', 'capacity']
     act_cols = ['dmd_id', 'item_cd', 'res_grp', 'resource', 'start_num', 'end_num']
@@ -20,33 +24,47 @@ class PostProcess(object):
     act_start_phase = '--- best solution ---'
     act_end_phase = '--- tardy activity ---'
     res_start_phase = '--- resource residuals ---'
-    es_end_phase = '--- best activity list ---'
+    res_end_phase = '--- best activity list ---'
 
-    def __init__(self, exec_cfg: dict, fp_version: str, item_mst, plant_start_time, res_grp, item_res_grp_duration):
+    def __init__(self, io, sql_conf, exec_cfg: dict, fp_version: str, plant_cd: str, plant_start_time,
+                 item_mst, res_mst):
+        # Class instance attribute
+        self.io = io
+        self.sql_conf = sql_conf
+
         # Execute instance attribute
         self.exec_cfg = exec_cfg
         self.fp_version = fp_version
-
-        # path instance attribute
-        self.optseq_output_path = os.path.join('..', 'test', 'optseq_output.txt')
-        self.save_path = os.path.join('..', '..', 'result')
-
-        # time instance attribute
+        self.plant_cd = plant_cd
         self.plant_start_time = plant_start_time
+
+        # Data instance attribute
+        self.item_mst = item_mst
+        self.res_grp = res_mst['plant_res_grp'][plant_cd]
+        self.res_grp_nm = res_mst['plant_res_grp_nm'][plant_cd]
+        self.res_nm_map = res_mst['plant_res_nm'][plant_cd]
+        self.res_to_res_grp = {}
+
+        # Capacity instance attribute
         self.choose_human_capa = True
         self.used_res_filter_yn = False
 
-        # Timeline
-        self.item_mst = item_mst
+        # Timeline instance attribute
         self.split_hour = dt.timedelta(hours=12)
-        self.res_grp = res_grp
-        self.res_to_res_grp = {}
-        self.item_res_grp_duration = item_res_grp_duration
         self.item_avg_duration = {}
+        self.item_res_duration = res_mst['plant_item_res_duration'][plant_cd]
+        self.inf_val = 10**7 - 1
+
+        # Path instance attribute
+        self.optseq_output_path = os.path.join('..', 'test', 'optseq_output.txt')
+        self.save_path = os.path.join('..', '..', 'result')
 
     def post_process(self):
+        # Set resource to resource group
         self.set_res_to_res_grp()
-        self.item_res_grp_avg_duration()
+
+        # Calculate the average duration of producing item
+        self.calc_item_res_avg_duration()
 
         # Save the original result
         self.save_org_result()
@@ -57,7 +75,7 @@ class PostProcess(object):
         # Resource usage timeline
         # self.post_process_res()
 
-    def set_res_to_res_grp(self):
+    def set_res_to_res_grp(self) -> None:
         res_grp = self.res_grp.copy()
         res_to_res_grp = {}
         for res_grp_cd, res_list in res_grp.items():
@@ -66,19 +84,19 @@ class PostProcess(object):
 
         self.res_to_res_grp = res_to_res_grp
 
-    def item_res_grp_avg_duration(self):
-        duration = self.item_res_grp_duration.copy()
+    def calc_item_res_avg_duration(self) -> None:
+        duration = self.item_res_duration.copy()
         item_avg_duration = {}
-        for item_cd, res_grp_rate in duration.items():
+        for item_cd, res_rate in duration.items():
             rate_list = []
-            for res_grp_cd, rate in res_grp_rate.items():
+            for rate in res_rate.values():
                 rate_list.append(rate)
-            avg_duration = sum(rate_list) / len(rate_list)
+            avg_duration = round(sum(rate_list) / len(rate_list))
             item_avg_duration[item_cd] = avg_duration
 
         self.item_avg_duration = item_avg_duration
 
-    def post_process_act(self):
+    def post_process_act(self) -> None:
         # Get the best sequence result
         activity = self.get_best_activity()
 
@@ -93,6 +111,9 @@ class PostProcess(object):
             self.save_opt_result(data=activity_df, name='act.csv')
             self.save_opt_result(data=qty_df, name='qty.csv')
 
+        if self.exec_cfg['save_db_yn']:
+            self.save_on_db(data=qty_df)
+
         if self.exec_cfg['save_graph_yn']:
             self.draw_gantt(data=activity_df)
 
@@ -103,31 +124,40 @@ class PostProcess(object):
                 for start, end in zip(item_df['start'], item_df['end']):
                     timeline_list.extend(self.calc_duration(res_cd, item_cd, start, end))
 
-        qty_df = pd.DataFrame(timeline_list, columns=['res_cd', 'item_cd', 'date', 'type', 'duration'])
+        qty_df = pd.DataFrame(timeline_list, columns=['res_cd', 'item_cd', 'yymmdd', 'type', 'duration'])
         qty_df = self.set_item_res_capa_rate(data=qty_df)
         qty_df['duration'] = qty_df['duration'] / np.timedelta64(1, 's')
         qty_df['qty'] = np.round(qty_df['duration'] / qty_df['capa_rate'], 2)
 
+        #
+        qty_df['qty'] = qty_df['qty'].fillna(0)
+        qty_df['qty'] = np.nan_to_num(qty_df['qty'].values, posinf=self.inf_val, neginf=self.inf_val)
+
         # Data processing
         qty_df = qty_df.drop(columns=['duration'])
 
-        # Add naming information
-        item_mst = self.item_mst[['item_cd', 'item_nm']].copy()
-        qty_df = pd.merge(qty_df, item_mst, how='left', on='item_cd')
-
-        qty_df['res_grp_cd'] = [self.res_to_res_grp.get(res_cd, 'UNDEFINED') for res_cd in qty_df['res_cd']]
-        qty_df = qty_df[['res_grp_cd', 'res_cd', 'item_cd', 'item_nm', 'date', 'type', 'qty']]
+        qty_df = self.add_name_info(data=qty_df)
 
         return qty_df
+
+    def add_name_info(self, data: pd.DataFrame):
+        # Add item naming
+        item_mst = self.item_mst[['item_cd', 'item_nm']].copy()
+        data = pd.merge(data, item_mst, how='left', on='item_cd')
+
+        # Add resource naming
+        data['res_grp_cd'] = [self.res_to_res_grp.get(res_cd, 'UNDEFINED') for res_cd in data['res_cd']]
+        data['res_grp_nm'] = [self.res_grp_nm.get(res_grp_cd, 'UNDEFINED') for res_grp_cd in data['res_grp_cd']]
+        data['res_nm'] = [self.res_nm_map.get(res_cd, 'UNDEFINED') for res_cd in data['res_cd']]
+
+        data = data[['res_grp_cd', 'res_grp_nm', 'res_cd', 'res_nm', 'item_cd', 'item_nm', 'yymmdd', 'type', 'qty']]
+
+        return data
 
     def set_item_res_capa_rate(self, data):
         capa_rate_list = []
         for item_cd, res_cd in zip(data['item_cd'], data['res_cd']):
-            res_grp = self.res_to_res_grp.get(res_cd, None)
-            if res_grp is not None:
-                capa_rate = self.item_res_grp_duration[item_cd][res_grp]
-            else:
-                capa_rate = self.item_avg_duration[item_cd]
+            capa_rate = self.item_res_duration[item_cd].get(res_cd, self.item_avg_duration[item_cd])
             capa_rate_list.append(capa_rate)
 
         data['capa_rate'] = capa_rate_list
@@ -202,7 +232,8 @@ class PostProcess(object):
 
         return duration_day, duration_night
 
-    def fill_na(self, data: pd.DataFrame) -> pd.DataFrame:
+    @staticmethod
+    def fill_na(data: pd.DataFrame) -> pd.DataFrame:
         data['resource'] = data['resource'].fillna('UNDEFINED')
 
         return data
@@ -218,7 +249,7 @@ class PostProcess(object):
         res_schd_df = self.conv_to_df(data=res_schedule, kind='resource')
 
         if self.exec_cfg['save_step_yn']:
-            self.save_opt_result(data=res_schd_df)
+            self.save_opt_result(data=res_schd_df, name='resource.csv')
 
         # if self.draw_graph_yn:
         #     self.draw_human_usage(data=res_schd_df)
@@ -329,11 +360,12 @@ class PostProcess(object):
     def draw_activity(self, data, kind: str) -> None:
         if kind == 'demand':
             # By demand
-            fig_dmd = px.timeline(data, x_start='start', x_end='end', y='dmd_id', color='resource',
-                                  color_discrete_sequence=px.colors.qualitative.Set3)
-            fig_dmd.update_yaxes(autorange="reversed")
-            fig_dmd.write_html(os.path.join(self.save_path, 'gantt', 'gantt_act_dmd.html'))    # Save the graph
-            # fig.write_image(os.path.join(self.save_path, 'gantt', 'gantt_activity.png'))
+            fig = px.timeline(data, x_start='start', x_end='end', y='dmd_id', color='resource',
+                              color_discrete_sequence=px.colors.qualitative.Set3)
+            fig.update_yaxes(autorange="reversed")
+
+            # Save the graph
+            self.save_fig(fig=fig, name='gantt_act_dmd.html')
 
         elif kind == 'resource':
             # By resource
@@ -343,7 +375,8 @@ class PostProcess(object):
 
             # Save the graph
             self.save_fig(fig=fig, name='gantt_act_res.html')
-            plt.close()
+
+        plt.close()
 
     def draw_human_usage(self, data) -> None:
         data = data[data['capacity'] == 0].copy()
@@ -372,6 +405,23 @@ class PostProcess(object):
         util.make_dir(path=save_dir)
 
         data.to_csv(os.path.join(save_dir, self.fp_version + '_' + name), index=False, encoding='cp949')
+
+    def save_on_db(self, data: pd.DataFrame):
+        fp_seq_df = self.io.get_df_from_db(
+            sql=self.sql_conf.sql_fp_seq_list(**{self.col_fp_version_id: self.fp_version})
+        )
+        if len(fp_seq_df) == 0:
+            last_seq = '001'
+        else:
+            last_seq = fp_seq_df[self.col_fp_version_seq].max()
+            last_seq = str(int(last_seq) + 1).zfill(3)
+
+        data[self.col_fp_version_id] = self.fp_version
+        data[self.col_fp_version_seq] = last_seq
+        data[self.col_date] = data[self.col_date].dt.strftime('%Y%m%d')
+
+        # Save the result on DB
+        self.io.insert_to_db(df=data, tb_name='M4E_O402122')
 
     def save_fig(self, fig, name: str) -> None:
         save_dir = os.path.join(self.save_path, 'gantt', self.fp_version)

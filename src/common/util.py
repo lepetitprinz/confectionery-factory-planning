@@ -1,5 +1,11 @@
 import os
 
+
+def make_dir(path) -> None:
+    if not os.path.isdir(path):
+        os.mkdir(path)
+
+
 def make_path(path: str, module: str, name: str, extension: str):
     path_dir = os.path.join(path, module)
     # make the directory if directory does not exist
@@ -23,10 +29,11 @@ def make_version_path(path: str, module: str, version: str, name: str, extension
     return path
 
 
-def generate_name(name_list: list):
+def make_fp_version_name(year, week, seq):
+    return 'FP_' + year + week + '.' + seq
+
+
+def generate_model_name(name_list: list):
     return '@'.join(name_list)
 
 
-def make_dir(path) -> None:
-    if not os.path.isdir(path):
-        os.mkdir(path)

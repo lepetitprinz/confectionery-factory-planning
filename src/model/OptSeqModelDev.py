@@ -1,7 +1,6 @@
 import common.util as util
 
-import pandas as pd
-from typing import List, Dict
+from typing import  Dict
 from optimize.optseq import Model, Mode, Parameters, Activity, Resource
 
 
@@ -15,7 +14,7 @@ class OptSeqModel(object):
         'PPL': 2
     }
 
-    def __init__(self, cstr_cfg: dict, plant: str, dmd_due: dict, item_res_duration: dict, job_change: pd.DataFrame):
+    def __init__(self, cstr_cfg: dict, plant: str, dmd_due: dict, item_res_grp_duration: dict):
         # Constraint attribute
         self.cstr_cfg = cstr_cfg
 
@@ -38,16 +37,33 @@ class OptSeqModel(object):
         self.res_start_time_of_day = 0
 
         # Duration instance attribute
-        self.res_default_duration = 60
-        self.item_res_duration = item_res_duration
+        self.res_grp_default_duration = 1
+        self.item_res_grp_duration_per_unit = item_res_grp_duration
 
-        # Job change instance attribute
-        self.job_change = job_change
+    def setup_mode(self, data: list):
+        job_change = {}
+        for from_res_cd, to_res_cd, time in data:
+            job_change[(from_res_cd, to_res_cd)] = Mode(
+                name=f"Job_Change_{from_res_cd}_{to_res_cd}",
+                duration=time
+            )
+            if time != 0:
+                job_change[(from_res_cd, to_res_cd)].addResource()
 
-    def init(self, dmd_list: list, res_grp_list: dict):
+    def init(self, dmd_list: list, res_grp_list: dict, job_change_list=[]):
         self.set_max_due_date()
 
         model = Model(name='lotte')
+
+        if self.cstr_cfg['apply_job_change']:
+            state = model.addState(name='job_change')
+            state.addValue(time=0, value=0)
+
+        # merge
+        # res_grp_list = self.merge_res_grp(
+        #     res_grp_list=res_grp_list,
+        #     res_human_list=res_human_list
+        # )
 
         # Set resource
         model_res = self.set_resource(model=model, res_grp_list=res_grp_list)
@@ -75,6 +91,15 @@ class OptSeqModel(object):
         self.max_due_day = round(due_list[0] / self.sec_of_day)
 
     @staticmethod
+    def merge_res_grp(res_grp_list, res_human_list):
+        for res_grp in res_human_list:
+            if res_grp in res_grp_list:
+                # Extend resource of people on original resource list
+                res_grp_list[res_grp].extend(res_human_list[res_grp])
+
+        return res_grp_list
+
+    @staticmethod
     def optimize(model: Model):
         model.optimize()
 
@@ -86,32 +111,46 @@ class OptSeqModel(object):
             activity[act_name] = model.addActivity(
                 name=f'Act[{act_name}]',
                 duedate=due_date,
-                weight=1    # Penalty per unit time when the work completion time is rate for delivery
+                weight=1,    # Penalty per unit time when the work completion time is rate for delivery
+                autoselect=self.cstr_cfg['apply_job_change']
             )
+
+            # Calculate duration
+            duration = self.calc_duration(item_cd, res_grp_cd, qty)
 
             # Set mode
             activity[act_name] = self.set_mode(
                 act=activity[act_name],
                 dmd_id=dmd_id,
-                item_cd=item_cd,
-                qty=qty,
                 res_list=res_grp_list[res_grp_cd],
                 model_res=model_res[res_grp_cd],
+                duration=duration,
                 res_grp_cd=res_grp_cd
             )
 
         return model
 
+    def calc_duration(self, item_cd, res_grp_cd, qty) -> int:
+        # Calculate duration
+        item_res_grp_duration = self.item_res_grp_duration_per_unit.get(item_cd, None)
+
+        if item_res_grp_duration is None:
+            duration_per_unit = self.res_grp_default_duration
+        else:
+            duration_per_unit = item_res_grp_duration.get(res_grp_cd, self.res_grp_default_duration)
+
+        duration = int(qty * duration_per_unit)
+
+        return duration
+
     # Set work processing method
-    def set_mode(self, act: Activity, dmd_id: str, item_cd: str, qty: int, res_list: list,
-                 model_res, res_grp_cd: str) -> Activity:
+    def set_mode(self, act: Activity, dmd_id: str, res_list: list, model_res, duration: int,
+                 res_grp_cd: str) -> Activity:
         for res_cd, capacity, unit_cd, res_type in res_list:
             if res_type == 'NOR':    # Check if resource is machine
                 # Make each mode (set each available resource)
-
-                duration = self.calc_duration(item_cd=item_cd, res_cd=res_cd, qty=qty)
-
                 mode = Mode(
+                    # name=f'Mode[{res_cd}]',
                     name=f'Mode[{dmd_id}@{res_cd}]',
                     duration=duration    # Duration : the working time of the mode
                 )
@@ -126,23 +165,23 @@ class OptSeqModel(object):
                     duration=duration
                 )
 
+                if self.add_res_people_yn:
+                    res_to_peple_dict = self.res_human_map.get(res_grp_cd, None)
+                    if res_to_peple_dict is not None:
+                        people_list = res_to_peple_dict[res_cd]
+
+                        # Add people
+                        mode = self.add_resource_people(
+                            mode=mode,
+                            model_res=model_res,
+                            people_list=people_list,
+                            duration=duration
+                        )
+
                 # add mode list to activity
                 act.addModes(mode)
 
         return act
-
-    def calc_duration(self, item_cd, res_cd, qty) -> int:
-        # Calculate duration
-        item_res_duration = self.item_res_duration.get(item_cd, None)
-
-        if item_res_duration is None:
-            duration_per_unit = self.res_default_duration
-        else:
-            duration_per_unit = item_res_duration.get(res_cd, self.res_default_duration)
-
-        duration = int(qty * duration_per_unit)
-
-        return duration
 
     def set_resource(self, model: Model, res_grp_list) -> Dict[str, Dict[str, Resource]]:
         model_res_grp = {}
@@ -186,6 +225,20 @@ class OptSeqModel(object):
         )
 
         return mode
+
+    def add_resource_people(self, mode: Mode, model_res, people_list, duration: int):
+        # Add resource
+        for people in people_list:
+            mode.addResource(    # ToDo: need to revise requirement
+                resource=model_res[people],
+                requirement={(0, duration): 1},    # requirement : gives the required amount of resources
+                # requirement={(0, 1): 1}  # requirement : gives the required amount of resources
+            )
+
+        return mode
+
+    def set_break(self):
+        pass
 
     def set_parameter(self, model: Model) -> Model:
         # Set parameters
