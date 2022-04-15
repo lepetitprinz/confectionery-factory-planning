@@ -42,22 +42,22 @@ class DataIO(object):
 
     # Save the object
     @staticmethod
-    def save_object(data, data_type: str, file_path: str) -> None:
+    def save_object(data, data_type: str, path: str) -> None:
         """
         :param data: Saving dataset
         :param data_type: csv / binary
-        :param file_path: file path
+        :param path: file path
         """
         if data_type == 'csv':
-            data.to_csv(file_path, index=False)
+            data.to_csv(path, index=False)
 
         elif data_type == 'binary':
-            with open(file_path, 'wb') as handle:
+            with open(path, 'wb') as handle:
                 pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL)
                 handle.close()
 
         elif data_type == 'json':
-            with open(file_path, 'w') as handle:
+            with open(path, 'w') as handle:
                 json.dump(data, handle, indent=4)
 
     # Load the object

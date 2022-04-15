@@ -35,6 +35,8 @@ class PostProcess(object):
         # Execute instance attribute
         self.exec_cfg = exec_cfg
         self.fp_version = fp_version
+
+        # Plant instance attribute
         self.plant_cd = plant_cd
         self.plant_start_time = plant_start_time
 

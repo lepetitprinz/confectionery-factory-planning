@@ -1,35 +1,36 @@
-import datetime
+import common.config as config
 
 import numpy as np
 import pandas as pd
+import datetime as dt
 from typing import List, Tuple, Dict, Any, Hashable
 from itertools import permutations
+
 
 class Preprocess(object):
     # Time setting
     time_uom = 'sec'    # min / sec
 
     # Column name setting
-    col_dmd = 'dmd_id'
-    col_plant = 'plant_cd'
-    col_brand = 'item_attr03_cd'
-    col_sku = 'item_cd'
-    col_res = 'res_cd'
-    col_res_nm = 'res_nm'
-    col_res_grp = 'res_grp_cd'
-    col_res_grp_nm = 'res_grp_nm'
-    col_res_map = 'res_map_cd'
-    col_res_type = 'res_type_cd'
-    col_capacity = 'capacity'
-    col_capa_unit = 'capa_unit_cd'
-    col_qty = 'qty'
-    col_route_from = 'from_item'
-    col_route_to = 'to_item'
-    col_bom_lvl = 'bom_lvl'
-    col_from_to_rate = 'rate'
-    col_duration = 'duration'
-    col_due_date = 'due_date'
-    col_job_change_time = 'working_time'
+    col_dmd = config.col_dmd
+    col_plant = config.col_plant
+    col_brand = config.col_brand
+    col_sku = config.col_sku
+    col_due_date = config.col_due_date
+    col_qty = config.col_qty
+    col_res = config.col_res
+    col_res_nm = config.col_res_nm
+    col_res_grp = config.col_res_grp
+    col_res_grp_nm = config.col_res_grp_nm
+    col_res_map = config.col_res_map
+    col_res_type = config.col_res_type
+    col_capacity = config.col_capacity
+    col_capa_unit = config.col_capa_unit
+    col_duration = config.col_duration
+
+    col_job_change_from = config.col_job_change_from
+    col_job_change_to = config.col_job_change_to
+    col_job_change_time = config.col_job_change_time
 
     # Column usage setting
     use_col_dmd = ['dmd_id', 'item_cd', 'res_grp_cd', 'qty', 'due_date']
@@ -38,11 +39,39 @@ class Preprocess(object):
     use_col_res_grp_job_change = []
     use_col_res_people_map = ['plant_cd', 'res_grp_cd', 'res_cd', 'res_map_cd']
 
-    def __init__(self):
+    def __init__(self, cstr_cfg):
+        self.cstr_cfg = cstr_cfg
+
         # Plant instance attribute
         self.plant_dmd_list = []
         self.plant_dmd_res_list = []
         self.plant_dmd_item = {}
+
+        # Job change  instance attribute
+        self.job_change_time_unit = 'MIN'
+
+    def preprocess(self, demand, master):
+        dmd_prep = self.set_dmd_info(data=demand)    # Demand
+        res_prep = self.set_res_info(data=master)    # Resource
+
+        job_change, sku_to_brand = (None, None)
+        if self.cstr_cfg['apply_job_change']:  # Job change
+            job_change = self.set_plant_job_change(demand=demand, master=master)
+            sku_to_brand = self.set_sku_to_brand_map(data=master['item'])
+
+        prep_data = {
+            'demand': dmd_prep,
+            'resource': res_prep,
+            'job_change': job_change,
+            'sku_to_brand': sku_to_brand
+        }
+
+        return prep_data
+
+    def set_sku_to_brand_map(self, data: pd.DataFrame) -> Dict[str, str]:
+        sku_to_brand = {item_cd: brand_cd for item_cd, brand_cd in zip(data[self.col_sku], data[self.col_brand])}
+
+        return sku_to_brand
 
     def set_dmd_info(self, data: pd.DataFrame) -> Dict[str, Dict[str, Any]]:
         # Get plant list of demand list
@@ -136,7 +165,7 @@ class Preprocess(object):
 
         return res_prep
 
-    def set_plant_job_change(self, demand: pd.DataFrame, master: dict) -> Dict[str, pd.DataFrame]:
+    def set_plant_job_change(self, demand: pd.DataFrame, master: dict) -> Dict[str, Dict[str, Any]]:
         merged = pd.merge(
             demand,
             master['item'][[self.col_brand, self.col_sku]],
@@ -154,18 +183,33 @@ class Preprocess(object):
 
         return plant_job_change
 
-    def match_job_change_time(self, candidate: dict, job_change_master: pd.DataFrame):
+    def match_job_change_time(self, candidate: dict, job_change_master: pd.DataFrame) -> Dict[str, Dict[str, Any]]:
+        # Change time unit
+        if self.job_change_time_unit == 'MIN':
+            job_change_master[self.col_job_change_time] = job_change_master[self.col_job_change_time] * 1
+            # job_change_master[self.col_job_change_time] = job_change_master[self.col_job_change_time] * 60
+
         job_change_by_plant = {}
         for plant_cd, job_change_cand in candidate.items():
             job_change = pd.merge(
                 job_change_cand,
                 job_change_master,
                 how='left',
-                on=[self.col_res_grp, 'from_res_cd', 'to_res_cd']
+                on=[self.col_res_grp, self.col_job_change_from, self.col_job_change_to]
             )
 
             job_change[self.col_job_change_time] = job_change[self.col_job_change_time].fillna(0)
-            job_change_by_plant[plant_cd] = job_change
+
+            res_grp_job_change = {}
+            for res_grp_cd, res_grp_df in job_change.groupby(by=self.col_res_grp):
+                from_to_res = {}
+                for from_res, to_res, job_change_time in zip(
+                        res_grp_df[self.col_job_change_from],
+                        res_grp_df[self.col_job_change_to],
+                        res_grp_df[self.col_job_change_time]):
+                    from_to_res[(from_res, to_res)] = job_change_time
+                res_grp_job_change[res_grp_cd] = from_to_res
+            job_change_by_plant[plant_cd] = res_grp_job_change
 
         return job_change_by_plant
 
@@ -258,7 +302,7 @@ class Preprocess(object):
         return item_res_duration_by_plant
 
     def calc_deadline(self, data: pd.DataFrame) -> pd.DataFrame:
-        days = data[self.col_due_date] - datetime.datetime.now()   # ToDo : need to revise start day
+        days = data[self.col_due_date] - dt.datetime.now()   # ToDo : need to revise start day
 
         due_date = None
         if self.time_uom == 'min':

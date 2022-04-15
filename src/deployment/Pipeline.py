@@ -4,7 +4,8 @@ from common.SqlConfigEngine import SqlConfigEngine
 from init.Init import Init
 from init.DataLoad import DataLoad
 from init.Preprocess import Preprocess
-from model.OptSeqModel import OptSeqModel
+# from model.OptSeqModel import OptSeqModel
+from model.OptSeqModelDev import OptSeqModel
 from model.PostProcess import PostProcess
 
 
@@ -17,7 +18,7 @@ class Pipeline(object):
         self.cstr_cfg = cstr_cfg
 
         # Path instance attribute
-        self.default_path = default_path
+        self.path = default_path
         self.pipeline_path = {}
 
         # Factory information instance attribute
@@ -26,15 +27,15 @@ class Pipeline(object):
         self.plant_start_time = None
 
     def run(self):
-        # ============================================= #
+        # =================================================================== #
         # 1. Initialization dataset
-        # ============================================= #
+        # =================================================================== #
         # Instantiate init class
         print("Step: Initialize engine information")
         init = Init(
             io=self.io,
             sql_conf=self.sql_conf,
-            default_path=self.default_path,
+            default_path=self.path,
             fp_seq=self.fp_seq
         )
         init.run()
@@ -44,9 +45,9 @@ class Pipeline(object):
         self.fp_version = init.fp_version
         self.plant_start_time = init.plant_start_day
 
-        # ============================================= #
+        # =================================================================== #
         # 2. Load dataset
-        # ============================================= #
+        # =================================================================== #
         # Instantiate load class
         load = DataLoad(
             io=self.io,
@@ -63,19 +64,19 @@ class Pipeline(object):
             if self.exec_cfg['save_step_yn']:
                 self.io.save_object(
                     data=master,
-                    file_path=self.pipeline_path['load_master'],
+                    path=self.pipeline_path['load_master'],
                     data_type='binary'
                 )
                 self.io.save_object(
                     data=demand,
-                    file_path=self.pipeline_path['load_demand'],
+                    path=self.pipeline_path['load_demand'],
                     data_type='binary'
                 )
 
-        # ============================================= #
+        # =================================================================== # #
         # 3. Data preprocessing
-        # ============================================= #
-        dmd_prep, res_prep, job_change = (None, None, None)
+        # =================================================================== #
+        prep_data = None
         if self.step_cfg['cls_prep']:
             print("Step: Data Preprocessing")
 
@@ -90,105 +91,71 @@ class Pipeline(object):
                 )
 
             # Instantiate data preprocessing class
-            prep = Preprocess()
+            prep = Preprocess(cstr_cfg=self.cstr_cfg)
 
-            # Preprocess demand & resource dataset
-            dmd_prep = prep.set_dmd_info(data=demand)    # Demand
-            res_prep = prep.set_res_info(data=master)    # Resource
-            plant_job_change = prep.set_plant_job_change(demand=demand, master=master)
+            # Preprocess demand / resource / job change data
+            prep_data = prep.preprocess(demand=demand, master=master)
 
             # Save the preprocessed demand
             if self.exec_cfg['save_step_yn']:
-                self.io.save_object(
-                    data=dmd_prep,
-                    file_path=self.pipeline_path['prep_demand'],
-                    data_type='binary'
-                )
-                self.io.save_object(
-                    data=res_prep,
-                    file_path=self.pipeline_path['prep_resource'],
-                    data_type='binary'
-                )
-                self.io.save_object(
-                    data=plant_job_change,
-                    file_path=self.pipeline_path['job_change'],
-                    data_type='binary'
-                )
+                self.io.save_object(data=prep_data, path=self.pipeline_path['prep_data'], data_type='binary')
 
-        # ============================================= #
+            print("Data Preprocessing is finished.")
+
+        # =================================================================== #
         # Model
-        # ============================================= #
+        # =================================================================== #
         if self.step_cfg['cls_model']:
-            print("Step: Modeling")
+            print("Step: Modeling & Optimization")
 
             if not self.step_cfg['cls_prep']:
-                dmd_prep = self.io.load_object(
-                    file_path=self.pipeline_path['prep_demand'],
-                    data_type='binary'
-                )
-                res_prep = self.io.load_object(
-                    file_path=self.pipeline_path['prep_resource'],
-                    data_type='binary'
-                )
-                job_change = self.io.load_object(
-                    file_path=self.pipeline_path['job_change'],
-                    data_type='binary'
-                )
+                prep_data = self.io.load_object(file_path=self.pipeline_path['prep_data'], data_type='binary')
 
-            # Model by plant
-            for plant in dmd_prep['plant_dmd_list']:
+            # Modeling by each plant
+            for plant in prep_data['demand']['plant_dmd_list']:
+                print(f"Set the OtpSeq model: {plant}")
+
+                # Instantiate OptSeq model
                 opt_seq = OptSeqModel(
                     cstr_cfg=self.cstr_cfg,
                     plant=plant,
-                    dmd_due=dmd_prep['plant_dmd_due'][plant],
-                    item_res_duration=res_prep['plant_item_res_duration'][plant],
-                    job_change=job_change[plant]
+                    plant_data=prep_data
                 )
 
-                # Instantiate model
                 model = opt_seq.init(
-                    dmd_list=dmd_prep['plant_dmd_list'][plant],
-                    res_grp_list=res_prep['plant_res_grp'][plant]
+                    dmd_list=prep_data['demand']['plant_dmd_list'][plant],
+                    res_grp_list=prep_data['resource']['plant_res_grp'][plant]
                 )
 
                 if self.exec_cfg['save_step_yn']:
                     self.io.save_object(
                         data=model,
-                        file_path=util.make_version_path(
-                            path=self.default_path['save'],
-                            module='model',
-                            version=self.fp_version,
-                            name=plant,
-                            extension='pickle'
-                        ),
+                        path=util.make_version_path(
+                            path=self.path['save'], module='model', version=self.fp_version, name=plant,
+                            extension='pickle'),
                         data_type='binary'
                     )
 
+                # Optimization
+                print(f"Optimize the OtpSeq model: {plant}")
                 opt_seq.optimize(model=model)
 
-        # ============================================= #
+            print("Modeling & Optimization is finished.")
+
+        # =================================================================== #
         # Post Process
-        # ============================================= #
+        # =================================================================== #
         if self.step_cfg['cls_pp']:
+            print("Step: Post Process")
+
             if not self.step_cfg['cls_load']:
-                master = self.io.load_object(
-                    file_path=self.pipeline_path['load_master'],
-                    data_type='binary'
-                )
+                master = self.io.load_object(file_path=self.pipeline_path['load_master'], data_type='binary')
 
             if not self.step_cfg['cls_prep']:
-                dmd_prep = self.io.load_object(
-                    file_path=self.pipeline_path['prep_demand'],
-                    data_type='binary'
-                )
-
-                res_prep = self.io.load_object(
-                    file_path=self.pipeline_path['prep_resource'],
-                    data_type='binary'
-                )
+                prep_data = self.io.load_object(file_path=self.pipeline_path['prep_data'], data_type='binary')
 
             # Post Process after optimization
-            for plant in dmd_prep['plant_dmd_list']:
+            for plant in prep_data['demand']['plant_dmd_list']:
                 pp = PostProcess(
                     io=self.io,
                     sql_conf=self.sql_conf,
@@ -197,6 +164,8 @@ class Pipeline(object):
                     plant_cd=plant,
                     plant_start_time=self.plant_start_time,
                     item_mst=master['item'],
-                    res_mst=res_prep
+                    res_mst=prep_data['resource']
                 )
                 pp.post_process()
+
+            print("Step: Post Process")

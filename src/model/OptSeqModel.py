@@ -15,7 +15,7 @@ class OptSeqModel(object):
         'PPL': 2
     }
 
-    def __init__(self, cstr_cfg: dict, plant: str, dmd_due: dict, item_res_duration: dict, job_change: pd.DataFrame):
+    def __init__(self, cstr_cfg: dict, plant: str, dmd_due: dict, item_res_duration: dict, job_change=None):
         # Constraint attribute
         self.cstr_cfg = cstr_cfg
 

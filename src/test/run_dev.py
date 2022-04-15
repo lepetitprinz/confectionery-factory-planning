@@ -10,21 +10,21 @@ default_path = {
 }
 
 step_cfg = {
-    'cls_load': False,
+    'cls_load': True,
     'cls_prep': True,
-    'cls_model': False,
-    'cls_pp': False,
+    'cls_model': True,
+    'cls_pp': True,
 }
 
 exec_cfg = {
     'save_step_yn': True,
-    'save_db_yn': True,
-    'save_graph_yn': False,
+    'save_db_yn': False,
+    'save_graph_yn': True,
 }
 
 cstr_cfg = {
+    'apply_job_change': True,    # Model
     'apply_res_capacity': False,
-    'apply_job_change': True,
     'apply_human_capacity': False,
 }
 

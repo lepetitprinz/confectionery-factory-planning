@@ -62,18 +62,11 @@ class Init(object):
                 name='demand',
                 extension='pickle'
             ),
-            'prep_demand': util.make_version_path(
+            'prep_data': util.make_version_path(
                 path=self.default_path['save'],
                 module='prep',
                 version=self.fp_version,
-                name='demand',
-                extension='pickle'
-            ),
-            'prep_resource': util.make_version_path(
-                path=self.default_path['save'],
-                module='prep',
-                version=self.fp_version,
-                name='resource',
+                name='data',
                 extension='pickle'
             ),
         }
