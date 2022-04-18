@@ -28,6 +28,6 @@ col_job_change_to = 'to_res_cd'
 col_job_change_time = 'working_time'
 
 # OptSeq Model configuration
-time_limit = 180
-make_span = False
+time_limit = 10
+make_span = True
 optput_flag = True

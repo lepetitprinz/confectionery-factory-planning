@@ -22,10 +22,11 @@ class SqlConfig(object):
                  , ITEM_CD
                  , RES_CD AS RES_GRP_CD
                  --, REQ_FP_YYMMDD
-                 , '20220415' AS DUE_DATE
-                 --, REQ_FP_QTY AS QTY
-                 , 100 AS QTY
+                 , '20220508' AS DUE_DATE
+                 , REQ_FP_QTY AS QTY
+                 -- , 100 AS QTY
               FROM M4S_I405020
+              WHERE 1=1
         """
         return sql
 

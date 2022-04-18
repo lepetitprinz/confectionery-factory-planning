@@ -186,8 +186,7 @@ class Preprocess(object):
     def match_job_change_time(self, candidate: dict, job_change_master: pd.DataFrame) -> Dict[str, Dict[str, Any]]:
         # Change time unit
         if self.job_change_time_unit == 'MIN':
-            job_change_master[self.col_job_change_time] = job_change_master[self.col_job_change_time] * 1
-            # job_change_master[self.col_job_change_time] = job_change_master[self.col_job_change_time] * 60
+            job_change_master[self.col_job_change_time] = job_change_master[self.col_job_change_time] * 60
 
         job_change_by_plant = {}
         for plant_cd, job_change_cand in candidate.items():

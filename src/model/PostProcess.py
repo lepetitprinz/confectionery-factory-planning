@@ -25,9 +25,11 @@ class PostProcess(object):
     act_end_phase = '--- tardy activity ---'
     res_start_phase = '--- resource residuals ---'
     res_end_phase = '--- best activity list ---'
+    act_name = 'Act'
+    setup_name = 'Setup'
 
     def __init__(self, io, sql_conf, exec_cfg: dict, fp_version: str, plant_cd: str, plant_start_time,
-                 item_mst, res_mst):
+                 item_mst, prep_data, demand, model_init):
         # Class instance attribute
         self.io = io
         self.sql_conf = sql_conf
@@ -36,15 +38,19 @@ class PostProcess(object):
         self.exec_cfg = exec_cfg
         self.fp_version = fp_version
 
+        self.rm_act_list = model_init['rm_act_list']
+        self.act_mode_name_map = model_init['act_mode_name']
+
         # Plant instance attribute
         self.plant_cd = plant_cd
         self.plant_start_time = plant_start_time
 
         # Data instance attribute
         self.item_mst = item_mst
-        self.res_grp = res_mst['plant_res_grp'][plant_cd]
-        self.res_grp_nm = res_mst['plant_res_grp_nm'][plant_cd]
-        self.res_nm_map = res_mst['plant_res_nm'][plant_cd]
+        self.demand = demand
+        self.res_grp = prep_data['resource']['plant_res_grp'][plant_cd]
+        self.res_grp_nm = prep_data['resource']['plant_res_grp_nm'][plant_cd]
+        self.res_nm_map = prep_data['resource']['plant_res_nm'][plant_cd]
         self.res_to_res_grp = {}
 
         # Capacity instance attribute
@@ -54,7 +60,7 @@ class PostProcess(object):
         # Timeline instance attribute
         self.split_hour = dt.timedelta(hours=12)
         self.item_avg_duration = {}
-        self.item_res_duration = res_mst['plant_item_res_duration'][plant_cd]
+        self.item_res_duration = prep_data['resource']['plant_item_res_duration'][plant_cd]
         self.inf_val = 10**7 - 1
 
         # Path instance attribute
@@ -104,10 +110,10 @@ class PostProcess(object):
 
         # Post processing
         activity_df = self.conv_to_df(data=activity, kind='activity')
-        activity_df = self.conv_res_format(data=activity_df)
         activity_df = self.fill_na(data=activity_df)
         activity_df = self.change_timeline(data=activity_df)
         qty_df = self.calc_timeline_prod_qty(data=activity_df)
+        # qty_df = self.add_miss_demand(data=qty_df)
 
         if self.exec_cfg['save_step_yn']:
             self.save_opt_result(data=activity_df, name='act.csv')
@@ -118,6 +124,17 @@ class PostProcess(object):
 
         if self.exec_cfg['save_graph_yn']:
             self.draw_gantt(data=activity_df)
+
+    def add_miss_demand(self, data: pd.DataFrame):
+        rm_dmd_list = [act[act.index('[')+1: act.index('@')] for act in self.rm_act_list]
+        rm_dmd_df = self.demand[self.demand['dmd_id'].isin(rm_dmd_list)].copy()
+        miss_dmd_qty = rm_dmd_df['qty'].sum()
+        miss_dmd = {'res_grp_cd': ['MISS'], 'res_grp_nm': ['MISS'], 'res_cd': ['MISS'], 'res_nm': ['MISS'],
+                    'item_cd': ['MISS'], 'item_nm': ['MISS'], 'yymmdd': [self.plant_start_time], 'type':['D'],
+                    'qty': [miss_dmd_qty]}
+        data = data.append(pd.DataFrame(miss_dmd))
+
+        return data
 
     def calc_timeline_prod_qty(self, data: pd.DataFrame):
         timeline_list = []
@@ -305,28 +322,50 @@ class PostProcess(object):
 
     def get_best_activity(self) -> list:
         with open(self.optseq_output_path) as f:
-            solve_result = []
             add_phase_yn = False
+            solve_result = []
             for line in f:
                 if line.strip() == self.act_end_phase:
                     break
                 if add_phase_yn and line.strip() != '':
-                    demand, resource, schedule = line.strip().split(',')
-                    if demand not in self.default_activity:
-                        demand_id, item_cd, res_grp = demand.split('@')
-                        schedule = schedule.strip().split(' ')
-                        duration_start = int(schedule[0])
-                        duration_end = int(schedule[-1])
-                        solve_result.append(
-                            # [demand, item_cd, res_grp[:-1], resource, duration_start, duration_end]
-                            [demand_id[4:], item_cd, res_grp[:-1], resource[5:-1], duration_start, duration_end]
-                        )
+                    result = self.prep_act_mode_result(line)
+                    if result:
+                        solve_result.append(result)
                 if line.strip() == self.act_start_phase:
                     add_phase_yn = True
 
         f.close()
 
         return solve_result
+
+    def prep_act_mode_result(self, line: str):
+        # Split result
+        activity, mode, schedule = line.strip().split(',')
+        if activity not in self.default_activity:
+            # optseq exception (if activity has 1 mode then result:'---')
+            if mode == '---':
+                mode = self.act_mode_name_map[activity]
+
+            # preprocess the activity
+            demand_id, item_cd, res_grp = activity.split('@')
+            demand_id = demand_id[demand_id.index('[') + 1:]
+            res_grp = res_grp[:res_grp.index(']')]
+
+            # preprocess the mode
+            mode = mode.split('@')[-1]
+            mode = mode[:mode.index(']')]
+
+            # preprocess the schedule
+            schedule = schedule.strip().split(' ')
+            duration_start = int(schedule[0])
+            duration_end = int(schedule[-1])
+
+            result = [demand_id, item_cd, res_grp, mode, duration_start, duration_end]
+
+            return result
+
+        else:
+            return None
 
     def conv_to_df(self, data: list, kind: str):
         df = None

@@ -1,30 +1,107 @@
-0.02(s)
-# random seed: 1
-# tabu tenure: 1
-# cpu time limit: 30.00(s)
-# iteration limit: 1073741823
-# computing all-pairs longest paths and strongly connected components ... done
-#scc 28
-objective value = 1000000048 (cpu time = 0.02(s), iteration = 0)
-0: 0.02(s): 1000000048/1000000048
-objective value = 1000000046 (cpu time = 0.02(s), iteration = 1)
-objective value = 1000000044 (cpu time = 0.02(s), iteration = 2)
-objective value = 1000000042 (cpu time = 0.02(s), iteration = 3)
-objective value = 1000000040 (cpu time = 0.02(s), iteration = 4)
-objective value = 1000000038 (cpu time = 0.02(s), iteration = 5)
-objective value = 1000000036 (cpu time = 0.02(s), iteration = 6)
-objective value = 1000000034 (cpu time = 0.02(s), iteration = 7)
-objective value = 1000000032 (cpu time = 0.02(s), iteration = 8)
-objective value = 1000000030 (cpu time = 0.02(s), iteration = 9)
-objective value = 1000000028 (cpu time = 0.02(s), iteration = 10)
-objective value = 1000000026 (cpu time = 0.02(s), iteration = 11)
-objective value = 1000000024 (cpu time = 0.02(s), iteration = 12)
-objective value = 1000000022 (cpu time = 0.02(s), iteration = 13)
-objective value = 1000000020 (cpu time = 0.02(s), iteration = 14)
-objective value = 1000000018 (cpu time = 0.02(s), iteration = 15)
-objective value = 1000000016 (cpu time = 0.02(s), iteration = 17)
-objective value = 1000000014 (cpu time = 0.02(s), iteration = 18)
-objective value = 1000000012 (cpu time = 0.03(s), iteration = 19)
-objective value = 1000000010 (cpu time = 0.03(s), iteration = 22)
+source ---
+Act[FP_38@5140785@3104] ---
+Act[FP_24@5140783@3104] ---
+Act[FP_36@5142939@3101] Mode[FP_36@5142939@10003107]
+Act[FP_4@5124786@3105] ---
+Act[FP_18@5124851@3202] ---
+Act[FP_3@5142933@3101] Mode[FP_3@5142933@10003106]
+Act[FP_22@5128601@3204] ---
+Act[FP_7@5129868@3105] ---
+Act[FP_30@5140022@3204] ---
+Act[FP_48@5142940@3101] Mode[FP_48@5142940@10003107]
+Act[FP_44@5140735@X267] ---
+Act[FP_41@5142939@3108] ---
+Act[FP_37@5142816@3102] ---
+Act[FP_5@5128589@3204] ---
+Act[FP_53@5142931@X267] ---
+Act[FP_40@5142933@3108] ---
+Act[FP_12@5124830@3202] ---
+Act[FP_13@5140895@3204] ---
+Act[FP_10@5107671@3203] ---
+Act[FP_27@5140312@X247] ---
+Act[FP_1@5127761@3204] ---
+Act[FP_46@5142937@3108] ---
+Act[FP_33@5142938@3101] Mode[FP_33@5142938@10003106]
+Act[FP_51@5142932@X267] ---
+Act[FP_29@5140803@3102] Mode[FP_29@5140803@10006436]
+Act[FP_49@5142724@X247] ---
+Act[FP_11@5142934@3108] ---
+Act[FP_31@5142938@3108] ---
+Act[FP_6@5129867@3105] ---
+Act[FP_15@5140805@3102] ---
+Act[FP_45@5142935@3108] ---
+Act[FP_8@5139979@3204] ---
+Act[FP_25@5142934@3101] Mode[FP_25@5142934@10003106]
+Act[FP_21@5142653@3205] ---
+Act[FP_14@5100334@3205] ---
+Act[FP_23@5142937@3101] Mode[FP_23@5142937@10003106]
+Act[FP_32@5142935@3101] Mode[FP_32@5142935@10003108]
+Act[FP_28@5140806@3102] Mode[FP_28@5140806@10006437]
+Act[FP_26@5140896@3204] ---
+Act[FP_39@5142940@3108] ---
+Act[FP_153@5142932@X218] ---
+Act[FP_122@5108373@X247] ---
+Act[FP_80@5105464@3203] ---
+Act[FP_100@5140808@3102] ---
+Act[FP_79@5140082@3205] ---
+Act[FP_110@5142936@3101] Mode[FP_110@5142936@10003107]
+Act[FP_138@5142940@3108] ---
+Act[FP_57@5124787@3105] ---
+Act[FP_67@5140025@3204] ---
+Act[FP_116@5142590@3204] ---
+Act[FP_99@5142960@3101] Mode[FP_99@5142960@10003107]
+Act[FP_108@5142959@3108] ---
+Act[FP_133@5142959@3101] Mode[FP_133@5142959@10003108]
+Act[FP_63@5142900@3105] ---
+Act[FP_89@5142249@3204] ---
+Act[FP_66@5139979@3204] ---
+Act[FP_104@5140022@3204] ---
+Act[FP_102@5142933@3101] Mode[FP_102@5142933@10003106]
+Act[FP_144@5142958@3108] ---
+Act[FP_117@5140801@3107] ---
+Act[FP_150@5142958@3101] Mode[FP_150@5142958@10003108]
+Act[FP_70@5129868@3105] ---
+Act[FP_114@5142939@3108] ---
+Act[FP_148@5141184@X247] ---
+Act[FP_91@5142935@3108] ---
+Act[FP_68@5140532@3204] ---
+Act[FP_136@5142933@3108] ---
+Act[FP_74@5142584@3204] ---
+Act[FP_77@5124651@3107] ---
+Act[FP_76@5141760@3203] ---
+Act[FP_149@5142939@3101] Mode[FP_149@5142939@10003108]
+Act[FP_62@5124786@3105] ---
+Act[FP_78@5142182@3105] ---
+Act[FP_58@5101329@3203] ---
+Act[FP_69@5142248@3204] ---
+Act[FP_59@5125825@3105] ---
+Act[FP_81@5141447@3204] ---
+Act[FP_105@5140770@3107] ---
+Act[FP_61@5142178@3204] ---
+Act[FP_65@5107372@3204] ---
+Act[FP_125@5140805@3102] ---
+Act[FP_96@5124851@3202] ---
+Act[FP_137@5142935@3101] Mode[FP_137@5142935@10003108]
+Act[FP_115@5142724@X247] ---
+Act[FP_145@5142940@3101] Mode[FP_145@5142940@10003107]
+Act[FP_64@5129867@3105] ---
+Act[FP_112@5140896@3204] ---
+Act[FP_154@5141183@X247] ---
+Act[FP_129@5142483@3107] ---
+Act[FP_75@5140895@3204] ---
+Act[FP_55@5140686@3105] ---
+Act[FP_121@5142482@3107] ---
+Act[FP_71@5101327@3203] ---
+Act[FP_128@5142815@3102] ---
+Act[FP_56@5124414@3105] ---
+Act[FP_134@5142960@3108] ---
+Act[FP_142@5142957@3101] Mode[FP_142@5142957@10003107]
+Act[FP_124@5108185@3107] ---
+Act[FP_131@5142931@X267] ---
+Act[FP_72@5141313@3105] ---
+Act[FP_87@5142653@3205] ---
+Act[FP_83@5142484@3107] ---
+Act[FP_60@5140026@3204] ---
+Act[FP_139@5140787@3104] ---
+sink ---
 
-no feasible schedule found.

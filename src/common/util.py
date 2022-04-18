@@ -17,7 +17,7 @@ def make_path(path: str, module: str, name: str, extension: str):
     return path
 
 
-def make_version_path(path: str, module: str, version: str, name: str, extension: str):
+def make_vrsn_path(path: str, module: str, version: str, name: str, extension: str):
     path_dir = os.path.join(path, module, version)
 
     # make the directory if directory does not exist

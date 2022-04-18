@@ -48,21 +48,21 @@ class Init(object):
 
     def set_pipeline_path(self) -> None:
         self.pipeline_path = {
-            'load_master': util.make_version_path(
+            'load_master': util.make_vrsn_path(
                 path=self.default_path['save'],
                 module='load',
                 version=self.fp_version,
                 name='master',
                 extension='pickle'
             ),
-            'load_demand': util.make_version_path(
+            'load_demand': util.make_vrsn_path(
                 path=self.default_path['save'],
                 module='load',
                 version=self.fp_version,
                 name='demand',
                 extension='pickle'
             ),
-            'prep_data': util.make_version_path(
+            'prep_data': util.make_vrsn_path(
                 path=self.default_path['save'],
                 module='prep',
                 version=self.fp_version,

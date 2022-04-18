@@ -60,7 +60,7 @@ class SqlConfigEngine(object):
               FROM M4E_I401060
              WHERE 1=1
                AND FP_VRSN_ID = '{kwargs['fp_version']}'
-             --  AND RES_CD IN ('X247', 'X267')
+--                AND RES_CD IN ('X247', 'X267')
         """
         return sql
 
