@@ -6,7 +6,7 @@ import datetime as dt
 
 
 class Init(object):
-    def __init__(self, io, sql_conf, default_path: dict, fp_seq: str):
+    def __init__(self, io, sql_conf, default_path: dict, fp_seq: str, fp_serial: str):
         # io class instance attribute
         self.io = io
         self.sql_conf = sql_conf
@@ -15,6 +15,7 @@ class Init(object):
 
         # Forward planning instance attribute
         self.fp_seq = fp_seq
+        self.fp_serial = fp_serial
         self.fp_version = ''
 
         # Time instance attribute
@@ -52,21 +53,28 @@ class Init(object):
                 path=self.default_path['save'],
                 module='load',
                 version=self.fp_version,
-                name='master',
+                name='master_' + self.fp_serial,
                 extension='pickle'
             ),
             'load_demand': util.make_vrsn_path(
                 path=self.default_path['save'],
                 module='load',
                 version=self.fp_version,
-                name='demand',
+                name='demand_' + self.fp_serial,
                 extension='pickle'
             ),
             'prep_data': util.make_vrsn_path(
                 path=self.default_path['save'],
                 module='prep',
                 version=self.fp_version,
-                name='data',
+                name='data_' + self.fp_serial,
+                extension='pickle'
+            ),
+            'model': util.make_vrsn_path(
+                path=self.default_path['save'],
+                module='model',
+                version=self.fp_version,
+                name='model_' + self.fp_serial,
                 extension='pickle'
             ),
         }

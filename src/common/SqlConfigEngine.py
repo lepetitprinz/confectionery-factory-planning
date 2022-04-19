@@ -105,3 +105,20 @@ class SqlConfigEngine(object):
         """
         return sql
 
+    @staticmethod
+    def sql_res_available_time():
+        sql = """
+        SELECT PLANT_CD
+             , RES_GRP_CD
+             , RES_CD
+             , ITEM_CD
+             , CAPA01_VAL AS CAPACITY1
+             , CAPA02_VAL AS CAPACITY2
+             , CAPA03_VAL AS CAPACITY3
+             , CAPA04_VAL AS CAPACITY4
+             , CAPA05_VAL AS CAPACITY5
+          FROM M4S_I405110
+         WHERE USE_YN = 'Y'
+        """
+
+        return sql

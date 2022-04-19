@@ -80,7 +80,7 @@ model.Params.Makespan = False
 
 model.optimize()
 
-f = open("optseq_output.txt", "r")
+f = open("../test/optseq_output.txt", "r")
 
 obj_time = open("obj_time.csv", "w")
 obj_time.write("addbreObjVal,Time\n")

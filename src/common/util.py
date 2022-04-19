@@ -37,3 +37,6 @@ def generate_model_name(name_list: list):
     return '@'.join(name_list)
 
 
+def assert_type_int(value):
+    assert type(value) is int, 'Value is not int type'
+

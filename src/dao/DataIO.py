@@ -62,18 +62,18 @@ class DataIO(object):
 
     # Load the object
     @staticmethod
-    def load_object(file_path: str, data_type: str):
+    def load_object(path: str, data_type: str):
         data = None
         if data_type == 'csv':
-            data = pd.read_csv(file_path)
+            data = pd.read_csv(path)
             # data = pd.read_csv(file_path, encoding='cp949')
 
         elif data_type == 'binary':
-            with open(file_path, 'rb') as handle:
+            with open(path, 'rb') as handle:
                 data = pickle.load(handle)
 
         elif data_type == 'json':
-            with open(file_path, 'r') as handle:
+            with open(path, 'r') as handle:
                 data = json.load(handle)
 
         return data

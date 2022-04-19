@@ -28,43 +28,46 @@ class PostProcess(object):
     act_name = 'Act'
     setup_name = 'Setup'
 
-    def __init__(self, io, sql_conf, exec_cfg: dict, fp_version: str, plant_cd: str, plant_start_time,
-                 item_mst, prep_data, demand, model_init):
+    def __init__(self, io, sql_conf, exec_cfg: dict, fp_version: str, fp_serial: str,
+                 plant_cd: str, plant_start_time, item_mst, prep_data, demand, model_init):
         # Class instance attribute
         self.io = io
         self.sql_conf = sql_conf
 
         # Execute instance attribute
         self.exec_cfg = exec_cfg
+        self.fp_serial = fp_serial
         self.fp_version = fp_version
+        self.fp_name = fp_version + '_' + fp_serial
 
-        self.rm_act_list = model_init['rm_act_list']
-        self.act_mode_name_map = model_init['act_mode_name']
+        # Data instance attribute
+        self.demand = demand
+        self.item_mst = item_mst
+        self.res_grp = prep_data['resource']['plant_res_grp'][plant_cd]
+        self.res_grp_nm = prep_data['resource']['plant_res_grp_nm'][plant_cd]
+        self.res_nm_map = prep_data['resource']['plant_res_nm'][plant_cd]
+        self.res_to_res_grp = {}
 
         # Plant instance attribute
         self.plant_cd = plant_cd
         self.plant_start_time = plant_start_time
 
-        # Data instance attribute
-        self.item_mst = item_mst
-        self.demand = demand
-        self.res_grp = prep_data['resource']['plant_res_grp'][plant_cd]
-        self.res_grp_nm = prep_data['resource']['plant_res_grp_nm'][plant_cd]
-        self.res_nm_map = prep_data['resource']['plant_res_nm'][plant_cd]
-        self.res_to_res_grp = {}
+        # Model instance attribute
+        self.rm_act_list = model_init['rm_act_list']
+        self.act_mode_name_map = model_init['act_mode_name']
 
         # Capacity instance attribute
         self.choose_human_capa = True
         self.used_res_filter_yn = False
 
         # Timeline instance attribute
+        self.inf_val = 10 ** 7 - 1
         self.split_hour = dt.timedelta(hours=12)
         self.item_avg_duration = {}
         self.item_res_duration = prep_data['resource']['plant_item_res_duration'][plant_cd]
-        self.inf_val = 10**7 - 1
 
         # Path instance attribute
-        self.optseq_output_path = os.path.join('..', 'test', 'optseq_output.txt')
+        self.optseq_output_path = os.path.join('..', 'operation', 'optseq_output.txt')
         self.save_path = os.path.join('..', '..', 'result')
 
     def post_process(self):
@@ -116,8 +119,8 @@ class PostProcess(object):
         # qty_df = self.add_miss_demand(data=qty_df)
 
         if self.exec_cfg['save_step_yn']:
-            self.save_opt_result(data=activity_df, name='act.csv')
-            self.save_opt_result(data=qty_df, name='qty.csv')
+            self.save_opt_result(data=activity_df, name='act')
+            self.save_opt_result(data=qty_df, name='qty')
 
         if self.exec_cfg['save_db_yn']:
             self.save_on_db(data=qty_df)
@@ -406,7 +409,7 @@ class PostProcess(object):
             fig.update_yaxes(autorange="reversed")
 
             # Save the graph
-            self.save_fig(fig=fig, name='gantt_act_dmd.html')
+            self.save_fig(fig=fig, name='act_demand')
 
         elif kind == 'resource':
             # By resource
@@ -415,25 +418,15 @@ class PostProcess(object):
             fig.update_yaxes(autorange="reversed")
 
             # Save the graph
-            self.save_fig(fig=fig, name='gantt_act_res.html')
+            self.save_fig(fig=fig, name='act_resource')
 
-        plt.close()
-
-    def draw_human_usage(self, data) -> None:
-        data = data[data['capacity'] == 0].copy()
-
-        fig = px.timeline(data, x_start='start', x_end='end', y='res_cd', color='res_cd')
-        fig.update_yaxes(autorange="reversed")
-
-        # Save the graph
-        self.save_fig(fig=fig, name='gantt_resource.html')
         plt.close()
 
     def save_org_result(self) -> None:
         save_dir = os.path.join(self.save_path, 'opt', 'org', self.fp_version)
         util.make_dir(path=save_dir)
 
-        result = open(os.path.join(save_dir, self.fp_version + '_result.txt'), 'w')
+        result = open(os.path.join(save_dir, 'result_' + self.fp_name + '.txt'), 'w')
         with open(self.optseq_output_path, 'r') as f:
             for line in f:
                 result.write(line)
@@ -445,7 +438,15 @@ class PostProcess(object):
         save_dir = os.path.join(self.save_path, 'opt', 'csv', self.fp_version)
         util.make_dir(path=save_dir)
 
-        data.to_csv(os.path.join(save_dir, self.fp_version + '_' + name), index=False, encoding='cp949')
+        # Save the optimization result
+        data.to_csv(os.path.join(save_dir, name + '_' + self.fp_name + '.csv'), index=False, encoding='cp949')
+
+    def save_fig(self, fig, name: str) -> None:
+        save_dir = os.path.join(self.save_path, 'gantt', self.fp_version)
+        util.make_dir(path=save_dir)
+
+        fig.write_html(os.path.join(save_dir, name + '_' + self.fp_serial + '.html'))
+        # fig.write_image(os.path.join(save_dir, name))
 
     def save_on_db(self, data: pd.DataFrame):
         fp_seq_df = self.io.get_df_from_db(
@@ -463,10 +464,3 @@ class PostProcess(object):
 
         # Save the result on DB
         self.io.insert_to_db(df=data, tb_name='M4E_O402122')
-
-    def save_fig(self, fig, name: str) -> None:
-        save_dir = os.path.join(self.save_path, 'gantt', self.fp_version)
-        util.make_dir(path=save_dir)
-
-        fig.write_html(os.path.join(save_dir, name))
-        # fig.write_image(os.path.join(save_dir, name))
