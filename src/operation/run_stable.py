@@ -1,4 +1,4 @@
-from deployment.PipelineDev import Pipeline
+from deployment.Pipeline import Pipeline
 
 import os
 import datetime

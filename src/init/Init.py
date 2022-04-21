@@ -45,7 +45,8 @@ class Init(object):
         today = dt.datetime.combine(dt.datetime.today(), dt.datetime.min.time())
         today = today - datetime.timedelta(days=today.weekday())    # This monday
 
-        self.plant_start_day = today + dt.timedelta(hours=self.plant_start_hour)
+        # self.plant_start_day = today + dt.timedelta(hours=self.plant_start_hour)
+        self.plant_start_day = today
 
     def set_pipeline_path(self) -> None:
         self.pipeline_path = {

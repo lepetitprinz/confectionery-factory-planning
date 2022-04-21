@@ -3,7 +3,7 @@ from common.SqlConfig import SqlConfig
 from init.Init import Init
 from init.DataLoad import DataLoad
 from init.Preprocess import Preprocess
-from model.OptSeqModel import OptSeqModel
+from model.OptSeqModelDev import OptSeqModel
 from model.PostProcess import PostProcess
 
 

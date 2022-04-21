@@ -303,20 +303,8 @@ class Preprocess(object):
 
         return item_res_duration_by_plant
 
-    def calc_deadline(self, data: pd.DataFrame) -> pd.DataFrame:
-        days = data[self.col_due_date] - dt.datetime.now()   # ToDo : need to revise start day
-
-        due_date = None
-        if self.time_uom == 'min':
-            due_date = np.round(days / np.timedelta64(1, 'm'), 0)
-        elif self.time_uom == 'sec':
-            due_date = np.round(days / np.timedelta64(1, 's'), 0)
-
-        data[self.col_due_date] = due_date.astype(int)
-
-        return data
-
     def set_plant_job_change(self, demand: pd.DataFrame, master: dict) -> Dict[str, Dict[str, Any]]:
+        # add brand information
         merged = pd.merge(
             demand,
             master['item'][[self.col_brand, self.col_sku]],
@@ -325,6 +313,7 @@ class Preprocess(object):
         )
         # resource group by brand
         res_grp_brand = merged[[self.col_plant, self.col_res_grp, self.col_brand]].drop_duplicates()
+
         plant_job_change_cand = self.set_job_chage_cand(data=res_grp_brand)
 
         plant_job_change = self.match_job_change_time(

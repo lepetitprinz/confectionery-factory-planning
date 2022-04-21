@@ -1,8 +1,11 @@
 from optimize.optseq import Model, Mode, Parameters, Activity, Resource
 
+model = Model()
+
 duration_dict = {
     'A': {"A1": 100, "A2": 100},
-    'B': {"B1": 100, "B2": 100}
+    'B': {"B1": 100, "B2": 100},
+    'C': {"C1": 100, "C2": 100}
     }
 
 setup = {
@@ -20,18 +23,15 @@ setup = {
 
 state_dict = {"start1": 0, "start2": 1, "A1": 2, "A2": 3, "B1": 4, "B2": 5}
 
-model = Model()
-
-state1 = model.addState("state1")
-state1.addValue(time=0, value=state_dict["start1"])
-state2 = model.addState("state2")
-state2.addValue(time=0, value=state_dict["start2"])
-state = {'A': state1, 'B': state2}
-
-res_dict = {'A': model.addResource('line1', 1), 'B': model.addResource('line2', 1)}
+res_dict = {
+    'A': model.addResource('line1', 1),
+    'B': model.addResource('line2', 1),
+    'C': model.addResource('line3', 1),
+}
 
 act = {}
 mode = {}
+state = {}
 for line, dur in duration_dict.items():
     for demand, d in dur.items():
         act[demand] = model.addActivity(f'Act[{demand}]')
@@ -39,9 +39,9 @@ for line, dur in duration_dict.items():
         mode[demand].addResource(res_dict[line], {(0, "inf"): 1})
         act[demand].addModes(mode[demand])
 
-    # s = model.addState("state" + line)
-    # s.addValue(time=0, value=0)
-    # state[line] = s
+    s = model.addState("state" + line)
+    s.addValue(time=0, value=0)
+    state[line] = s
 
 mode_setup = {}
 for line, time_map in setup.items():
@@ -55,15 +55,17 @@ act_setup = {}
 for line, dur in duration_dict.items():
     for demand, duration in dur.items():
         act_setup[demand] = model.addActivity(f"Setup[{demand}]", autoselect=True)
-        for from_time, to_time in setup[line]:
-            if demand == to_time:
-                act_setup[demand].addModes(mode_setup[(from_time, to_time)])
+        setup_line = setup.get(line, None)
+        if setup_line:
+            for from_time, to_time in setup_line:
+                if demand == to_time:
+                    act_setup[demand].addModes(mode_setup[(from_time, to_time)])
 
 for demand in act_setup:
     model.addTemporal(act_setup[demand], act[demand], 'CS')
     model.addTemporal(act[demand], act_setup[demand], 'SC')
 
-model.Params.TimeLimit = 20
+model.Params.TimeLimit = 10
 model.Params.Makespan = True
 model.Params.OutputFlag = True
 

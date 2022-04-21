@@ -1,5 +1,5 @@
 
-class SqlConfigEngine(object):
+class SqlConfig(object):
     #################################
     # Master & Common Code Dataset
     #################################
@@ -41,6 +41,7 @@ class SqlConfigEngine(object):
                  , RES_GRP_NM
               FROM M4S_I305100
              WHERE USE_YN = 'Y'
+               AND PLANT_CD IN ('K130')
         """
         return sql
 
@@ -50,17 +51,36 @@ class SqlConfigEngine(object):
     @staticmethod
     def sql_demand(**kwargs):
         sql = f"""
-            SELECT FP_KEY AS DMD_ID
+            SELECT DMD_ID
                  , DP_KEY
                  , PLANT_CD
-                 , ENG_ITEM_CD AS ITEM_CD
-                 , RES_CD AS RES_GRP_CD
-                 , TIME_INDEX AS DUE_DATE
-                 , CEILING(REQ_FP_QTY) AS QTY
-              FROM M4E_I401060
-             WHERE 1=1
-               AND FP_VRSN_ID = '{kwargs['fp_version']}'
---                AND RES_CD IN ('X247', 'X267')
+                 , DMD.ITEM_CD
+                 , RES_GRP_CD
+                 , DUE_DATE
+                 , QTY
+              FROM (
+                    SELECT FP_KEY              AS DMD_ID
+                         , DP_KEY
+                         , PLANT_CD
+                         , ENG_ITEM_CD         AS ITEM_CD
+                         , RES_CD              AS RES_GRP_CD
+                         , TIME_INDEX          AS DUE_DATE
+                         , CEILING(REQ_FP_QTY) AS QTY
+                      FROM M4E_I401060
+                     WHERE FP_VRSN_ID = '{kwargs['fp_version']}'
+                       AND REQ_FP_QTY > 0
+                       AND PLANT_CD IN ('K130')
+                   ) DMD
+              INNER JOIN (
+                         SELECT ITEM_CD
+                              , ITEM_ATTR01_CD
+                           FROM VIEW_I002040
+                         WHERE USE_YN = 'Y'
+                           AND DEL_YN = 'N'
+                        ) ITEM
+                ON DMD.ITEM_CD = ITEM.ITEM_CD
+             WHERE ITEM.ITEM_ATTR01_CD = 'P1'  -- Exception
+               AND  RES_GRP_CD IN ('X247', 'X267') 
         """
         return sql
 
@@ -78,6 +98,7 @@ class SqlConfigEngine(object):
                  , END_TIME_INDEX
               FROM M4E_I401100
              WHERE 1=1
+               AND PLANT_CD IN ('K130')
                AND FP_VRSN_ID = '{kwargs['fp_version']}'
         """
         return sql
@@ -92,6 +113,8 @@ class SqlConfigEngine(object):
               FROM M4E_I401120
              WHERE CAPA_USE_RATE IS NOT NULL
                AND FP_VRSN_ID = '{kwargs['fp_version']}'
+               AND CAPA_USE_RATE > 0
+               AND PLANT_CD IN ('K130')
         """
         return sql
 
@@ -118,7 +141,9 @@ class SqlConfigEngine(object):
              , CAPA04_VAL AS CAPACITY4
              , CAPA05_VAL AS CAPACITY5
           FROM M4S_I405110
+          --FROM M4E_I401140
          WHERE USE_YN = 'Y'
+           AND RES_GRP_CD <> ''
+           AND PLANT_CD IN ('K130')
         """
-
         return sql

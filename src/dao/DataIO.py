@@ -1,6 +1,6 @@
 from common.SqlSession import SqlSession
 # from common.SqlConfig import SqlConfig
-from common.SqlConfigEngine import SqlConfigEngine
+from common.SqlConfig import SqlConfig
 
 import json
 import pickle
@@ -9,7 +9,7 @@ import pandas as pd
 
 class DataIO(object):
     def __init__(self):
-        self.sql_conf = SqlConfigEngine()
+        self.sql_conf = SqlConfig()
         self.session = SqlSession()
         self.session.init()
 

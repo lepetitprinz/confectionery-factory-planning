@@ -333,7 +333,7 @@ class PostProcess(object):
                 if add_phase_yn and line.strip() != '':
                     result = self.prep_act_mode_result(line)
                     if result:
-                        solve_result.append(result)
+                        solve_result.extend(result)
                 if line.strip() == self.act_start_phase:
                     add_phase_yn = True
 
@@ -359,11 +359,11 @@ class PostProcess(object):
             mode = mode[:mode.index(']')]
 
             # preprocess the schedule
-            schedule = schedule.strip().split(' ')
-            duration_start = int(schedule[0])
-            duration_end = int(schedule[-1])
-
-            result = [demand_id, item_cd, res_grp, mode, duration_start, duration_end]
+            schedule = schedule.strip().split(' ')[1:-1]
+            result = []
+            for from_to_time in schedule:
+                duration_start, duration_end = list(map(int, from_to_time.split('--')))
+                result.append([demand_id, item_cd, res_grp, mode, duration_start, duration_end])
 
             return result
 
@@ -406,6 +406,7 @@ class PostProcess(object):
             # By demand
             fig = px.timeline(data, x_start='start', x_end='end', y='dmd_id', color='resource',
                               color_discrete_sequence=px.colors.qualitative.Set3)
+            fig.update_xaxes(showgrid=True)
             fig.update_yaxes(autorange="reversed")
 
             # Save the graph
@@ -415,6 +416,7 @@ class PostProcess(object):
             # By resource
             fig = px.timeline(data, x_start='start', x_end='end', y='resource', color='dmd_id',
                               color_discrete_sequence=px.colors.qualitative.Set3)
+            fig.update_xaxes()
             fig.update_yaxes(autorange="reversed")
 
             # Save the graph

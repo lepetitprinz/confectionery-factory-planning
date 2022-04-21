@@ -1,5 +1,3 @@
-import pandas as pd
-
 import common.util as util
 import common.config as config
 
@@ -24,20 +22,11 @@ class OptSeqModel(object):
         self.cstr_cfg = cstr_cfg
         self.except_cfg = except_cfg
 
-        # Plant instance attribute
-        self.plant = plant
-        self.act_mode_name_map = {}
-
-        # Demand instance attribute
-        self.dmd_due_date = plant_data['demand']['plant_dmd_due'][plant]
-        self.max_due_date = 0
-        self.max_due_day = 0
-
         # Capacity instance attribute
         self.work_days = 5
         self.schedule_weeks = 4
         self.sec_of_day = 86400
-        self.plant_start_hour = 25200    # 25200(sec) = 7(hour) * 60 * 60
+        self.plant_start_hour = 25200  # 25200(sec) = 7(hour) * 60 * 60
         self.res_avail_time = plant_data['resource']['plant_res_avail_time'][plant]
 
         # Duration instance attribute
@@ -51,9 +40,6 @@ class OptSeqModel(object):
             self.job_change = plant_data['job_change'].get(plant, None)
 
     def init(self, dmd_list: list, res_grp_dict: dict):
-        # Step0. Set the due date
-        self.set_max_due_date()
-
         # Step1. Instantiate the model
         model = Model(name='lotte')
 
@@ -83,38 +69,31 @@ class OptSeqModel(object):
 
         model = self.set_model_parameter(model=model)
 
-        return model, self.act_mode_name_map, rm_act_list
-
-    def set_max_due_date(self):
-        due_list = []
-        for sku_due in self.dmd_due_date.values():
-            for due_date in sku_due.values():
-                due_list.append(due_date)
-
-        due_list = sorted(due_list, reverse=True)
-
-        self.max_due_date = due_list[0]
-        self.max_due_day = round(due_list[0] / self.sec_of_day)
+        return model, rm_act_list
 
     # Set resource
     def set_resource(self, model: Model, res_grp_dict) -> Tuple[Dict[str, Dict[str, Resource]], dict]:
         model_res_grp = {}
         res_grp_list_copy = {**res_grp_dict}
+
         for res_grp, res_list in res_grp_list_copy.items():
             model_res = {}
             for res, capacity, unit_cd, res_type in res_list:
-                # Add resource available time of each resource
+                # Add available time of each resource
                 add_res = model.addResource(name=res)
+
+                #
                 if self.cstr_cfg['apply_res_available_time']:
                     avail_time = self.get_res_available_time(res_grp=res_grp, res=res)
-                    if avail_time is not None:
+                    if avail_time:
                         add_res = self.add_res_capacity(res=add_res, avail_time=avail_time, unit_cd=unit_cd)
                     else:
+                        # Remove resource candidate from resource group
                         res_grp_dict[res_grp].remove((res, capacity, unit_cd, res_type))
                         continue
 
                 else:
-                    # Add resource object
+                    # Add infinite capacity resource
                     add_res = model.addResource(name=res, capacity={(0, "inf"): 1})
 
                 model_res[res] = add_res
@@ -125,14 +104,6 @@ class OptSeqModel(object):
                 res_grp_dict.pop(res_grp)
 
         return model_res_grp, res_grp_dict
-
-    # Add the specified resource which amount required when executing the mode
-    @staticmethod
-    def add_resource(mode: Mode, resource, duration: int) -> Mode:
-        # requirement : gives the required amount of resources
-        mode.addResource(resource=resource, requirement={(0, duration): 1},)
-
-        return mode
 
     def get_res_available_time(self, res_grp, res):
         res_grp_to_res = self.res_avail_time.get(res_grp, None)
@@ -149,10 +120,22 @@ class OptSeqModel(object):
         if unit_cd == 'M':
             time_multiple = 60
 
+        start_time = self.plant_start_hour
         for i, time in enumerate(avail_time * self.schedule_weeks):
-            start_time = i * self.sec_of_day + self.plant_start_hour
-            end_time = min(start_time + time * time_multiple, self.sec_of_day * (i+1))
+            if not isinstance(time, int):
+                raise TypeError(f"Time is not integer - resource: {res.name}")
+
+            end_time = min(start_time + time * time_multiple, start_time + self.sec_of_day - self.plant_start_hour)
+
+            # Add the capacity
             res.addCapacity(start_time, end_time, 1)
+            start_time += self.sec_of_day
+
+            if (i + 1) % 5 == 0:  # skip saturday & sunday
+                start_time += self.sec_of_day * 2
+
+        # Exception for over demand
+        res.addCapacity(start_time + self.sec_of_day, 'inf', 1)
 
         return res
 
@@ -161,7 +144,7 @@ class OptSeqModel(object):
             -> Tuple[Model, dict, List[str]]:
         activity = {}
         for dmd_id, item_cd, res_grp_cd, qty, due_date in dmd_list:
-            if res_grp_dict.get(res_grp_cd, None):   # Todo : Filter demand that does not exist in resource group info
+            if res_grp_dict.get(res_grp_cd, None):  # Todo : Filter demand that does not exist in resource group info
                 # Make the activity naming
                 act_name = util.generate_model_name(name_list=[dmd_id, item_cd, res_grp_cd])
 
@@ -170,7 +153,7 @@ class OptSeqModel(object):
                     name=f'Act[{act_name}]',
                     duedate=due_date,
                     # duedate='inf',
-                    weight=1,    # Penalty per unit time when the work completion time is rate for delivery
+                    weight=1,  # Penalty per unit time when the work completion time is rate for delivery
                 )
 
                 # Set modes
@@ -190,9 +173,6 @@ class OptSeqModel(object):
 
     # Set work processing method
     def set_mode(self, act: Activity, dmd_id: str, item_cd: str, qty: int, res_list: list, model_res: dict):
-        # Exception
-        self.act_mode_name_map[act.name] = f'Mode[{dmd_id}@{item_cd}@{res_list[0][0]}]'
-
         for res_cd, capacity, unit_cd, res_type in res_list:
             # Calculate the duration (the working time of the mode)
             duration_per_unit = self.get_duration_per_unit(item_cd=item_cd, res_cd=res_cd)
@@ -200,11 +180,14 @@ class OptSeqModel(object):
             if duration_per_unit is not None:
                 duration = int(qty * duration_per_unit)
 
+                if duration <= 0:
+                    raise ValueError(f"Duration is not positive integer: item: {item_cd} resource: {res_cd}")
+
                 # Make each mode (set each available resource)
                 mode = Mode(name=f'Mode[{dmd_id}@{item_cd}@{res_cd}]', duration=duration)
 
                 # Add break for each mode
-                # mode.addBreak(start=0, finish=0)
+                mode.addBreak(start=0, finish=duration, maxtime='inf')
 
                 # Add resource for each mode(resource)
                 mode = self.add_resource(
@@ -217,6 +200,14 @@ class OptSeqModel(object):
                 act.addModes(mode)
 
         return act
+
+    # Add the specified resource which amount required when executing the mode
+    @staticmethod
+    def add_resource(mode: Mode, resource, duration: int) -> Mode:
+        # requirement : gives the required amount of resources
+        mode.addResource(resource=resource, requirement={(0, duration): 1}, rtype=None)
+
+        return mode
 
     def get_duration_per_unit(self, item_cd, res_cd) -> int:
         duration_per_unit = None
@@ -283,47 +274,72 @@ class OptSeqModel(object):
 
         return demand_filtered
 
-    def set_job_change_available_res_grp(self, dmd_list: list):
-        job_change_res_grp = list(self.job_change)
-        res_grp_dmd = {}
-        job_change_act_list = []
-        for dmd_id, item_cd, res_grp_cd, qty, due_date in dmd_list:
-            if res_grp_cd in job_change_res_grp:
-                act_name = util.generate_model_name(name_list=[dmd_id, item_cd, res_grp_cd])
-                job_change_act_list.append(act_name)
-                if res_grp_cd not in res_grp_dmd:
-                    res_grp_dmd[res_grp_cd] = [act_name]
-                else:
-                    res_grp_dmd[res_grp_cd].append(act_name)
-
-        return res_grp_dmd, job_change_act_list
-
     def set_job_change_activity(self, model: Model, activity: dict, dmd_list, res_grp_list: dict, model_res: dict):
-        # Define state
+        # Define the state
         state = model.addState(name='Job_Change')
         state.addValue(time=0, value=0)
 
-        res_grp_dmd, job_change_act_list = self.set_job_change_available_res_grp(dmd_list=dmd_list)
-        # Set state
-        act_state = self.set_state(data=job_change_act_list)
+        avail_act_list = self.set_job_change_avail_act(dmd_list=dmd_list)
 
-        for res_grp_cd, act_list in res_grp_dmd.items():
-            res_mode = self.set_job_change_mode(
-                act_list=act_list,
-                res_grp_cd=res_grp_cd,
-                state=state,
-                act_state=act_state,
-                res_cd_list=res_grp_list[res_grp_cd],
-                res_model=model_res[res_grp_cd],
-            )
-            job_change_activity = self.add_job_change_activity(
-                model=model,
-                mode=res_mode,
-                act_list=act_list,
-            )
-            model = self.add_job_change_temporal(model, activity, job_change_activity)
+        # Set state
+        act_state = self.set_state(data=avail_act_list)
+
+        res_mode = self.set_job_change_mode(
+            act_list=avail_act_list,
+            state=state,
+            act_state=act_state,
+            res_grp_list=res_grp_list,
+            res_model=model_res,
+        )
+
+        job_change_activity = self.add_job_change_activity(
+            model=model,
+            mode=res_mode,
+            act_list=avail_act_list,
+        )
+        model = self.add_job_change_temporal(model, activity, job_change_activity)
 
         return model
+
+    def set_job_change_avail_act(self, dmd_list: list):
+        job_change_avail_res_grp = list(self.job_change)
+        job_change_act_list = []
+        for dmd_id, item_cd, res_grp_cd, qty, due_date in dmd_list:
+            if res_grp_cd in job_change_avail_res_grp:
+                act_name = util.generate_model_name(name_list=[dmd_id, item_cd, res_grp_cd])
+                job_change_act_list.append(act_name)
+
+        return job_change_act_list
+
+    def set_job_change_mode(self, act_list, state, act_state, res_grp_list, res_model):
+        act_list.append(self.start_act)
+
+        act_seq_list = list(permutations(act_list, 2))
+        res_mode = {}
+        for from_act, to_act in act_seq_list:
+            # Get job change time
+            pass
+            # job_change_time = self.get_job_change_time(res_grp_cd=res_grp_cd, from_act=from_act, to_act=to_act)
+            # for res_cd in res_cd_list:
+            #     res_mode[(from_act, to_act)] = Mode(
+            #         name=f'Mode_setup[{from_act}|{to_act}|{res_cd[0]}]',
+            #         duration=job_change_time
+            #     )
+            #     #
+            #     # res_mode[(from_act, to_act)].addBreak(start=0, finish=job_change_time, maxtime='inf')
+            #
+            #     res_mode[(from_act, to_act)].addState(
+            #         state=state,
+            #         fromValue=act_state[from_act],
+            #         toValue=act_state[to_act]
+            #     )
+            #     if job_change_time != 0:
+            #         res_mode[(from_act, to_act)].addResource(
+            #             resource=res_model[res_cd[0]],
+            #             requirement={(0, job_change_time): 1}
+            #         )
+
+        return res_mode
 
     @staticmethod
     def add_job_change_temporal(model, activity, job_change_activity):
@@ -344,32 +360,6 @@ class OptSeqModel(object):
 
         return job_change_activity
 
-    def set_job_change_mode(self, act_list, res_grp_cd, state, act_state, res_cd_list, res_model):
-        act_list.append(self.start_act)
-
-        act_seq_list = list(permutations(act_list, 2))
-        res_mode = {}
-        for from_act, to_act in act_seq_list:
-            # Get job change time
-            job_change_time = self.get_job_change_time(res_grp_cd=res_grp_cd, from_act=from_act, to_act=to_act)
-            for res_cd in res_cd_list:
-                res_mode[(from_act, to_act)] = Mode(
-                    name=f'Mode_setup[{from_act}|{to_act}|{res_cd[0]}]',
-                    duration=job_change_time
-                )
-                res_mode[(from_act, to_act)].addState(
-                    state=state,
-                    fromValue=act_state[from_act],
-                    toValue=act_state[to_act]
-                )
-                if job_change_time != 0:
-                    res_mode[(from_act, to_act)].addResource(
-                        resource=res_model[res_cd[0]],
-                        requirement={(0, job_change_time): 1}
-                    )
-
-        return res_mode
-
     def get_job_change_time(self, res_grp_cd, from_act, to_act) -> int:
         from_res_cd = self.sku_to_item.get(from_act.split('@')[1], None)  # From brand
         to_res_cd = self.sku_to_item.get(to_act.split('@')[1], None)  # To brand
@@ -384,11 +374,55 @@ class OptSeqModel(object):
         return state
 
     def check_model_init_set(self, model: Model):
-        # Check resource
-        for resource in model.res:
-            capa = resource.capacity
+        # Check the activity
+        for act in model.act:
+            if len(act.modes) == 0:
+                raise ValueError(f"Activity: {act.name} does not have modes.")
+
+        # Check the mode
+        if not self.cstr_cfg['apply_job_change']:
+            for mode in model.modes:
+                if len(mode.requirement) == 0:
+                    raise ValueError(f"Mode: {mode.name} does not have resources.")
+
+        # Check the resource
+        res_list = set()
+        for resource in model.res[:]:
+            if resource.capacity == {}:
+                model.res.remove(resource)
+            res_list.add(resource.name)
+            for (from_time, to_time), req in resource.capacity.items():
+                if isinstance(from_time, int) + isinstance(from_time, int) + isinstance(from_time, int) != 3:
+                    raise TypeError(f"Resource: {resource.name} contains non-int type.")
+
+        # Compare resource & resource in the mode
+        act_mode_res_list = set()
+        for act in model.act:
+            for mode in act.modes:
+                if mode.duration != 0:
+                    res = list(mode.requirement.keys())[0][0]
+                    act_mode_res_list.add(res)
+
+        if len(act_mode_res_list - res_list) > 0:
+            raise ValueError(f"Infeasible Setting")
+
+        elif len(res_list - act_mode_res_list) > 0:
+            res_filter_list = list(res_list - act_mode_res_list)
+
+            for resource in model.res[:]:
+                if resource.name in res_filter_list:
+                    model.res.remove(resource)
 
         return model
+
+    @staticmethod
+    def make_act_mode_map(model: Model):
+        act_mode_map = {}
+        for act in model.act:
+            if len(act.modes) == 1:
+                act_mode_map[act.name] = act.modes[0].name
+
+        return act_mode_map
 
     @staticmethod
     def optimize(model: Model):
