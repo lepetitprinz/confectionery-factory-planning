@@ -1,5 +1,4 @@
 from common.SqlSession import SqlSession
-# from common.SqlConfig import SqlConfig
 from common.SqlConfig import SqlConfig
 
 import json
@@ -43,11 +42,6 @@ class DataIO(object):
     # Save the object
     @staticmethod
     def save_object(data, data_type: str, path: str) -> None:
-        """
-        :param data: Saving dataset
-        :param data_type: csv / binary
-        :param path: file path
-        """
         if data_type == 'csv':
             data.to_csv(path, index=False)
 
@@ -66,7 +60,6 @@ class DataIO(object):
         data = None
         if data_type == 'csv':
             data = pd.read_csv(path)
-            # data = pd.read_csv(file_path, encoding='cp949')
 
         elif data_type == 'binary':
             with open(path, 'rb') as handle:

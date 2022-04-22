@@ -2,7 +2,7 @@ import os
 import sys
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 
-from deployment.Pipeline import Pipeline
+from deployment.PipelineDev import Pipeline
 
 fp_seq = '01'
 # 001 : Default (k130) (complete)
@@ -20,7 +20,7 @@ step_cfg = {
     'cls_load': True,
     'cls_prep': True,
     'cls_model': True,
-    'cls_pp': True,
+    'cls_pp': False,
 }
 
 exec_cfg = {
@@ -35,7 +35,7 @@ except_cfg = {
 }
 
 cstr_cfg = {
-    'apply_res_available_time': True,
+    'apply_res_available_time': False,
     'apply_job_change': True,  # Model
     'prod': False,
     'apply_human_capacity': False,

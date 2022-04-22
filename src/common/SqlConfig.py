@@ -18,18 +18,15 @@ class SqlConfig(object):
     @staticmethod
     def sql_item_master(**kwargs):
         sql = f"""
-            SELECT ITEM.ITEM_ATTR03_CD AS ITEM_ATTR03_CD
-                 , ENG_ITEM_CD AS ITEM_CD
-                 , FP_ITEM.ITEM_NM AS ITEM_NM
-                 , FP_ITEM.ITEM_TYPE_CD AS ITEM_TYPE_CD
-              FROM (
-                    SELECT *
-                      FROM M4E_I401080
-                     WHERE ITEM_TYPE_CD IN ('FERT', 'HAWA')
-                       AND FP_VRSN_ID = '{kwargs['fp_version']}'
-                  ) FP_ITEM
-               LEFT OUTER JOIN M4S_I002040 ITEM
-                ON FP_ITEM.ITEM_CD = ITEM.ITEM_CD
+            SELECT ENG_ITEM_CD AS ITEM_CD
+                 , ITEM_NM
+                 , ITEM_ATTR03_CD
+                 , ITEM_ATTR29_CD AS FLAVOR
+                 , PKG_CTGRI_SUB_CD AS PKG
+              FROM M4E_I401080
+             WHERE ITEM_TYPE_CD IN ('FERT', 'HAWA')
+               AND FP_VRSN_ID = '{kwargs['fp_version']}'
+
         """
         return sql
 
@@ -80,7 +77,7 @@ class SqlConfig(object):
                         ) ITEM
                 ON DMD.ITEM_CD = ITEM.ITEM_CD
              WHERE ITEM.ITEM_ATTR01_CD = 'P1'  -- Exception
-               AND  RES_GRP_CD IN ('X247', 'X267') 
+               -- AND  RES_GRP_CD IN ('X247', 'X267') 
         """
         return sql
 
@@ -129,21 +126,33 @@ class SqlConfig(object):
         return sql
 
     @staticmethod
-    def sql_res_available_time():
-        sql = """
+    def sql_res_available_time(**kwargs):
+        sql = f"""
         SELECT PLANT_CD
-             , RES_GRP_CD
              , RES_CD
-             , ITEM_CD
              , CAPA01_VAL AS CAPACITY1
              , CAPA02_VAL AS CAPACITY2
              , CAPA03_VAL AS CAPACITY3
              , CAPA04_VAL AS CAPACITY4
              , CAPA05_VAL AS CAPACITY5
-          FROM M4S_I405110
-          --FROM M4E_I401140
-         WHERE USE_YN = 'Y'
-           AND RES_GRP_CD <> ''
+          FROM M4E_I401140
+         WHERE FP_VRSN_ID = '{kwargs['fp_version']}'
            AND PLANT_CD IN ('K130')
+        """
+        return sql
+
+    @staticmethod
+    def sql_job_change(**kwargs):
+        sql = f"""
+        SELECT PLANT_CD
+             , RES_GRP_CD
+             , FROM_RES_CD
+             , TO_RES_CD
+             , JOB_CHANGE_TYPE AS JC_TYPE
+             , WORKING_TIME AS JC_TIME
+             , UNIT_CD AS JC_UNIT
+          FROM M4E_I401271
+         WHERE FP_VRSN_ID = '{kwargs['fp_version']}'
+           AND PLANT_CD IN ('K130')  
         """
         return sql

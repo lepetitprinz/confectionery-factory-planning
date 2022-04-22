@@ -19,13 +19,10 @@ setup = {
         ("start2", "B1"): 0, ("start2", "B2"): 0,
         # ("B1", "start2"): 0, ("B2", "start2"): 0,
     },
-    'C': {
-        ("C1", "C2"): 0, ("C2", "C1"): 0,
-        ("start3", "C1"): 0, ("start3", "C2"): 0,
-    }
 }
+setup_list = ['A', 'B']
 
-state_dict = {"start1": 0, "start2": 1, "start3": 2, "A1": 3, "A2": 4, "B1": 5, "B2": 6, "C1": 7, "C2": 8}
+state_dict = {"start1": 0, "start2": 1,  "A1": 3, "A2": 4, "B1": 5, "B2": 6}
 
 res_dict = {
     'A': model.addResource('line1', 1),
@@ -43,33 +40,36 @@ for i, (line, dur) in enumerate(duration_dict.items()):
         mode[demand].addResource(res_dict[line], {(0, "inf"): 1})
         act[demand].addModes(mode[demand])
 
-    s = model.addState("state" + line)
-    s.addValue(time=0, value=i)
-    state[line] = s
+    if line in setup_list:
+        s = model.addState("state" + line)
+        s.addValue(time=0, value=i)
+        state[line] = s
 
 mode_setup = {}
 for line, time_map in setup.items():
-    for (from_time, to_time), duration in time_map.items():
-        mode_setup[(from_time, to_time)] = Mode(f'Mode_setup[{from_time}_{to_time}]', duration)
-        mode_setup[(from_time, to_time)].addState(state[line], state_dict[from_time], state_dict[to_time])
-        if duration != 0:
-            mode_setup[(from_time, to_time)].addResource(res_dict[line], {(0, duration): 1})
+    if line in setup_list:
+        for (from_time, to_time), duration in time_map.items():
+            mode_setup[(from_time, to_time)] = Mode(f'Mode_setup[{from_time}_{to_time}]', duration)
+            mode_setup[(from_time, to_time)].addState(state[line], state_dict[from_time], state_dict[to_time])
+            if duration != 0:
+                mode_setup[(from_time, to_time)].addResource(res_dict[line], {(0, duration): 1})
 
 act_setup = {}
 for line, dur in duration_dict.items():
-    for demand, duration in dur.items():
-        act_setup[demand] = model.addActivity(f"Setup[{demand}]", autoselect=True)
-        setup_line = setup.get(line, None)
-        if setup_line:
-            for from_time, to_time in setup_line:
-                if demand == to_time:
-                    act_setup[demand].addModes(mode_setup[(from_time, to_time)])
+    if line in setup_list:
+        for demand, duration in dur.items():
+            act_setup[demand] = model.addActivity(f"Setup[{demand}]", autoselect=True)
+            setup_line = setup.get(line, None)
+            if setup_line:
+                for from_time, to_time in setup_line:
+                    if demand == to_time:
+                        act_setup[demand].addModes(mode_setup[(from_time, to_time)])
 
 for demand in act_setup:
     model.addTemporal(act_setup[demand], act[demand], 'CS')
     model.addTemporal(act[demand], act_setup[demand], 'SC')
 
-model.Params.TimeLimit = 20
+model.Params.TimeLimit = 10
 model.Params.Makespan = True
 model.Params.OutputFlag = True
 # model.Params.Backtruck = 10

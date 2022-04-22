@@ -7,6 +7,11 @@ from optimize.optseq import Model, Mode, Parameters, Activity, Resource
 
 
 class OptSeqModel(object):
+    # Data dictionary key configuration
+    key_jc = config.key_jc
+    key_sku_type = config.key_sku_type
+
+    # Model parameter option
     time_limit = config.time_limit
     make_span = config.make_span
     optput_flag = config.optput_flag
@@ -30,14 +35,14 @@ class OptSeqModel(object):
         self.res_avail_time = plant_data['resource']['plant_res_avail_time'][plant]
 
         # Duration instance attribute
+        self.time_unit = 'M'
         self.res_default_duration = 1
         self.item_res_duration = plant_data['resource']['plant_item_res_duration'][plant]
 
         # Job change instance attribute
         self.start_act = 'start@start'
-        self.sku_to_item = plant_data['sku_to_brand']
-        if self.cstr_cfg['apply_job_change']:
-            self.job_change = plant_data['job_change'].get(plant, None)
+        self.sku_to_type = plant_data[self.key_sku_type]
+        self.job_change = plant_data[self.key_jc].get(plant, None)
 
     def init(self, dmd_list: list, res_grp_dict: dict):
         # Step1. Instantiate the model
@@ -78,25 +83,24 @@ class OptSeqModel(object):
 
         for res_grp, res_list in res_grp_list_copy.items():
             model_res = {}
-            for res, capacity, unit_cd, res_type in res_list:
+            for resource in res_list:
                 # Add available time of each resource
-                add_res = model.addResource(name=res)
+                add_res = model.addResource(name=resource)
 
-                #
                 if self.cstr_cfg['apply_res_available_time']:
-                    avail_time = self.get_res_available_time(res_grp=res_grp, res=res)
+                    avail_time = self.res_avail_time.get(resource, None)
                     if avail_time:
-                        add_res = self.add_res_capacity(res=add_res, avail_time=avail_time, unit_cd=unit_cd)
+                        add_res = self.add_res_capacity(res=add_res, avail_time=avail_time)
                     else:
                         # Remove resource candidate from resource group
-                        res_grp_dict[res_grp].remove((res, capacity, unit_cd, res_type))
+                        res_grp_dict[res_grp].remove(resource)
                         continue
 
                 else:
                     # Add infinite capacity resource
-                    add_res = model.addResource(name=res, capacity={(0, "inf"): 1})
+                    add_res = model.addResource(name=resource, capacity={(0, "inf"): 1})
 
-                model_res[res] = add_res
+                model_res[resource] = add_res
 
             if len(model_res) != 0:
                 model_res_grp[res_grp] = model_res
@@ -105,19 +109,9 @@ class OptSeqModel(object):
 
         return model_res_grp, res_grp_dict
 
-    def get_res_available_time(self, res_grp, res):
-        res_grp_to_res = self.res_avail_time.get(res_grp, None)
-
-        if res_grp_to_res:
-            avail_time = res_grp_to_res.get(res, None)
-        else:
-            avail_time = None
-
-        return avail_time
-
-    def add_res_capacity(self, res: Resource, avail_time, unit_cd) -> Resource:
+    def add_res_capacity(self, res: Resource, avail_time) -> Resource:
         time_multiple = 1
-        if unit_cd == 'M':
+        if self.time_unit == 'M':
             time_multiple = 60
 
         start_time = self.plant_start_hour
@@ -173,18 +167,18 @@ class OptSeqModel(object):
 
     # Set work processing method
     def set_mode(self, act: Activity, dmd_id: str, item_cd: str, qty: int, res_list: list, model_res: dict):
-        for res_cd, capacity, unit_cd, res_type in res_list:
+        for resource in res_list:
             # Calculate the duration (the working time of the mode)
-            duration_per_unit = self.get_duration_per_unit(item_cd=item_cd, res_cd=res_cd)
+            duration_per_unit = self.get_duration_per_unit(item_cd=item_cd, res_cd=resource)
 
             if duration_per_unit is not None:
                 duration = int(qty * duration_per_unit)
 
                 if duration <= 0:
-                    raise ValueError(f"Duration is not positive integer: item: {item_cd} resource: {res_cd}")
+                    raise ValueError(f"Duration is not positive integer: item: {item_cd} resource: {resource}")
 
                 # Make each mode (set each available resource)
-                mode = Mode(name=f'Mode[{dmd_id}@{item_cd}@{res_cd}]', duration=duration)
+                mode = Mode(name=f'Mode[{dmd_id}@{item_cd}@{resource}]', duration=duration)
 
                 # Add break for each mode
                 mode.addBreak(start=0, finish=duration, maxtime='inf')
@@ -192,7 +186,7 @@ class OptSeqModel(object):
                 # Add resource for each mode(resource)
                 mode = self.add_resource(
                     mode=mode,
-                    resource=model_res[res_cd],
+                    resource=model_res[resource],
                     duration=duration
                 )
 
@@ -365,8 +359,8 @@ class OptSeqModel(object):
         return res_mode
 
     def get_job_change_time(self, res_grp_cd, from_act, to_act) -> int:
-        from_res_cd = self.sku_to_item.get(from_act.split('@')[1], None)  # From brand
-        to_res_cd = self.sku_to_item.get(to_act.split('@')[1], None)  # To brand
+        from_res_cd = self.sku_to_type.get(from_act.split('@')[1], None)  # From brand
+        to_res_cd = self.sku_to_type.get(to_act.split('@')[1], None)  # To brand
         job_change_time = int(self.job_change[res_grp_cd].get((from_res_cd, to_res_cd), 0))
 
         return job_change_time
