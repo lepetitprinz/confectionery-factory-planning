@@ -1,3 +1,4 @@
+import common.util as util
 import common.config as config
 
 import numpy as np
@@ -11,14 +12,17 @@ class Preprocess(object):
     time_uom = 'sec'    # min / sec
 
     # Data dictionary key configuration
-    key_dmd = config.key_dmd
-    key_item = config.key_item
-    key_res = config.key_res
-    key_res_grp = config.key_res_grp
-    key_res_avail_time = config.key_res_avail_time
-    key_item_res_duration = config.key_item_res_duration
-    key_jc = config.key_jc
+    key_dmd = config.key_dmd                            # Demand
+    key_res = config.key_res                            # Resource
+    key_cstr = config.key_cstr
+    key_item = config.key_item                          # Item master
+    key_res_grp = config.key_res_grp                    # Resource group
+    key_res_grp_nm = config.key_res_grp_nm              # Resource group name
+    key_res_avail_time = config.key_res_avail_time      # Resource available time
+    key_item_res_duration = config.key_item_res_duration    # Resource duration
+    key_jc = config.key_jc    # Job change
     key_sku_type = config.key_sku_type
+    key_sim_prod_cstr = config.key_sim_prod_cstr    # Simultaneous Production constraint
 
     # Column name configuration
     # Demand
@@ -72,6 +76,9 @@ class Preprocess(object):
         self.work_day = 5
 
     def preprocess(self, demand, master):
+        if self.cstr_cfg['apply_prod_qty_multiple']:
+            demand = util.change_dmd_qty(data=demand, method='multiple')
+
         dmd_prep = self.set_dmd_info(data=demand)    # Demand
         res_prep = self.set_res_info(data=master)    # Resource
 
@@ -81,14 +88,41 @@ class Preprocess(object):
             sku_type = self.set_sku_type_map(data=master[self.key_item])
             job_change = self.set_job_change(data=master[self.key_jc])
 
+        sim_prod_cstr = None
+        if self.cstr_cfg['apply_sim_prod_cstr']:
+            sim_prod_cstr = self.set_sim_prod_cstr(data=master[self.key_sim_prod_cstr])
+
         prep_data = {
             self.key_dmd: dmd_prep,
             self.key_res: res_prep,
-            self.key_jc: job_change,
-            self.key_sku_type: sku_type
+            'constraint': {
+                self.key_jc: job_change,
+                self.key_sku_type: sku_type,
+                self.key_sim_prod_cstr: sim_prod_cstr
+            },
         }
 
         return prep_data
+
+    def set_sim_prod_cstr(self, data: pd.DataFrame):
+        # Get plant list of demand list
+        plant_dmd_list = list(set(data[self.col_plant]))
+
+        # Change data type
+        data[self.col_res_grp] = data[self.col_res_grp].astype(str)
+        data[self.col_res + '1'] = data[self.col_res + '1'].astype(str)
+        data[self.col_res + '2'] = data[self.col_res + '2'].astype(str)
+
+        plant_sim_prod_cstr = {}
+        for plant, plant_df in data.groupby(by=self.col_plant):
+            res_grp_res = {}
+            for res_grp, res_grp_df in plant_df.groupby(by=self.col_res_grp):
+                res_grp_res[res_grp] = res_grp_df[[self.col_res + '1', self.col_res + '2']]\
+                    .set_index(self.col_res + '1')\
+                    .to_dict()[self.col_res + '2']
+            plant_sim_prod_cstr[plant] = res_grp_res
+
+        return plant_sim_prod_cstr
 
     def set_sku_type_map(self, data: pd.DataFrame) -> Dict[str, Tuple[str, str, str]]:
         sku_to_type = {item_cd: (brand, flavor, pkg) for item_cd, brand, flavor, pkg in
@@ -121,7 +155,7 @@ class Preprocess(object):
             plant_dmd_res[plant] = list(set(dmd[self.col_res_grp].values))
 
             # All of demand item list by plant
-            plant_dmd_item[plant] = list(set(dmd[self.col_sku]))
+            plant_dmd_item[plant] = list(set(dmd[self.col_sku].values))
 
             # Set demand due date by plant
             plant_dmd_due[plant] = self.set_plant_dmd_due(data=dmd)
@@ -133,7 +167,7 @@ class Preprocess(object):
         dmd_prep = {
             'plant_dmd_list': plant_dmd,
             'plant_dmd_item': plant_dmd_item,
-            'plant_dmd_due': plant_dmd_due
+            'plant_dmd_due': plant_dmd_due,
         }
 
         return dmd_prep
@@ -161,23 +195,23 @@ class Preprocess(object):
         return plant_dmd_due
 
     def set_res_info(self, data: dict) -> Dict[str, Dict[str, Any]]:
-        res_grp = data['res_grp']
+        res_grp = data[self.key_res_grp]
 
         # Filter resources whose available time does not exist
         if self.cstr_cfg['apply_res_available_time']:
-            res_grp = self.filter_time_miss_info(res_grp=res_grp, res_avail_time=data['item_res_avail_time'])
+            res_grp = self.filter_time_miss_info(res_grp=res_grp, res_avail_time=data[self.key_res_avail_time])
 
         # Resource group <-> Resource information
         plant_res_grp, plant_res_nm = self.set_res_grp(data=res_grp)
 
         # Resource group naming
-        plant_res_grp_nm = self.set_res_grp_nm(data=data['res_grp_nm'])
+        plant_res_grp_nm = self.set_res_grp_nm(data=data[self.key_res_grp_nm])
 
         # Resource group duration
-        plant_item_res_duration = self.set_item_res_duration(data=data['item_res_duration'])
+        plant_item_res_duration = self.set_item_res_duration(data=data[self.key_item_res_duration])
 
         # Resource available time
-        plant_res_avail_time = self.set_res_avail_time(data=data['item_res_avail_time'])
+        plant_res_avail_time = self.set_res_avail_time(data=data[self.key_res_avail_time])
 
         res_prep = {
             'plant_res_grp': plant_res_grp,
@@ -240,7 +274,7 @@ class Preprocess(object):
 
         return res_avail_time_by_plant
 
-    def set_res_grp(self, data: pd.DataFrame) -> Tuple[Dict[str, Dict[str, List[Tuple]]], Dict[str, Dict[str, str]]]:
+    def set_res_grp(self, data: pd.DataFrame) -> Tuple[Dict[str, Dict[str, List[str]]], Dict[str, Dict[str, str]]]:
         # Choose columns used in model
         data = data[self.use_col_res_grp].copy()
 

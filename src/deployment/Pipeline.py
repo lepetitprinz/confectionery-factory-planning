@@ -1,3 +1,4 @@
+import common.util as util
 from dao.DataIO import DataIO
 from common.SqlConfig import SqlConfig
 from init.Init import Init
@@ -9,7 +10,7 @@ from model.PostProcess import PostProcess
 
 class Pipeline(object):
     def __init__(self, step_cfg: dict, exec_cfg: dict, cstr_cfg: dict, except_cfg: dict,
-                 base_path: dict, fp_serial: str, fp_seq='01'):
+                 base_path: dict, fp_seq: str, fp_num='01'):
         self.io = DataIO()
         self.sql_conf = SqlConfig()
         self.step_cfg = step_cfg    # Step configuration
@@ -22,8 +23,8 @@ class Pipeline(object):
         self.path = {}
 
         # Plant information instance attribute
+        self.fp_num = fp_num
         self.fp_seq = fp_seq
-        self.fp_serial = fp_serial
         self.fp_version = ''
         self.plant_start_time = None
 
@@ -37,15 +38,15 @@ class Pipeline(object):
             io=self.io,
             sql_conf=self.sql_conf,
             default_path=self.base_path,
-            fp_seq=self.fp_seq,
-            fp_serial=self.fp_serial
+            fp_num=self.fp_num,
+            fp_seq=self.fp_seq
         )
         init.run()
 
         # Set initialized object
         self.path = init.pipeline_path
-        self.fp_version = init.fp_version
-        # self.fp_version = 'FP_2022W16.01'
+        # self.fp_version = init.fp_version
+        self.fp_version = 'FP_2022W16.01'
         self.plant_start_time = init.plant_start_day
 
         print("Initialization is finished.\n")
@@ -151,6 +152,8 @@ class Pipeline(object):
             if not self.step_cfg['cls_load']:
                 master = self.io.load_object(path=self.path['load_master'], data_type='binary')
                 demand = self.io.load_object(path=self.path['load_demand'], data_type='binary')
+                if self.cstr_cfg['apply_prod_qty_multiple']:
+                    demand = util.change_dmd_qty(data=demand, method='multiple')
 
             if not self.step_cfg['cls_prep']:
                 prep_data = self.io.load_object(path=self.path['prep_data'], data_type='binary')
@@ -165,10 +168,10 @@ class Pipeline(object):
                     sql_conf=self.sql_conf,
                     exec_cfg=self.exec_cfg,
                     fp_version=self.fp_version,
-                    fp_serial=self.fp_serial,
+                    fp_seq=self.fp_seq,
                     plant_cd=plant,
                     plant_start_time=self.plant_start_time,
-                    item_mst=master['item'],
+                    master=master,
                     prep_data=prep_data,
                     demand=demand,
                     model_init=plant_model[plant]

@@ -11,11 +11,14 @@ PASSWORD = 'Diam0nd123!'   # User password
 key_dmd = 'demand'
 key_item = 'item'
 key_res = 'resource'
+key_cstr = 'constraint'
 key_res_grp = 'res_grp'
+key_res_grp_nm = 'res_grp_nm'
 key_res_avail_time = 'res_avail_time'
 key_item_res_duration = 'item_res_duration'
 key_jc = 'job_change'
 key_sku_type = 'sku_type'
+key_sim_prod_cstr = 'sim_prod_cstr'
 
 # Column Configuration
 # Column: Demand
@@ -39,6 +42,7 @@ col_brand = 'item_attr03_cd'
 col_flavor = 'flavor'
 col_pkg = 'pkg'
 col_sku = 'item_cd'
+col_sku_nm = 'item_nm'
 
 # Column: job change
 col_job_change_from = 'from_res_cd'
@@ -47,8 +51,11 @@ col_job_change_type = 'jc_type'
 col_job_change_time = 'jc_time'
 col_job_change_unit = 'jc_unit'
 
+# Constraint configuration
+prod_qty_multiple = 10
+
 # OptSeq Model configuration
-time_limit = 60 * 5  # 60*60*6
+time_limit = 60 * 1  # 60*60*6
 make_span = True
 optput_flag = True
 max_iteration = 10**20

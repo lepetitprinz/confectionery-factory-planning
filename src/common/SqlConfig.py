@@ -119,7 +119,7 @@ class SqlConfig(object):
     def sql_fp_seq_list(**kwargs):
         sql = f"""
             SELECT FP_VRSN_SEQ
-              FROM M4E_O402122
+              FROM M4E_O402130
              WHERE FP_VRSN_ID = '{kwargs['fp_vrsn_id']}'
              GROUP BY FP_VRSN_SEQ     
         """
@@ -144,15 +144,58 @@ class SqlConfig(object):
     @staticmethod
     def sql_job_change(**kwargs):
         sql = f"""
-        SELECT PLANT_CD
-             , RES_GRP_CD
-             , FROM_RES_CD
-             , TO_RES_CD
-             , JOB_CHANGE_TYPE AS JC_TYPE
-             , WORKING_TIME AS JC_TIME
-             , UNIT_CD AS JC_UNIT
-          FROM M4E_I401271
-         WHERE FP_VRSN_ID = '{kwargs['fp_version']}'
-           AND PLANT_CD IN ('K130')  
+            SELECT PLANT_CD
+                 , RES_GRP_CD
+                 , FROM_RES_CD
+                 , TO_RES_CD
+                 , JOB_CHANGE_TYPE AS JC_TYPE
+                 , WORKING_TIME AS JC_TIME
+                 , UNIT_CD AS JC_UNIT
+              FROM M4E_I401271
+             WHERE FP_VRSN_ID = '{kwargs['fp_version']}'
+               AND PLANT_CD IN ('K130')  
+        """
+        return sql
+
+    #################################
+    # Delete
+    #################################
+    @staticmethod
+    def del_dmd_result(**kwargs):
+        sql = f"""
+            DELETE 
+              FROM M4E_O402010
+             WHERE FP_VRSN_ID = '{kwargs['fp_version']}'
+               AND FP_VRSN_SEQ = '{kwargs['fp_seq']}'
+        """
+        return sql
+
+    @staticmethod
+    def del_res_day_night_qty(**kwargs):
+        sql = f"""
+            DELETE 
+              FROM M4E_O402130
+             WHERE FP_VRSN_ID = '{kwargs['fp_version']}'
+               AND FP_VRSN_SEQ = '{kwargs['fp_seq']}'
+        """
+        return sql
+
+    @staticmethod
+    def del_res_status_result(**kwargs):
+        sql = f"""
+            DELETE 
+              FROM M4E_O402050
+             WHERE FP_VRSN_ID = '{kwargs['fp_version']}'
+               AND FP_VRSN_SEQ = '{kwargs['fp_seq']}'
+        """
+        return sql
+
+    @staticmethod
+    def del_gantt_result(**kwargs):
+        sql = f"""
+            DELETE 
+              FROM M4E_O402140
+             WHERE FP_VRSN_ID = '{kwargs['fp_version']}'
+               AND FP_VRSN_SEQ = '{kwargs['fp_seq']}'
         """
         return sql

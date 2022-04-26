@@ -1,4 +1,5 @@
 import common.util as util
+import common.config as config
 
 import os
 import numpy as np
@@ -13,36 +14,57 @@ class PostProcess(object):
     # Columns instance attribute
     col_fp_version_id = 'fp_vrsn_id'
     col_fp_version_seq = 'fp_vrsn_seq'
+    col_fp_key = 'fp_key'
     col_date = 'yymmdd'
+    col_time_idx_type = 'time_index_type'
 
-    default_activity = ['source', 'sink']
-    res_schd_cols = ['res_cd', 'start_num', 'end_num', 'capacity']
-    act_cols = ['dmd_id', 'item_cd', 'res_grp', 'resource', 'start_num', 'end_num']
+    # Demand
+    col_prod_qty = 'prod_qty'
+    col_dmd = config.col_dmd
+    col_sku = config.col_sku
+    col_sku_nm = config.col_sku_nm
+    col_duration = config.col_duration
+
+    # Resource
+    col_res = config.col_res
+    col_res_nm = config.col_res_nm
+    col_res_grp = config.col_res_grp
+    col_res_grp_nm = config.col_res_grp_nm
+    col_res_capa = config.col_res_capa
+
+    col_start_time = 'starttime'
+    col_end_time = 'endtime'
+
     split_symbol = '@'
+    res_schd_cols = [col_res, col_start_time, col_end_time, col_res_capa]
+    act_cols = [col_dmd, col_sku, col_res_grp, col_res, col_start_time, col_end_time, 'kind']
 
     # optseq output instance attribute
+    act_name = 'Act'
+    setup_name = 'Setup'
+    default_activity = ['source', 'sink']
     act_start_phase = '--- best solution ---'
     act_end_phase = '--- tardy activity ---'
     res_start_phase = '--- resource residuals ---'
     res_end_phase = '--- best activity list ---'
-    act_name = 'Act'
-    setup_name = 'Setup'
 
-    def __init__(self, io, sql_conf, exec_cfg: dict, fp_version: str, fp_serial: str,
-                 plant_cd: str, plant_start_time, item_mst, prep_data, demand, model_init):
+    def __init__(self, io, sql_conf, exec_cfg: dict, fp_version: str, fp_seq: str,
+                 plant_cd: str, plant_start_time, master, prep_data, demand, model_init):
         # Class instance attribute
         self.io = io
         self.sql_conf = sql_conf
 
         # Execute instance attribute
         self.exec_cfg = exec_cfg
-        self.fp_serial = fp_serial
+        self.fp_seq = fp_seq
         self.fp_version = fp_version
-        self.fp_name = fp_version + '_' + fp_serial
+        self.fp_name = fp_version + '_' + fp_seq
+        self.project_cd = 'ENT001'
 
         # Data instance attribute
         self.demand = demand
-        self.item_mst = item_mst
+        self.item_mst = master['item']
+        self.res_grp_mst = master['res_grp']
         self.res_grp = prep_data['resource']['plant_res_grp'][plant_cd]
         self.res_grp_nm = prep_data['resource']['plant_res_grp_nm'][plant_cd]
         self.res_nm_map = prep_data['resource']['plant_res_nm'][plant_cd]
@@ -50,6 +72,7 @@ class PostProcess(object):
 
         # Plant instance attribute
         self.plant_cd = plant_cd
+        self.plant_start_hour = 7
         self.plant_start_time = plant_start_time
 
         # Model instance attribute
@@ -90,7 +113,7 @@ class PostProcess(object):
         res_grp = self.res_grp.copy()
         res_to_res_grp = {}
         for res_grp_cd, res_list in res_grp.items():
-            for res_cd, _, _, _ in res_list:
+            for res_cd in res_list:
                 res_to_res_grp[res_cd] = res_grp_cd
 
         self.res_to_res_grp = res_to_res_grp
@@ -116,47 +139,120 @@ class PostProcess(object):
         activity_df = self.fill_na(data=activity_df)
         activity_df = self.change_timeline(data=activity_df)
         qty_df = self.calc_timeline_prod_qty(data=activity_df)
-        # qty_df = self.add_miss_demand(data=qty_df)
 
         if self.exec_cfg['save_step_yn']:
             self.save_opt_result(data=activity_df, name='act')
             self.save_opt_result(data=qty_df, name='qty')
 
         if self.exec_cfg['save_db_yn']:
-            self.save_on_db(data=qty_df)
+            # seq = self.make_fp_seq()
+
+            self.save_res_status_on_db(data=activity_df, seq=self.fp_seq)
+
+            # Demand (req quantity vs prod quantity)
+            self.save_req_prod_qty_on_db(data=activity_df, seq=self.fp_seq)
+
+            # Resource
+            self.save_gantt_on_db(data=activity_df, seq=self.fp_seq)
+
+            # Production quantity on day & night
+            self.save_res_day_night_qty_on_db(data=qty_df, seq=self.fp_seq)
 
         if self.exec_cfg['save_graph_yn']:
             self.draw_gantt(data=activity_df)
 
-    def add_miss_demand(self, data: pd.DataFrame):
-        rm_dmd_list = [act[act.index('[')+1: act.index('@')] for act in self.rm_act_list]
-        rm_dmd_df = self.demand[self.demand['dmd_id'].isin(rm_dmd_list)].copy()
-        miss_dmd_qty = rm_dmd_df['qty'].sum()
-        miss_dmd = {'res_grp_cd': ['MISS'], 'res_grp_nm': ['MISS'], 'res_cd': ['MISS'], 'res_nm': ['MISS'],
-                    'item_cd': ['MISS'], 'item_nm': ['MISS'], 'yymmdd': [self.plant_start_time], 'type':['D'],
-                    'qty': [miss_dmd_qty]}
-        data = data.append(pd.DataFrame(miss_dmd))
+    def get_best_activity(self) -> list:
+        with open(self.optseq_output_path) as f:
+            add_phase_yn = False
+            solve_result = []
+            for line in f:
+                if line.strip() == self.act_end_phase:
+                    break
+                if add_phase_yn and line.strip() != '':
+                    result = self.prep_act_mode_result(line)
+                    if result:
+                        solve_result.extend(result)
+                if line.strip() == self.act_start_phase:
+                    add_phase_yn = True
 
-        return data
+        f.close()
+
+        return solve_result
+
+    def prep_act_mode_result(self, line: str):
+        # Split result
+        activity, mode, schedule = line.strip().split(',')
+        if activity not in self.default_activity:
+            # optseq exception (if activity has 1 mode then result:'---')
+            if mode == '---':
+                mode = self.act_mode_name_map[activity]
+
+            # preprocess the activity
+            dmd_id, item_cd, res_grp, res, kind = (None, None, None, None, None)
+
+            act_kind = activity[:activity.index('[')]
+            if act_kind == 'Act':
+                dmd_id, item_cd, res_grp = activity.split('@')
+                dmd_id = dmd_id[dmd_id.index('[') + 1:]
+                res_grp = res_grp[:res_grp.index(']')]
+
+                # preprocess the mode
+                res = mode.split('@')[-1]
+                res = res[:res.index(']')]
+                kind = 'demand'
+
+            elif act_kind == 'Setup':
+                _, item_cd, res_grp, res = activity.split('@')
+                res = res[:res.index(']')]
+
+                from_dmd, to_dmd, mode = mode.split('|')
+                from_dmd = from_dmd.split('@')
+                if len(from_dmd) > 1:
+                    from_dmd = from_dmd[0][from_dmd[0].index('[') + 1:]
+                    to_dmd = to_dmd.split('@')[0]
+                    dmd_id = from_dmd + '_' + to_dmd
+                    kind = 'job_change'
+                else:
+                    return None
+
+            # preprocess the schedule
+            schedule = schedule.strip().split(' ')[1:-1]
+
+            result = []
+            for from_to_time in schedule:
+                duration_start, duration_end = list(map(int, from_to_time.split('--')))
+                result.append([dmd_id, item_cd, res_grp, res, duration_start, duration_end, kind])
+
+            return result
 
     def calc_timeline_prod_qty(self, data: pd.DataFrame):
         timeline_list = []
-        for res_cd, res_df in data.groupby('resource'):
-            for item_cd, item_df in res_df.groupby('item_cd'):
+        for res_cd, res_df in data.groupby(self.col_res):
+            for item_cd, item_df in res_df.groupby(self.col_sku):
                 for start, end in zip(item_df['start'], item_df['end']):
                     timeline_list.extend(self.calc_duration(res_cd, item_cd, start, end))
 
-        qty_df = pd.DataFrame(timeline_list, columns=['res_cd', 'item_cd', 'yymmdd', 'type', 'duration'])
+        qty_df = pd.DataFrame(
+            timeline_list,
+            columns=[self.col_res, self.col_sku, self.col_date, self.col_time_idx_type, self.col_duration]
+        )
         qty_df = self.set_item_res_capa_rate(data=qty_df)
-        qty_df['duration'] = qty_df['duration'] / np.timedelta64(1, 's')
-        qty_df['qty'] = np.round(qty_df['duration'] / qty_df['capa_rate'], 2)
+        qty_df[self.col_duration] = qty_df[self.col_duration] / np.timedelta64(1, 's')
+        qty_df[self.col_prod_qty] = np.round(qty_df[self.col_duration] / qty_df['capa_rate'], 2)
 
         #
-        qty_df['qty'] = qty_df['qty'].fillna(0)
-        qty_df['qty'] = np.nan_to_num(qty_df['qty'].values, posinf=self.inf_val, neginf=self.inf_val)
+        qty_df[self.col_prod_qty] = qty_df[self.col_prod_qty].fillna(0)
+        qty_df[self.col_prod_qty] = np.nan_to_num(
+            qty_df[self.col_prod_qty].values,
+            posinf=self.inf_val,
+            neginf=self.inf_val
+        )
 
         # Data processing
-        qty_df = qty_df.drop(columns=['duration'])
+        qty_df = qty_df.drop(columns=[self.col_duration])
+        qty_df = qty_df.groupby(by=[self.col_res, self.col_sku, self.col_date, self.col_time_idx_type, 'capa_rate'])\
+            .sum()\
+            .reset_index()
 
         qty_df = self.add_name_info(data=qty_df)
 
@@ -164,21 +260,23 @@ class PostProcess(object):
 
     def add_name_info(self, data: pd.DataFrame):
         # Add item naming
-        item_mst = self.item_mst[['item_cd', 'item_nm']].copy()
-        data = pd.merge(data, item_mst, how='left', on='item_cd')
+        item_mst = self.item_mst[[self.col_sku, self.col_sku_nm]].drop_duplicates().copy()
+        data = pd.merge(data, item_mst, how='left', on=self.col_sku)
 
         # Add resource naming
-        data['res_grp_cd'] = [self.res_to_res_grp.get(res_cd, 'UNDEFINED') for res_cd in data['res_cd']]
-        data['res_grp_nm'] = [self.res_grp_nm.get(res_grp_cd, 'UNDEFINED') for res_grp_cd in data['res_grp_cd']]
-        data['res_nm'] = [self.res_nm_map.get(res_cd, 'UNDEFINED') for res_cd in data['res_cd']]
+        data[self.col_res_grp] = [self.res_to_res_grp.get(res_cd, 'UNDEFINED') for res_cd in data[self.col_res]]
+        data[self.col_res_grp_nm] = [self.res_grp_nm.get(res_grp_cd, 'UNDEFINED')
+                                     for res_grp_cd in data[self.col_res_grp]]
+        data[self.col_res_nm] = [self.res_nm_map.get(res_cd, 'UNDEFINED') for res_cd in data[self.col_res]]
 
-        data = data[['res_grp_cd', 'res_grp_nm', 'res_cd', 'res_nm', 'item_cd', 'item_nm', 'yymmdd', 'type', 'qty']]
+        data = data[[self.col_res_grp, self.col_res_grp_nm, self.col_res, self.col_res_nm, self.col_sku,
+                     self.col_sku_nm, self.col_date, self.col_time_idx_type, self.col_prod_qty]]
 
         return data
 
     def set_item_res_capa_rate(self, data):
         capa_rate_list = []
-        for item_cd, res_cd in zip(data['item_cd'], data['res_cd']):
+        for item_cd, res_cd in zip(data[self.col_sku], data[self.col_res]):
             capa_rate = self.item_res_duration[item_cd].get(res_cd, self.item_avg_duration[item_cd])
             capa_rate_list.append(capa_rate)
 
@@ -191,6 +289,11 @@ class PostProcess(object):
         start_time = dt.timedelta(hours=start.hour, minutes=start.minute, seconds=start.second)
         end_day = dt.datetime.strptime(dt.datetime.strftime(end, '%Y%m%d'), '%Y%m%d')
         end_time = dt.timedelta(hours=end.hour, minutes=end.minute, seconds=end.second)
+
+        #
+        if end_time == dt.timedelta(seconds=0):
+            end_day = end_day - dt.timedelta(days=1)
+            end_time = dt.timedelta(hours=24)
 
         diff_day = (end_day - start_day).days
 
@@ -254,21 +357,20 @@ class PostProcess(object):
 
         return duration_day, duration_night
 
-    @staticmethod
-    def fill_na(data: pd.DataFrame) -> pd.DataFrame:
-        data['resource'] = data['resource'].fillna('UNDEFINED')
+    def fill_na(self, data: pd.DataFrame) -> pd.DataFrame:
+        data[self.col_res] = data[self.col_res].fillna('UNDEFINED')
 
         return data
 
     def conv_res_format(self, data: pd.DataFrame):
-        data['resource'] = data['resource'].str.split(self.split_symbol).str[1]
+        data[self.col_res] = data[self.col_res].str.split(self.split_symbol).str[1]
 
         return data
 
     def post_process_res(self):
         # Get the resource timeline result
         res_schedule = self.get_res_result()
-        res_schd_df = self.conv_to_df(data=res_schedule, kind='resource')
+        res_schd_df = self.conv_to_df(data=res_schedule, kind=self.col_res)
 
         if self.exec_cfg['save_step_yn']:
             self.save_opt_result(data=res_schd_df, name='resource.csv')
@@ -323,104 +425,44 @@ class PostProcess(object):
 
         return time_list
 
-    def get_best_activity(self) -> list:
-        with open(self.optseq_output_path) as f:
-            add_phase_yn = False
-            solve_result = []
-            for line in f:
-                if line.strip() == self.act_end_phase:
-                    break
-                if add_phase_yn and line.strip() != '':
-                    result = self.prep_act_mode_result(line)
-                    if result:
-                        solve_result.extend(result)
-                if line.strip() == self.act_start_phase:
-                    add_phase_yn = True
-
-        f.close()
-
-        return solve_result
-
-    def prep_act_mode_result(self, line: str):
-        # Split result
-        activity, mode, schedule = line.strip().split(',')
-        if activity not in self.default_activity:
-            # optseq exception (if activity has 1 mode then result:'---')
-            if mode == '---':
-                mode = self.act_mode_name_map[activity]
-
-            # preprocess the activity
-            demand_id, item_cd, res_grp = activity.split('@')
-            demand_id = demand_id[demand_id.index('[') + 1:]
-            res_grp = res_grp[:res_grp.index(']')]
-
-            # preprocess the mode
-            mode = mode.split('@')[-1]
-            mode = mode[:mode.index(']')]
-
-            # preprocess the schedule
-            schedule = schedule.strip().split(' ')[1:-1]
-            result = []
-            for from_to_time in schedule:
-                duration_start, duration_end = list(map(int, from_to_time.split('--')))
-                result.append([demand_id, item_cd, res_grp, mode, duration_start, duration_end])
-
-            return result
-
-        else:
-            return None
-
     def conv_to_df(self, data: list, kind: str):
         df = None
         if kind == 'activity':
             df = pd.DataFrame(data, columns=self.act_cols)
-            df = df.sort_values(by=['dmd_id'])
+            df = df.sort_values(by=[self.col_dmd])
 
         elif kind == 'resource':
             df = pd.DataFrame(data, columns=self.res_schd_cols)
-            df = df.sort_values(by=['res_cd'])
+            df = df.sort_values(by=[self.col_res])
 
         return df
 
     def change_timeline(self, data: pd.DataFrame):
 
-        data['start'] = data['start_num'].apply(
+        data['start'] = data[self.col_start_time].apply(
             lambda x: self.plant_start_time + dt.timedelta(seconds=x)
         )
-        data['end'] = data['end_num'].apply(
+        data['end'] = data[self.col_end_time].apply(
             lambda x: self.plant_start_time + dt.timedelta(seconds=x)
         )
 
-        data = data.drop(columns=['start_num', 'end_num'])
+        data = data.drop(columns=[self.col_start_time, self.col_end_time])
 
         return data
 
     def draw_gantt(self, data: pd.DataFrame) -> None:
         # data = self.change_timeline(data=data)
+        self.draw_activity(data=data[data['kind'] == 'demand'], y=self.col_dmd, color=self.col_res, name='act_demand')
+        self.draw_activity(data=data, y=self.col_res, color=self.col_dmd, name='act_resource')
 
-        self.draw_activity(data=data, kind='demand')
-        self.draw_activity(data=data, kind='resource')
+    def draw_activity(self, data: pd.DataFrame, y: str, color: str, name: str):
+        fig = px.timeline(data, x_start='start', x_end='end', y=y, color=color,
+                          color_discrete_sequence=px.colors.qualitative.Set3)
+        fig.update_xaxes(showgrid=True)
+        fig.update_yaxes(autorange="reversed")
 
-    def draw_activity(self, data, kind: str) -> None:
-        if kind == 'demand':
-            # By demand
-            fig = px.timeline(data, x_start='start', x_end='end', y='dmd_id', color='resource',
-                              color_discrete_sequence=px.colors.qualitative.Set3)
-            fig.update_xaxes(showgrid=True)
-            fig.update_yaxes(autorange="reversed")
-
-            # Save the graph
-            self.save_fig(fig=fig, name='act_demand')
-
-        elif kind == 'resource':
-            # By resource
-            fig = px.timeline(data, x_start='start', x_end='end', y='resource', color='dmd_id',
-                              color_discrete_sequence=px.colors.qualitative.Set3)
-            fig.update_xaxes()
-            fig.update_yaxes(autorange="reversed")
-
-            # Save the graph
-            self.save_fig(fig=fig, name='act_resource')
+        # Save the graph
+        self.save_fig(fig=fig, name=name)
 
         plt.close()
 
@@ -447,22 +489,213 @@ class PostProcess(object):
         save_dir = os.path.join(self.save_path, 'gantt', self.fp_version)
         util.make_dir(path=save_dir)
 
-        fig.write_html(os.path.join(save_dir, name + '_' + self.fp_serial + '.html'))
+        fig.write_html(os.path.join(save_dir, name + '_' + self.fp_seq + '.html'))
         # fig.write_image(os.path.join(save_dir, name))
 
-    def save_on_db(self, data: pd.DataFrame):
+    def make_fp_seq(self) -> str:
         fp_seq_df = self.io.get_df_from_db(
             sql=self.sql_conf.sql_fp_seq_list(**{self.col_fp_version_id: self.fp_version})
         )
         if len(fp_seq_df) == 0:
-            last_seq = '001'
+            seq = '001'
         else:
-            last_seq = fp_seq_df[self.col_fp_version_seq].max()
-            last_seq = str(int(last_seq) + 1).zfill(3)
+            seq = fp_seq_df[self.col_fp_version_seq].max()
+            seq = str(int(seq) + 1).zfill(3)
 
-        data[self.col_fp_version_id] = self.fp_version
-        data[self.col_fp_version_seq] = last_seq
-        data[self.col_date] = data[self.col_date].dt.strftime('%Y%m%d')
+        return seq
+
+    def calc_prod_qty(self, data: pd.DataFrame):
+        data = self.set_item_res_capa_rate(data=data)
+        data['res_used_capa_val'] = data[self.col_end_time] - data[self.col_start_time]
+        data['res_used_capa_val'] = data['res_used_capa_val'] / np.timedelta64(1, 's')
+        data[self.col_prod_qty] = np.round(data['res_used_capa_val'] / data['capa_rate'], 2)
+
+        return data
+
+    def save_req_prod_qty_on_db(self, data: pd.DataFrame, seq: str):
+        data = data.rename(columns={
+            self.col_dmd: self.col_fp_key, 'start': self.col_start_time, 'end': self.col_end_time}
+        )
+
+        data = data[data['kind'] == 'demand'].copy()
+        data = self.calc_prod_qty(data=data)
+
+        prod_qty = data.groupby(by=[self.col_fp_key]).sum()['prod_qty'].reset_index()
+        end_date = data.groupby(by=[self.col_fp_key]).max()[self.col_end_time].reset_index()
+        merged = pd.merge(prod_qty, end_date, on=self.col_fp_key)
+        merged[self.col_end_time] = merged[self.col_end_time].dt.strftime('%Y%m%d')
+
+        # Add demand information
+        demand = self.demand[[self.col_dmd, self.col_sku, 'qty']].rename(
+            columns={self.col_dmd: self.col_fp_key, 'qty': 'req_fp_qty'}
+        )
+        merged = pd.merge(demand, merged, how='left', on=self.col_fp_key)
+        merged[self.col_prod_qty] = merged[self.col_prod_qty].fillna(0)
+        merged[self.col_end_time] = merged[self.col_end_time].fillna('99991231')
+
+        merged = self.add_version_info(data=merged, seq=seq)
+
+        merged = merged.rename(columns={
+            self.col_sku: 'eng_item_cd', self.col_end_time: self.col_date, self.col_prod_qty: 'fp_qty'})
+
+        # Delete previous result
+        kwargs = {'fp_version': self.fp_version, 'fp_seq': self.fp_seq}
+        self.io.delete_from_db(sql=self.sql_conf.del_dmd_result(**kwargs))
 
         # Save the result on DB
-        self.io.insert_to_db(df=data, tb_name='M4E_O402122')
+        self.io.insert_to_db(df=merged, tb_name='M4E_O402010')
+
+    def save_res_day_night_qty_on_db(self, data: pd.DataFrame, seq: str) -> None:
+        data = self.add_version_info(data=data, seq=seq)
+        data[self.col_date] = data[self.col_date].dt.strftime('%Y%m%d')
+
+        kwargs = {'fp_version': self.fp_version, 'fp_seq': self.fp_seq}
+        self.io.delete_from_db(sql=self.sql_conf.del_res_day_night_qty(**kwargs))
+
+        # Save the result on DB
+        self.io.insert_to_db(df=data, tb_name='M4E_O402130')
+
+    def save_gantt_on_db(self, data: pd.DataFrame, seq: str) -> None:
+        data = data.rename(columns={self.col_dmd: 'fp_key', 'start': self.col_start_time, 'end': self.col_end_time})
+
+        data = data[data['kind'] == 'demand'].copy()
+        data = self.calc_prod_qty(data=data)
+
+        # Add information
+        data = self.add_version_info(data=data, seq=seq)
+
+        # add resource & item names
+        data[self.col_res_grp_nm] = data[self.col_res_grp].apply(lambda x: self.res_grp_nm.get(x, 'UNDEFINED'))
+        data[self.col_res_nm] = data[self.col_res].apply(lambda x: self.res_nm_map.get(x, 'UNDEFINED'))
+        item_mst = self.item_mst[[self.col_sku, self.col_sku_nm]].drop_duplicates().copy()
+        data = pd.merge(data, item_mst, how='left', on=self.col_sku)
+
+        # Change data type (datetime -> string)
+        data[self.col_start_time] = data[self.col_start_time].dt.strftime('%y%m%d%H%m%s')
+        data[self.col_start_time] = data[self.col_start_time]\
+            .str.replace('-', '')\
+            .str.replace(':', '') \
+            .str.replace(' ', '')
+        data[self.col_end_time] = data[self.col_end_time].dt.strftime('%y%m%d%h%M%s')
+        data[self.col_end_time] = data[self.col_end_time]\
+            .str.replace('-', '')\
+            .str.replace(':', '') \
+            .str.replace(' ', '')
+
+        data = data.drop(columns=['kind', 'capa_rate'])
+
+        # Delete previous result
+        kwargs = {'fp_version': self.fp_version, 'fp_seq': self.fp_seq}
+        self.io.delete_from_db(sql=self.sql_conf.del_gantt_result(**kwargs))
+
+        # Save the result on DB
+        self.io.insert_to_db(df=data, tb_name='M4E_O402140')
+
+    def save_res_status_on_db(self, data: pd.DataFrame, seq: str):
+        #
+
+        timeline_list = []
+        for res, res_df in data.groupby(self.col_res):
+            for kind, kind_df in res_df.groupby('kind'):
+                for start, end in zip(kind_df['start'], kind_df['end']):
+                    timeline_list.extend(self.calc_res_duration(res=res, kind=kind, start=start, end=end))
+
+        res_status = pd.DataFrame(
+            timeline_list,
+            columns=[self.col_res, 'kind', self.col_date, self.col_time_idx_type, self.col_duration]
+        )
+        res_status[self.col_date] = res_status[self.col_date].dt.strftime('%Y%m%d')
+        res_status[self.col_duration] = res_status[self.col_duration] / np.timedelta64(1, 's')
+
+        res_status = res_status.groupby(by=[self.col_res, 'kind', self.col_date, self.col_time_idx_type])\
+            .sum()\
+            .reset_index()
+
+        res_status_dmd = res_status[res_status['kind'] == 'demand'].copy()
+        res_status_dmd = res_status_dmd.rename(columns={self.col_duration: 'res_use_capa_val'})
+        res_status_dmd = res_status_dmd.drop(columns=['kind'])
+        res_status_jc = res_status[res_status['kind'] == 'job_change'].copy()
+        res_status_jc = res_status_jc.rename(columns={self.col_duration: 'res_jc_val'})
+        res_status_jc = res_status_jc.drop(columns=['kind'])
+
+        res_final = pd.merge(res_status_dmd, res_status_jc, how='left',
+                             on=[self.col_res, self.col_date, self.col_time_idx_type]).fillna(0)
+
+        unavail_time = self.plant_start_hour * 60 * 60
+        res_final['res_unavail_val'] = np.where(res_final[self.col_time_idx_type] == 'D', unavail_time, 0)
+        res_final['res_avail_val'] = 43200 - res_final['res_use_capa_val'] - res_final['res_jc_val'] - \
+                                     res_final['res_unavail_val']
+
+        res_grp_mst = self.res_grp_mst[[self.col_res, 'res_type_cd']]
+        res_final = pd.merge(res_final, res_grp_mst, how='left', on=self.col_res).fillna('UNDEFINED')
+        res_final = res_final.rename(columns={'res_type_cd': 'capa_type_cd'})
+
+        res_final = self.add_version_info(data=res_final, seq=seq)
+
+        # Delete previous result
+        kwargs = {'fp_version': self.fp_version, 'fp_seq': self.fp_seq}
+        self.io.delete_from_db(sql=self.sql_conf.del_res_status_result(**kwargs))
+
+        # Save the result on DB
+        self.io.insert_to_db(df=res_final, tb_name='M4E_O402050')
+
+    def calc_res_duration(self, res, kind, start, end):
+        timeline = []
+        start_day = dt.datetime.strptime(dt.datetime.strftime(start, '%Y%m%d'), '%Y%m%d')
+        start_time = dt.timedelta(hours=start.hour, minutes=start.minute, seconds=start.second)
+        end_day = dt.datetime.strptime(dt.datetime.strftime(end, '%Y%m%d'), '%Y%m%d')
+        end_time = dt.timedelta(hours=end.hour, minutes=end.minute, seconds=end.second)
+
+        if end_time == dt.timedelta(seconds=0):
+            end_day = end_day - dt.timedelta(days=1)
+            end_time = dt.timedelta(hours=24)
+
+        diff_day = (end_day - start_day).days
+
+        if diff_day == 0:
+            duration_day = dt.timedelta(hours=0)
+            duration_night = dt.timedelta(hours=0)
+            if end_time < self.split_hour:
+                duration_day = end_time - start_time
+            elif start_time > self.split_hour:
+                duration_night = end_time - start_time
+            else:
+                duration_day = self.split_hour - start_time
+                duration_night = end_time - self.split_hour
+
+            timeline.append([res, kind, start_day, 'D', duration_day])
+            timeline.append([res, kind, start_day, 'N', duration_night])
+
+        elif diff_day == 1:
+            prev_duration_day, prev_duration_night = self.calc_timeline_prev(start_time=start_time)
+            next_duration_day, next_duration_night = self.calc_timeline_next(end_time=end_time)
+
+            timeline.append([res, kind, start_day, 'D', prev_duration_day])
+            timeline.append([res, kind, start_day, 'N', prev_duration_night])
+            timeline.append([res, kind, end_day, 'D', next_duration_day])
+            timeline.append([res, kind, end_day, 'N', next_duration_night])
+
+        else:
+            prev_duration_day, prev_duration_night = self.calc_timeline_prev(start_time=start_time)
+            next_duration_day, next_duration_night = self.calc_timeline_next(end_time=end_time)
+
+            timeline.append([res, kind, start_day, 'D', prev_duration_day])
+            timeline.append([res, kind, start_day, 'N', prev_duration_night])
+            timeline.append([res, kind, end_day, 'D', next_duration_day])
+            timeline.append([res, kind, end_day, 'N', next_duration_night])
+
+            for i in range(diff_day - 1):
+                timeline.append(
+                    [res, kind, start_day + dt.timedelta(days=i + 1), 'D', self.split_hour])
+                timeline.append(
+                    [res, kind, start_day + dt.timedelta(days=i + 1), 'N', self.split_hour])
+
+        return timeline
+
+    def add_version_info(self, data: pd.DataFrame, seq: str):
+        data['project_cd'] = self.project_cd
+        data['create_user_cd'] = 'SYSTEM'
+        data[self.col_fp_version_id] = self.fp_version
+        data[self.col_fp_version_seq] = seq
+
+        return data

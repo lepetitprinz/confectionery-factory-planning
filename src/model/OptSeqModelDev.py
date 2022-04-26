@@ -8,17 +8,18 @@ from optimize.optseq import Model, Mode, Parameters, Activity, Resource
 
 class OptSeqModel(object):
     # Data dictionary key configuration
+    key_res = config.key_res
+    key_cstr = config.key_cstr
     key_jc = config.key_jc
     key_sku_type = config.key_sku_type
+    key_sim_prod_cstr = config.key_sim_prod_cstr
+    job_change_type = ['BRAND_CHANGE', 'FLAVOR_CHANGE', 'STANDARD_CHANGE']
 
     # Model parameter option
     time_limit = config.time_limit
     make_span = config.make_span
     optput_flag = config.optput_flag
     max_iteration = config.max_iteration
-    report_interval = config.report_interval
-    back_truck = config.back_truck
-    job_change_type = ['BRAND_CHANGE', 'FLAVOR_CHANGE', 'STANDARD_CHANGE']
 
     def __init__(self, exec_cfg: dict, cstr_cfg: dict, except_cfg: dict, plant: str, plant_data: dict):
         # Constraint attribute
@@ -31,16 +32,23 @@ class OptSeqModel(object):
         self.schedule_weeks = 4
         self.sec_of_day = 86400
         self.plant_start_hour = 25200    # 25200(sec) = 7(hour) * 60 * 60
-        self.res_avail_time = plant_data['resource']['plant_res_avail_time'][plant]
+        self.res_avail_time = plant_data[self.key_res]['plant_res_avail_time'][plant]
 
         # Duration instance attribute
         self.time_unit = 'M'
         self.res_default_duration = 1
-        self.item_res_duration = plant_data['resource']['plant_item_res_duration'][plant]
+        self.item_res_duration = plant_data[self.key_res]['plant_item_res_duration'][plant]
 
         # Job change instance attribute
-        self.sku_to_type = plant_data[self.key_sku_type]
-        self.job_change = plant_data[self.key_jc].get(plant, None)
+        self.res_grp = plant_data[self.key_res]['plant_res_grp'][plant]
+        self.res_to_res_grp = {}
+        self.sku_to_type = plant_data[self.key_cstr][self.key_sku_type]
+        if self.cstr_cfg['apply_job_change']:
+            self.job_change = plant_data[self.key_cstr][self.key_jc].get(plant, None)
+
+        # Simultaneous production constraint instance attribute
+        if self.cstr_cfg['apply_sim_prod_cstr']:
+            self.sim_prod_cstr = plant_data[self.key_cstr][self.key_sim_prod_cstr].get(plant, None)
 
     def init(self, dmd_list: list, res_grp_dict: dict):
         # Step1. Instantiate the model
@@ -59,20 +67,32 @@ class OptSeqModel(object):
 
         # Step4. Set the job change activity (Optional)
         if self.cstr_cfg['apply_job_change']:
-            # Filter demand that does not have capacity information
-            dmd_list = self.filter_demand(demand=dmd_list, rm_act=rm_act_list)
+            self.set_res_to_res_grp()
 
             model = self.set_job_change_activity(
                 model=model,
                 activity=activity,
-                dmd_list=dmd_list,
-                res_grp_to_res=res_grp_dict,
                 model_res=model_res
             )
 
         model = self.set_model_parameter(model=model)
 
         return model, rm_act_list
+
+    @staticmethod
+    def get_res_to_dmd_list(model: Model):
+        res_dmd_list = {}
+        for activity in model.act:
+            for mode in activity.modes:
+                resource = mode.name.split('@')[2][:-1]
+                act_name = activity.name
+                act_name = act_name[act_name.index('[') + 1: act_name.index(']')]
+                if resource not in res_dmd_list:
+                    res_dmd_list[resource] = [act_name]
+                else:
+                    res_dmd_list[resource].append(act_name)
+
+        return res_dmd_list
 
     # Set resource
     def set_resource(self, model: Model, res_grp_dict) -> Tuple[Dict[str, Dict[str, Resource]], dict]:
@@ -105,7 +125,25 @@ class OptSeqModel(object):
             else:
                 res_grp_dict.pop(res_grp)
 
+        if self.cstr_cfg['apply_sim_prod_cstr']:
+            model_res_grp = self.add_virtual_resource(
+                model=model,
+                model_res_grp=model_res_grp,
+            )
+
         return model_res_grp, res_grp_dict
+
+    def add_virtual_resource(self, model: Model, model_res_grp: dict,):
+        for res_grp, res_map in self.sim_prod_cstr.items():
+            model_res = {}
+            for res1, res2 in res_map.items():
+                res_name = res1 + '_' + res2
+                add_res = model.addResource(name=res_name, capacity={(0, "inf"): 1})
+                model_res['virtual'] = {res1: add_res}
+                model_res['virtual'].update({res2: add_res})
+            model_res_grp[res_grp].update(model_res)
+
+        return model_res_grp
 
     def get_res_available_time(self, res_grp, res):
         res_grp_to_res = self.res_avail_time.get(res_grp, None)
@@ -197,10 +235,30 @@ class OptSeqModel(object):
                     duration=duration
                 )
 
+                if self.cstr_cfg['apply_sim_prod_cstr']:
+                    mode = self.add_virtual_res_on_mode(
+                        mode=mode,
+                        resource=resource,
+                        model_res=model_res,
+                        duration=duration
+                    )
+
                 # add mode list to activity
                 act.addModes(mode)
 
         return act
+
+    def add_virtual_res_on_mode(self, mode, resource, model_res, duration):
+        virtual_dict = model_res.get('virtual', None)
+        if virtual_dict:
+            virtual_res = virtual_dict.get(resource, None)
+            mode = self.add_resource(
+                    mode=mode,
+                    resource=virtual_res,
+                    duration=duration
+                )
+
+        return mode
 
     # Add the specified resource which amount required when executing the mode
     @staticmethod
@@ -242,8 +300,6 @@ class OptSeqModel(object):
         params.Makespan = self.make_span
         params.OutputFlag = self.optput_flag
         params.MaxIteration = self.max_iteration
-        params.Backtruck = self.back_truck
-        # params.ReportInterval = self.report_interval
 
         model.Params = params
 
@@ -275,29 +331,31 @@ class OptSeqModel(object):
 
         return demand_filtered
 
-    def set_job_change_activity(self, model: Model, activity: dict, dmd_list, res_grp_to_res: dict, model_res: dict):
+    def set_job_change_activity(self, model: Model, activity: dict, model_res: dict):
         #
-        act_by_res_grp = self.choose_job_change_demand(dmd_list=dmd_list)
+        act_by_res = self.get_res_to_dmd_list(model=model)
 
         # Set state
-        state_map = self.set_state_map(data=act_by_res_grp)
-        model_state = self.set_model_state(model=model, data=act_by_res_grp, state_map=state_map)
+        state_map = self.set_state_map(data=act_by_res)
+        model_state = self.set_model_state(model=model, data=act_by_res, state_map=state_map)
 
-        for res_grp, act_list in act_by_res_grp.items():
+        for resource, act_list in act_by_res.items():
             res_mode = self.set_job_change_mode(
-                res_grp=res_grp,
+                resource=resource,
                 act_list=act_list,
                 state_map=state_map,
-                res_list=res_grp_to_res[res_grp],
-                model_res=model_res[res_grp],
-                model_state=model_state[res_grp]
+                model_res=model_res[self.res_to_res_grp[resource]],
+                model_state=model_state[resource]
             )
             job_change_activity = self.add_job_change_activity(
                 model=model,
                 mode=res_mode,
                 act_list=act_list,
+                resource=resource
             )
             model = self.add_job_change_temporal(model, activity, job_change_activity)
+
+        # self.conv_duplicate_job_change_activitiy(model=model)
 
         return model
 
@@ -325,53 +383,58 @@ class OptSeqModel(object):
 
         return model
 
-    def add_job_change_activity(self, model: Model, mode: dict, act_list: list):
+    @staticmethod
+    def add_job_change_activity(model: Model, mode: dict, act_list: list, resource: str):
         job_change_activity = {}
         for act in act_list:
-            job_change_activity[act] = model.addActivity(name=f'Setup[{act}]', autoselect=True)
+            job_change_activity[act] = model.addActivity(name=f'Setup[{act}@{resource}]', autoselect=True)
             for from_act, to_act in mode:
                 if act == to_act:
                     job_change_activity[act].addModes(mode[(from_act, to_act)])
 
         return job_change_activity
 
-    def set_job_change_mode(self, res_grp: str, act_list: list, state_map: dict, res_list,
-                            model_res: dict, model_state: dict):
+    def set_job_change_mode(self, resource: str, act_list: list, state_map: dict, model_res: dict, model_state: dict):
         # Make act sequence list
-        act_seq_list = self.make_act_sequence(res_grp=res_grp, act_list=act_list)
+        act_seq_list = self.make_act_sequence(resource=resource, act_list=act_list)
 
         res_mode = {}
         for from_act, to_act in act_seq_list:
             # Get job change time
-            job_change_time = self.calc_job_change_time(res_grp_cd=res_grp, from_act=from_act, to_act=to_act)
-            for res_cd in res_list:
-                res_mode[(from_act, to_act)] = Mode(
-                    name=f'Mode_setup[{from_act}|{to_act}|{res_cd}]',
-                    duration=job_change_time
-                )
+            job_change_time = self.calc_job_change_time(
+                res_grp=self.res_to_res_grp[resource],
+                resource=resource,
+                from_act=from_act,
+                to_act=to_act
+            )
+            # Set job change mode
+            res_mode[(from_act, to_act)] = Mode(
+                name=f'Mode_setup[{from_act}|{to_act}|{resource}]',
+                duration=job_change_time
+            )
 
-                res_mode[(from_act, to_act)].addState(
-                    state=model_state,
-                    fromValue=state_map[from_act],
-                    toValue=state_map[to_act]
+            res_mode[(from_act, to_act)].addState(
+                state=model_state,
+                fromValue=state_map[from_act],
+                toValue=state_map[to_act]
+            )
+            if job_change_time != 0:
+                res_mode[(from_act, to_act)].addResource(
+                    resource=model_res[resource],
+                    requirement={(0, job_change_time): 1}
                 )
-                if job_change_time != 0:
-                    res_mode[(from_act, to_act)].addResource(
-                        resource=model_res[res_cd],
-                        requirement={(0, job_change_time): 1}
-                    )
 
         return res_mode
 
     @staticmethod
-    def make_act_sequence(res_grp: str, act_list: list) -> List[Tuple[str, str]]:
+    def make_act_sequence(resource: str, act_list: list) -> List[Tuple[str, str]]:
         act_seq_list = list(permutations(act_list, 2))
-        act_seq_list += [(res_grp, act) for act in act_list]
+        act_seq_list += [(resource, act) for act in act_list]
 
         return act_seq_list
 
-    def calc_job_change_time(self, res_grp_cd, from_act, to_act) -> int:
-        if res_grp_cd == from_act:
+    def calc_job_change_time(self, res_grp: str, resource: str, from_act: str, to_act: str) -> int:
+        if resource == from_act:
             jc_time = 0
         else:
             from_res = self.sku_to_type.get(from_act.split('@')[1], None)
@@ -379,9 +442,13 @@ class OptSeqModel(object):
 
             time_list = []
             for i, jc_type in enumerate(self.job_change_type):
-                time_dict = self.job_change[res_grp_cd].get(jc_type, None)
-                if time_dict:
-                    time = time_dict.get((from_res[i], to_res[i]), 0)
+                res_grp_jc = self.job_change.get(res_grp, None)
+                if res_grp_jc:
+                    time_dict = self.job_change[res_grp].get(jc_type, None)
+                    if time_dict:
+                        time = time_dict.get((from_res[i], to_res[i]), 0)
+                    else:
+                        time = 0
                 else:
                     time = 0
                 time_list.append(time)
@@ -392,7 +459,7 @@ class OptSeqModel(object):
 
     @staticmethod
     def set_state_map(data: dict) -> Dict[str, int]:
-        state = {res_grp: i for i, res_grp in enumerate(sorted(data))}
+        state = {resource: i for i, resource in enumerate(sorted(data))}
 
         idx = len(data)
         for res_grp, demand_list in data.items():
@@ -402,12 +469,13 @@ class OptSeqModel(object):
 
         return state
 
-    def set_model_state(self, model: Model, data: dict, state_map: dict):
+    @staticmethod
+    def set_model_state(model: Model, data: dict, state_map: dict):
         model_state = {}
-        for res_grp in data:
-            state = model.addState("state_" + res_grp)
-            state.addValue(time=0, value=state_map[res_grp])
-            model_state[res_grp] = state
+        for resource in data:
+            state = model.addState("state_" + resource)
+            state.addValue(time=0, value=state_map[resource])
+            model_state[resource] = state
 
         return model_state
 
@@ -465,3 +533,12 @@ class OptSeqModel(object):
     @staticmethod
     def optimize(model: Model):
         model.optimize()
+
+    def set_res_to_res_grp(self) -> None:
+        res_grp = self.res_grp.copy()
+        res_to_res_grp = {}
+        for res_grp_cd, res_list in res_grp.items():
+            for res_cd in res_list:
+                res_to_res_grp[res_cd] = res_grp_cd
+
+        self.res_to_res_grp = res_to_res_grp

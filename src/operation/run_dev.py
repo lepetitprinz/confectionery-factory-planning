@@ -3,23 +3,24 @@ from deployment.PipelineDev import Pipeline
 import os
 import datetime
 
-fp_seq = '01'
+
+fp_num = '01'
+fp_seq = '005'
 # 001 : Default (k130) (complete)
 # 002 : Resource capacity constraint (k130) (complete)
 # 003 : Resource capacity constraint (k120) (complete)
 # 004 : Job change constraint (k130)
-fp_serial = '004'
-
+# 005 : Simultaneous production constraint (K130)
 base_path = {
     'root': os.path.join('..', '..'),
     'save': os.path.join('..', '..', 'result', 'pipeline')
 }
 
 step_cfg = {
-    'cls_load': True,
-    'cls_prep': True,
+    'cls_load': False,
+    'cls_prep': False,
     'cls_model': True,
-    'cls_pp': False,
+    'cls_pp': True,
 }
 
 exec_cfg = {
@@ -34,9 +35,10 @@ except_cfg = {
 }
 
 cstr_cfg = {
-    'apply_res_available_time': False,
-    'apply_job_change': True,    # Model
-    'prod': False,
+    'apply_res_available_time': True,
+    'apply_job_change': False,
+    'apply_prod_qty_multiple': False,
+    'apply_sim_prod_cstr': True,
     'apply_human_capacity': False,
 }
 
@@ -49,8 +51,8 @@ pipeline = Pipeline(
     cstr_cfg=cstr_cfg,
     except_cfg=except_cfg,
     base_path=base_path,
-    fp_seq=fp_seq,
-    fp_serial=fp_serial
+    fp_num=fp_num,
+    fp_seq=fp_seq
 )
 pipeline.run()
 

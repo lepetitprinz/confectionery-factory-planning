@@ -1,4 +1,7 @@
+import common.config as config
+
 import os
+import numpy as np
 
 
 def make_dir(path) -> None:
@@ -39,3 +42,13 @@ def generate_model_name(name_list: list):
 
 def assert_type_int(value):
     assert type(value) is int, 'Value is not int type'
+
+
+def change_dmd_qty(data, method):
+    if method == 'multiple':
+        multiple = config.prod_qty_multiple
+        qty = data[config.col_qty].values.copy()
+        qty = np.where(qty % multiple != 0, (qty // multiple + 1) * multiple, qty)
+        data[config.col_qty] = qty
+
+    return data
