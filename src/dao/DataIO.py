@@ -13,7 +13,7 @@ class DataIO(object):
         self.session.init()
 
     # Read sql and converted to dataframe
-    def get_df_from_db(self, sql, dtype=None) -> pd.DataFrame:
+    def load_from_db(self, sql, dtype=None) -> pd.DataFrame:
         df = self.session.select(sql=sql, dtype=dtype)
         df.columns = [col.lower() for col in df.columns]
 

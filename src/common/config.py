@@ -7,18 +7,33 @@ PORT = '1433'
 USER = 'matrix'            # User name
 PASSWORD = 'Diam0nd123!'   # User password
 
-# Data dictionary key Configuration
-key_dmd = 'demand'
-key_item = 'item'
-key_res = 'resource'
-key_cstr = 'constraint'
+############################################
+# Data dictionary key configuration
+############################################
+# Demand
+key_dmd = 'demand'         # Demand
+key_res = 'resource'       # Resource
+key_item = 'item'          # Item master
+key_cstr = 'constraint'    # Constraint
+
+# Demand
+key_dmd_list_by_plant = 'dmd_list_by_plant'
+key_dmd_item_list_by_plant = 'dmd_item_list_by_plant'
+key_dmd_res_grp_list_by_plant = 'dmd_res_grp_list_by_plant'
+
+# Resource
 key_res_grp = 'res_grp'
 key_res_grp_nm = 'res_grp_nm'
-key_res_avail_time = 'res_avail_time'
-key_item_res_duration = 'item_res_duration'
+key_res_duration = 'res_duration'
+
+# Constraint
 key_jc = 'job_change'
 key_sku_type = 'sku_type'
 key_sim_prod_cstr = 'sim_prod_cstr'
+key_res_avail_time = 'res_avail_time'
+key_human_res = 'human_resource'
+key_human_capa = 'human_capacity'
+key_human_usage = 'human_usage'
 
 # Column Configuration
 # Column: Demand
@@ -55,7 +70,7 @@ col_job_change_unit = 'jc_unit'
 prod_qty_multiple = 10
 
 # OptSeq Model configuration
-time_limit = 60 * 1  # 60*60*6
+time_limit = 60 * 5  # 60*60*6
 make_span = True
 optput_flag = True
 max_iteration = 10**20

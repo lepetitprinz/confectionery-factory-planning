@@ -16,8 +16,8 @@ class Init(object):
         # Forward planning instance attribute
         self.fp_num = fp_num
         self.fp_seq = fp_seq
-        # self.fp_version = ''
-        self.fp_version = 'FP_2022W16.01'    # Todo : Temp exception
+        self.fp_version = ''
+        # self.fp_version = 'FP_2022W16.01'    # Todo : Temp
 
         # Time instance attribute
         self.calendar = None
@@ -26,12 +26,12 @@ class Init(object):
 
     def run(self):
         self.set_calendar()
-        # self.set_fp_version()    # Todo : Temp exception
+        self.set_fp_version()
         self.set_pipeline_path()
         self.set_plant_start_time()
 
     def set_calendar(self) -> None:
-        self.calendar = self.io.get_df_from_db(sql=self.sql_conf.sql_calendar())
+        self.calendar = self.io.load_from_db(sql=self.sql_conf.sql_calendar())
 
     def set_fp_version(self) -> None:
         today = dt.date.today().strftime('%Y%m%d')
@@ -51,6 +51,13 @@ class Init(object):
 
     def set_pipeline_path(self) -> None:
         self.pipeline_path = {
+            'load_data': util.make_vrsn_path(
+                path=self.default_path['save'],
+                module='load',
+                version=self.fp_version,
+                name='data' + self.fp_seq,
+                extension='pickle'
+            ),
             'load_master': util.make_vrsn_path(
                 path=self.default_path['save'],
                 module='load',

@@ -5,7 +5,7 @@ from init.Init import Init
 from init.DataLoad import DataLoad
 from init.Preprocess import Preprocess
 from model.OptSeqModel import OptSeqModel
-from model.PostProcess import PostProcess
+from post.PostProcess import PostProcess
 
 
 class Pipeline(object):
@@ -63,7 +63,7 @@ class Pipeline(object):
 
         master, demand = (None, None)
         if self.step_cfg['cls_load']:
-            master = load.load_master()    # Master dataset
+            master = load.load_resource()    # Master dataset
             demand = load.load_demand()    # Demand dataset
 
             # Save the master & demand information
@@ -171,11 +171,11 @@ class Pipeline(object):
                     fp_seq=self.fp_seq,
                     plant_cd=plant,
                     plant_start_time=self.plant_start_time,
-                    master=master,
+                    resource=master,
                     prep_data=prep_data,
                     demand=demand,
                     model_init=plant_model[plant]
                 )
-                pp.post_process()
+                pp.run()
 
             print("Post Process is finished.")

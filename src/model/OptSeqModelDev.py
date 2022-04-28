@@ -7,12 +7,24 @@ from optimize.optseq import Model, Mode, Parameters, Activity, Resource
 
 
 class OptSeqModel(object):
-    # Data dictionary key configuration
+    ############################################
+    # Dictionary key configuration
+    ############################################
     key_res = config.key_res
     key_cstr = config.key_cstr
+
+    # Resource
+    key_res_grp = config.key_res_grp          # Resource group code
+    key_res_grp_nm = config.key_res_grp_nm    # Resource group name
+    key_item_res_duration = config.key_res_duration    # Resource duration
+
+    # Constraint
     key_jc = config.key_jc
     key_sku_type = config.key_sku_type
     key_sim_prod_cstr = config.key_sim_prod_cstr
+    key_res_avail_time = config.key_res_avail_time
+
+    # job change
     job_change_type = ['BRAND_CHANGE', 'FLAVOR_CHANGE', 'STANDARD_CHANGE']
 
     # Model parameter option
@@ -22,31 +34,37 @@ class OptSeqModel(object):
     max_iteration = config.max_iteration
 
     def __init__(self, exec_cfg: dict, cstr_cfg: dict, except_cfg: dict, plant: str, plant_data: dict):
-        # Constraint attribute
+        # Execution instance attribute
         self.exec_cfg = exec_cfg
         self.cstr_cfg = cstr_cfg
         self.except_cfg = except_cfg
 
-        # Capacity instance attribute
+        # Resource instance attribute
+        self.res_to_res_grp = {}
+        self.res_grp = plant_data[self.key_res][self.key_res_grp][plant]
+
+        # Resource capacity instance attribute
         self.work_days = 5
         self.schedule_weeks = 4
         self.sec_of_day = 86400
         self.plant_start_hour = 25200    # 25200(sec) = 7(hour) * 60 * 60
-        self.res_avail_time = plant_data[self.key_res]['plant_res_avail_time'][plant]
 
-        # Duration instance attribute
+        # Resource Duration instance attribute
         self.time_unit = 'M'
-        self.res_default_duration = 1
-        self.item_res_duration = plant_data[self.key_res]['plant_item_res_duration'][plant]
+        self.default_res_duration = 1
+        self.item_res_duration = plant_data[self.key_res][self.key_item_res_duration][plant]
+
+        # Constraint
+        # Resource available time instance attribute
+        if self.cstr_cfg['apply_res_available_time']:
+            self.res_avail_time = plant_data[self.key_cstr][self.key_res_avail_time].get(plant, None)
 
         # Job change instance attribute
-        self.res_grp = plant_data[self.key_res]['plant_res_grp'][plant]
-        self.res_to_res_grp = {}
-        self.sku_to_type = plant_data[self.key_cstr][self.key_sku_type]
         if self.cstr_cfg['apply_job_change']:
             self.job_change = plant_data[self.key_cstr][self.key_jc].get(plant, None)
+            self.sku_to_type = plant_data[self.key_cstr][self.key_sku_type]
 
-        # Simultaneous production constraint instance attribute
+        # Simultaneous production
         if self.cstr_cfg['apply_sim_prod_cstr']:
             self.sim_prod_cstr = plant_data[self.key_cstr][self.key_sim_prod_cstr].get(plant, None)
 
@@ -144,16 +162,6 @@ class OptSeqModel(object):
             model_res_grp[res_grp].update(model_res)
 
         return model_res_grp
-
-    def get_res_available_time(self, res_grp, res):
-        res_grp_to_res = self.res_avail_time.get(res_grp, None)
-
-        if res_grp_to_res:
-            avail_time = res_grp_to_res.get(res, None)
-        else:
-            avail_time = None
-
-        return avail_time
 
     def add_res_capacity(self, res: Resource, avail_time) -> Resource:
         time_multiple = 1
@@ -276,7 +284,7 @@ class OptSeqModel(object):
 
         if item_res_duration is None:
             if self.except_cfg['miss_duration'] == 'add':
-                duration_per_unit = self.res_default_duration
+                duration_per_unit = self.default_res_duration
 
             if self.exec_cfg['verbose']:
                 print(f"Item: {item_cd} does not have any resource duration.")
@@ -284,7 +292,7 @@ class OptSeqModel(object):
             duration_per_unit = item_res_duration.get(res_cd, None)
             if (duration_per_unit is None) or (duration_per_unit == 0):
                 if self.except_cfg['miss_duration'] == 'add':
-                    duration_per_unit = self.res_default_duration
+                    duration_per_unit = self.default_res_duration
                 else:
                     duration_per_unit = None
 
@@ -479,7 +487,7 @@ class OptSeqModel(object):
 
         return model_state
 
-    def check_model_init_set(self, model: Model):
+    def check_fix_model_init_set(self, model: Model):
         # Check the activity
         for act in model.act:
             if len(act.modes) == 0:

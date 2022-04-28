@@ -1,14 +1,24 @@
-import common.util as util
+import common.config as config
 from dao.DataIO import DataIO
 from common.SqlConfig import SqlConfig
 from init.Init import Init
 from init.DataLoad import DataLoad
 from init.Preprocess import Preprocess
 from model.OptSeqModelDev import OptSeqModel
-from model.PostProcess import PostProcess
+from PostProcess.process import process
 
 
 class Pipeline(object):
+    ############################################
+    # Data dictionary key configuration
+    ############################################
+    key_dmd = config.key_dmd
+    key_res = config.key_res
+
+    # Demand
+    key_dmd_list_by_plant = config.key_dmd_list_by_plant
+    key_res_grp = config.key_res_grp  # Resource group code
+
     def __init__(self, step_cfg: dict, exec_cfg: dict, cstr_cfg: dict, except_cfg: dict,
                  base_path: dict, fp_seq: str, fp_num='01'):
         self.io = DataIO()
@@ -45,8 +55,8 @@ class Pipeline(object):
 
         # Set initialized object
         self.path = init.pipeline_path
-        # self.fp_version = init.fp_version
-        self.fp_version = 'FP_2022W16.01'
+        self.fp_version = init.fp_version
+        # self.fp_version = 'FP_2022W16.01'
         self.plant_start_time = init.plant_start_day
 
         print("Initialization is finished.\n")
@@ -61,17 +71,15 @@ class Pipeline(object):
             fp_version=self.fp_version
         )
 
-        master, demand = (None, None)
+        data = None
         if self.step_cfg['cls_load']:
-            master = load.load_master()    # Master dataset
-            demand = load.load_demand()    # Demand dataset
+            data = load.load_data()
 
             # Save the master & demand information
             if self.exec_cfg['save_step_yn']:
-                self.io.save_object(data=master, path=self.path['load_master'], data_type='binary')
-                self.io.save_object(data=demand, path=self.path['load_demand'], data_type='binary')
+                self.io.save_object(data=data, path=self.path['load_data'], data_type='binary')
 
-        # =================================================================== # #
+        # =================================================================== #
         # 3. Data preprocessing
         # =================================================================== #
         prep_data = None
@@ -79,14 +87,13 @@ class Pipeline(object):
             print("Step: Data Preprocessing\n")
 
             if not self.step_cfg['cls_load']:
-                master = self.io.load_object(path=self.path['load_master'], data_type='binary')
-                demand = self.io.load_object(path=self.path['load_demand'], data_type='binary')
+                data = self.io.load_object(path=self.path['load_data'], data_type='binary')
 
             # Instantiate data preprocessing class
-            prep = Preprocess(cstr_cfg=self.cstr_cfg)
+            prep = Preprocess(cstr_cfg=self.cstr_cfg, fp_version=self.fp_version)
 
-            # Preprocess demand / resource / job change data
-            prep_data = prep.preprocess(demand=demand, master=master)
+            # Preprocess demand / resource / constraint data
+            prep_data = prep.preprocess(data=data)
 
             # Save the preprocessed demand
             if self.exec_cfg['save_step_yn']:
@@ -105,7 +112,7 @@ class Pipeline(object):
                 prep_data = self.io.load_object(path=self.path['prep_data'], data_type='binary')
 
             # Modeling by each plant
-            for plant in prep_data['demand']['plant_dmd_list']:
+            for plant in prep_data[self.key_dmd][self.key_dmd_list_by_plant]:
                 print(f" - Set the OtpSeq model: {plant}")
 
                 # Instantiate OptSeq class
@@ -119,8 +126,8 @@ class Pipeline(object):
 
                 # Initialize the each model of plant
                 model, rm_act_list = opt_seq.init(
-                    dmd_list=prep_data['demand']['plant_dmd_list'][plant],
-                    res_grp_dict=prep_data['resource']['plant_res_grp'][plant]
+                    dmd_list=prep_data[self.key_dmd][self.key_dmd_list_by_plant][plant],
+                    res_grp_dict=prep_data[self.key_res][self.key_res_grp][plant]
                 )
 
                 act_mode_name_map = opt_seq.make_act_mode_map(model=model)
@@ -131,8 +138,8 @@ class Pipeline(object):
                     'rm_act_list': rm_act_list
                 }
 
-                # Check the model initialization
-                # model = opt_seq.check_model_init_set(model=model)
+                # Check and fix the model setting
+                model = opt_seq.check_fix_model_init_set(model=model)
 
                 # Optimization
                 print(f" - Optimize the OtpSeq model: {plant}")
@@ -150,10 +157,10 @@ class Pipeline(object):
             print("Step: Post Process\n")
 
             if not self.step_cfg['cls_load']:
-                master = self.io.load_object(path=self.path['load_master'], data_type='binary')
-                demand = self.io.load_object(path=self.path['load_demand'], data_type='binary')
-                if self.cstr_cfg['apply_prod_qty_multiple']:
-                    demand = util.change_dmd_qty(data=demand, method='multiple')
+                data = self.io.load_object(path=self.path['load_data'], data_type='binary')
+
+                # if self.cstr_cfg['apply_prod_qty_multiple']:
+                #     data[self.key_dmd] = util.change_dmd_qty(data=data[self.key_dmd], method='multiple')
 
             if not self.step_cfg['cls_prep']:
                 prep_data = self.io.load_object(path=self.path['prep_data'], data_type='binary')
@@ -162,20 +169,20 @@ class Pipeline(object):
                 plant_model = self.io.load_object(path=self.path['model'], data_type='binary')
 
             # Post Process after optimization
-            for plant in prep_data['demand']['plant_dmd_list']:
-                pp = PostProcess(
+            for plant in prep_data[self.key_dmd][self.key_dmd_list_by_plant]:
+                pp = process(
                     io=self.io,
                     sql_conf=self.sql_conf,
                     exec_cfg=self.exec_cfg,
+                    cstr_cfg=self.cstr_cfg,
                     fp_version=self.fp_version,
                     fp_seq=self.fp_seq,
                     plant_cd=plant,
                     plant_start_time=self.plant_start_time,
-                    master=master,
+                    data=data,
                     prep_data=prep_data,
-                    demand=demand,
                     model_init=plant_model[plant]
                 )
-                pp.post_process()
+                pp.run()
 
             print("Post Process is finished.")

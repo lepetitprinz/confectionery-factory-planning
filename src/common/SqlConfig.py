@@ -4,18 +4,6 @@ class SqlConfig(object):
     # Master & Common Code Dataset
     #################################
     @staticmethod
-    def sql_calendar():
-        sql = f"""
-            SELECT YYMMDD
-                 , YY
-                 , YYMM
-                 , WEEK
-                 , START_WEEK_DAY
-              FROM M4S_I002030
-        """
-        return sql
-
-    @staticmethod
     def sql_item_master(**kwargs):
         sql = f"""
             SELECT ENG_ITEM_CD AS ITEM_CD
@@ -39,6 +27,18 @@ class SqlConfig(object):
               FROM M4S_I305100
              WHERE USE_YN = 'Y'
                AND PLANT_CD IN ('K130')
+        """
+        return sql
+
+    @staticmethod
+    def sql_calendar():
+        sql = f"""
+            SELECT YYMMDD
+                 , YY
+                 , YYMM
+                 , WEEK
+                 , START_WEEK_DAY
+              FROM M4S_I002030
         """
         return sql
 
@@ -68,7 +68,7 @@ class SqlConfig(object):
                        AND REQ_FP_QTY > 0
                        AND PLANT_CD IN ('K130')
                    ) DMD
-              INNER JOIN (
+             INNER JOIN (
                          SELECT ITEM_CD
                               , ITEM_ATTR01_CD
                            FROM VIEW_I002040
@@ -77,7 +77,6 @@ class SqlConfig(object):
                         ) ITEM
                 ON DMD.ITEM_CD = ITEM.ITEM_CD
              WHERE ITEM.ITEM_ATTR01_CD = 'P1'  -- Exception
-               -- AND  RES_GRP_CD IN ('X247', 'X267') 
         """
         return sql
 
@@ -94,14 +93,13 @@ class SqlConfig(object):
                  , START_TIME_INDEX
                  , END_TIME_INDEX
               FROM M4E_I401100
-             WHERE 1=1
+             WHERE FP_VRSN_ID = '{kwargs['fp_version']}'
                AND PLANT_CD IN ('K130')
-               AND FP_VRSN_ID = '{kwargs['fp_version']}'
         """
         return sql
 
     @staticmethod
-    def sql_item_res_duration(**kwargs):
+    def sql_item_res_dur(**kwargs):
         sql = f"""
             SELECT PLANT_CD
                  , RES_CD
@@ -125,8 +123,11 @@ class SqlConfig(object):
         """
         return sql
 
+    #################################
+    # Constraint
+    #################################
     @staticmethod
-    def sql_res_available_time(**kwargs):
+    def sql_res_avail_time(**kwargs):
         sql = f"""
         SELECT PLANT_CD
              , RES_CD
@@ -157,8 +158,35 @@ class SqlConfig(object):
         """
         return sql
 
+    @staticmethod
+    def sql_res_human_usage(**kwargs):
+        sql = """
+            SELECT PLANT_CD
+                 , RES_GRP_CD
+                 , ITEM_ATTR04_CD
+                 , PKG_CTGRI_SUB_CD AS PKG
+                 , ATTR01_VAL AS FLOOR
+                 , MP_M_VAL
+                 , MP_W_VAL
+              FROM M4S_I402020
+        """
+        return sql
+
+    @staticmethod
+    def sql_res_human_capacity():
+        sql = """
+            SELECT PLAN_YYMMDD
+                 , PLAN_WEEK
+                 , PLANT_CD
+                 , PLANT_F_VAL AS FLOOR
+                 , MP_M_VAL
+                 , MP_W_VAL
+              FROM M4S_I402023
+        """
+        return sql
+
     #################################
-    # Delete
+    # Delete SQL
     #################################
     @staticmethod
     def del_dmd_result(**kwargs):
