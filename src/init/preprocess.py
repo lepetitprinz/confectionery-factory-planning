@@ -51,6 +51,7 @@ class Preprocess(object):
     # Item
     col_sku = config.col_sku
     col_pkg = config.col_pkg
+
     col_brand = config.col_brand
     col_flavor = config.col_flavor
 
@@ -141,7 +142,7 @@ class Preprocess(object):
             self.key_cstr: {
                 self.key_jc: job_change,
                 self.key_sku_type: sku_type,
-                self.key_human_capa: human_res,
+                self.key_human_res: human_res,
                 self.key_sim_prod_cstr: sim_prod_cstr,
                 self.key_res_avail_time: res_avail_time,
             },

@@ -27,14 +27,14 @@ class DataLoad(object):
     key_sim_prod_cstr = config.key_sim_prod_cstr
     key_res_avail_time = config.key_res_avail_time
 
-    def __init__(self, io, sql_conf, fp_version: str):
+    def __init__(self, io, query, fp_version: str):
         """
         :param io: Pipeline step configuration
-        :param sql_conf: SQL configuration
+        :param query: SQL configuration
         :param fp_version: Factory planning version
         """
         self.io = io
-        self.sql_conf = sql_conf
+        self.query = query
         self.fp_version = fp_version
         self.fp_vrsn_dict = {'fp_version': fp_version}
 
@@ -52,20 +52,20 @@ class DataLoad(object):
         return data
 
     def load_demand(self) -> pd.DataFrame:
-        demand = self.io.load_from_db(sql=self.sql_conf.sql_demand(**self.fp_vrsn_dict))
+        demand = self.io.load_from_db(sql=self.query.sql_demand(**self.fp_vrsn_dict))
 
         return demand
 
     def load_resource(self) -> Dict[str, pd.DataFrame]:
         resource = {
             # Item master
-            self.key_item: self.io.load_from_db(sql=self.sql_conf.sql_item_master(**self.fp_vrsn_dict)),
+            self.key_item: self.io.load_from_db(sql=self.query.sql_item_master(**self.fp_vrsn_dict)),
             # Resource group
-            self.key_res_grp: self.io.load_from_db(sql=self.sql_conf.sql_res_grp(**self.fp_vrsn_dict)),
+            self.key_res_grp: self.io.load_from_db(sql=self.query.sql_res_grp(**self.fp_vrsn_dict)),
             # Resource group name
-            self.key_res_grp_nm: self.io.load_from_db(sql=self.sql_conf.sql_res_grp_nm()),
+            self.key_res_grp_nm: self.io.load_from_db(sql=self.query.sql_res_grp_nm()),
             # Item - resource duration
-            self.key_item_res_duration: self.io.load_from_db(sql=self.sql_conf.sql_item_res_dur(**self.fp_vrsn_dict)),
+            self.key_item_res_duration: self.io.load_from_db(sql=self.query.sql_item_res_dur(**self.fp_vrsn_dict)),
         }
 
         return resource
@@ -73,9 +73,9 @@ class DataLoad(object):
     def load_cstr(self) -> Dict[str, pd.DataFrame]:
         constraint = {
             # Job change
-            self.key_jc: self.io.load_from_db(sql=self.sql_conf.sql_job_change(**self.fp_vrsn_dict)),
+            self.key_jc: self.io.load_from_db(sql=self.query.sql_job_change(**self.fp_vrsn_dict)),
             # Resource available time
-            self.key_res_avail_time: self.io.load_from_db(sql=self.sql_conf.sql_res_avail_time(**self.fp_vrsn_dict)),
+            self.key_res_avail_time: self.io.load_from_db(sql=self.query.sql_res_avail_time(**self.fp_vrsn_dict)),
             # Human resource capacity
             # self.key_human_capa: self.io.load_from_db(sql=self.sql_conf.sql_res_human_capacity(**self.fp_vrsn_dict)),
             self.key_human_capa: self.io.load_object(    # ToDo: Temp dataset

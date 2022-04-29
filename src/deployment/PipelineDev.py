@@ -1,11 +1,11 @@
 import common.config as config
 from dao.DataIO import DataIO
-from common.SqlConfig import SqlConfig
-from init.Init import Init
-from init.DataLoad import DataLoad
-from init.Preprocess import Preprocess
-from model.OptSeqModelDev import OptSeqModel
-from PostProcess.process import process
+from common.sql import Query
+from init.init import Init
+from init.load import DataLoad
+from init.preprocess import Preprocess
+from model.model import OptSeqModel
+from Post.process import Process
 
 
 class Pipeline(object):
@@ -22,7 +22,7 @@ class Pipeline(object):
     def __init__(self, step_cfg: dict, exec_cfg: dict, cstr_cfg: dict, except_cfg: dict,
                  base_path: dict, fp_seq: str, fp_num='01'):
         self.io = DataIO()
-        self.sql_conf = SqlConfig()
+        self.query = Query()
         self.step_cfg = step_cfg    # Step configuration
         self.exec_cfg = exec_cfg    # Execution configuration
         self.cstr_cfg = cstr_cfg
@@ -46,7 +46,7 @@ class Pipeline(object):
         print("Step 0: Initialize engine information.")
         init = Init(
             io=self.io,
-            sql_conf=self.sql_conf,
+            query=self.query,
             default_path=self.base_path,
             fp_num=self.fp_num,
             fp_seq=self.fp_seq
@@ -67,7 +67,7 @@ class Pipeline(object):
         # Instantiate load class
         load = DataLoad(
             io=self.io,
-            sql_conf=self.sql_conf,
+            query=self.query,
             fp_version=self.fp_version
         )
 
@@ -170,14 +170,14 @@ class Pipeline(object):
 
             # Post Process after optimization
             for plant in prep_data[self.key_dmd][self.key_dmd_list_by_plant]:
-                pp = process(
+                pp = Process(
                     io=self.io,
-                    sql_conf=self.sql_conf,
+                    query=self.query,
                     exec_cfg=self.exec_cfg,
                     cstr_cfg=self.cstr_cfg,
                     fp_version=self.fp_version,
                     fp_seq=self.fp_seq,
-                    plant_cd=plant,
+                    plant=plant,
                     plant_start_time=self.plant_start_time,
                     data=data,
                     prep_data=prep_data,

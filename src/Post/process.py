@@ -1,7 +1,6 @@
 import common.util as util
 import common.config as config
-from constraint.Constraint import Human
-# from PostProcess.save import Csv
+from constraint.constraint import Human
 
 import os
 import numpy as np
@@ -11,7 +10,7 @@ import plotly.express as px
 import matplotlib.pyplot as plt
 
 
-class process(object):
+class Process(object):
     ############################################
     # optseq output configuration
     ############################################
@@ -69,11 +68,22 @@ class process(object):
     res_schd_cols = [col_res, col_start_time, col_end_time, col_res_capa]
     act_cols = [col_dmd, col_sku, col_res_grp, col_res, col_start_time, col_end_time, 'kind']
 
-    def __init__(self, io, sql_conf, exec_cfg: dict, cstr_cfg: dict, fp_version: str, fp_seq: str,
-                 plant_cd: str, plant_start_time, data, prep_data, model_init):
+    def __init__(self,
+                 io,
+                 query,
+                 exec_cfg: dict,
+                 cstr_cfg: dict,
+                 fp_version: str,
+                 fp_seq: str,
+                 plant: str,
+                 plant_start_time: dt.datetime,
+                 data: dict,
+                 prep_data: dict,
+                 model_init: dict
+                 ):
         # Class instance attribute
         self.io = io
-        self.sql_conf = sql_conf
+        self.query = query
         self.exec_cfg = exec_cfg
         self.cstr_cfg = cstr_cfg
 
@@ -85,28 +95,29 @@ class process(object):
         self.act_mode_name_map = model_init['act_mode_name']
 
         # Plant instance attribute
-        self.plant_cd = plant_cd
+        self.plant = plant
         self.plant_start_hour = 7
         self.plant_start_time = plant_start_time
 
         # Data instance attribute
+        self.cstr = data[self.key_cstr]
         self.demand = data[self.key_dmd]
         self.item_mst = data[self.key_res][self.key_item]
 
         # Resource instance attribute
-        self.res_grp_mst = data[self.key_res][self.key_res_grp]
-        self.res_grp = prep_data[self.key_res][self.key_res_grp][plant_cd]
-        self.res_grp_nm = prep_data[self.key_res][self.key_res_grp_nm][plant_cd]
-        self.res_nm_map = prep_data[self.key_res]['plant_res_nm'][plant_cd]
-        self.item_res_duration = prep_data[self.key_res][self.key_item_res_duration][plant_cd]
-        self.item_avg_duration = {}
         self.res_to_res_grp = {}
+        self.item_avg_duration = {}
+        self.res_grp_mst = data[self.key_res][self.key_res_grp]
+        self.res_grp = prep_data[self.key_res][self.key_res_grp][plant]
+        self.res_grp_nm = prep_data[self.key_res][self.key_res_grp_nm][plant]
+        self.res_nm_map = prep_data[self.key_res]['plant_res_nm'][plant]
+        self.item_res_duration = prep_data[self.key_res][self.key_item_res_duration][plant]
 
         # Constraint instance attribute
         self.inf_val = 10 ** 7 - 1
         self.split_hour = dt.timedelta(hours=12)
-        self.res_capacity = prep_data[self.key_cstr][self.key_res_avail_time][plant_cd]
-        self.human_res = prep_data[self.key_cstr][self.key_res_avail_time][plant_cd]
+        self.human_res = prep_data[self.key_cstr][self.key_human_res]
+        self.res_avail_time = prep_data[self.key_cstr][self.key_res_avail_time][plant]
 
         # Path instance attribute
         self.save_path = os.path.join('..', '..', 'result')
@@ -123,7 +134,7 @@ class process(object):
         self.save_org_result()
 
         # Best activity
-        self.post_process_act()
+        self.post_process()
 
     def set_res_to_res_grp(self) -> None:
         res_grp = self.res_grp.copy()
@@ -146,23 +157,26 @@ class process(object):
 
         self.item_avg_duration = item_avg_duration
 
-    def post_process_act(self) -> None:
+    def post_process(self) -> None:
         # Get the best sequence result
         activity = self.get_best_activity()
 
-        # Post processing
+        # Post process
         result = self.conv_to_df(data=activity, kind='activity')
         result = self.fill_na(data=result)
-        result = self.change_timeline(data=result)
 
         if self.cstr_cfg['apply_human_capacity']:
             human_cstr = Human(
+                plant=self.plant,
+                plant_start_time=self.plant_start_time,
+                item=self.item_mst,
                 demand=self.demand,
-                result=result,
-                cstr=self.human_res
+                cstr=self.cstr
             )
 
-            result = human_cstr.apply()
+            result = human_cstr.apply(data=result)
+
+        result = self.change_timeline(data=result)
 
         prod_qty = self.calc_timeline_prod_qty(data=result)
 
@@ -464,7 +478,7 @@ class process(object):
 
     def make_fp_seq(self) -> str:
         fp_seq_df = self.io.load_from_db(
-            sql=self.sql_conf.sql_fp_seq_list(**{self.col_fp_version_id: self.fp_version})
+            sql=self.query.sql_fp_seq_list(**{self.col_fp_version_id: self.fp_version})
         )
         if len(fp_seq_df) == 0:
             seq = '1'
@@ -503,18 +517,18 @@ class process(object):
 
         # Delete previous result
         kwargs = {'fp_version': self.fp_version, 'fp_seq': self.fp_seq}
-        self.io.delete_from_db(sql=self.sql_conf.del_dmd_result(**kwargs))
+        self.io.delete_from_db(sql=self.query.del_dmd_result(**kwargs))
 
         # Save the result on DB
         self.io.insert_to_db(df=merged, tb_name='M4E_O402010')
 
     def save_res_day_night_qty_on_db(self, data: pd.DataFrame, seq: str) -> None:
         data = self.add_version_info(data=data, seq=seq)
-        data[self.col_plant] = self.plant_cd
+        data[self.col_plant] = self.plant
         data[self.col_date] = data[self.col_date].dt.strftime('%Y%m%d')
 
         kwargs = {'fp_version': self.fp_version, 'fp_seq': self.fp_seq}
-        self.io.delete_from_db(sql=self.sql_conf.del_res_day_night_qty(**kwargs))
+        self.io.delete_from_db(sql=self.query.del_res_day_night_qty(**kwargs))
 
         # Save the result on DB
         self.io.insert_to_db(df=data, tb_name='M4E_O402130')
@@ -556,13 +570,13 @@ class process(object):
             .str.replace(':', '') \
             .str.replace(' ', '')
 
-        data[self.col_plant] = self.plant_cd
+        data[self.col_plant] = self.plant
 
         data = data.drop(columns=['kind', 'capa_rate'])
 
         # Delete previous result
         kwargs = {'fp_version': self.fp_version, 'fp_seq': self.fp_seq}
-        self.io.delete_from_db(sql=self.sql_conf.del_gantt_result(**kwargs))
+        self.io.delete_from_db(sql=self.query.del_gantt_result(**kwargs))
 
         # Save the result on DB
         self.io.insert_to_db(df=data, tb_name='M4E_O402140')
@@ -598,7 +612,7 @@ class process(object):
 
         # Resource usage
         res_final['day'] = [dt.datetime.strptime(day, '%Y%m%d').weekday() for day in res_final[self.col_date]]
-        res_final[self.col_res_capa] = [self.res_capacity[res][day] * 60 for res, day in
+        res_final[self.col_res_capa] = [self.res_avail_time[res][day] * 60 for res, day in
                                         zip(res_final[self.col_res], res_final['day'])]
 
         res_capa_val = []
@@ -621,7 +635,7 @@ class process(object):
         res_final = res_final.rename(columns={'res_type_cd': 'capa_type_cd'})
 
         # Add information
-        res_final[self.col_plant] = self.plant_cd
+        res_final[self.col_plant] = self.plant
         res_final[self.col_res_grp] = [self.res_to_res_grp.get(res_cd, 'UNDEFINED')
                                        for res_cd in res_final[self.col_res]]
         res_final = self.add_version_info(data=res_final, seq=seq)
@@ -631,7 +645,7 @@ class process(object):
 
         # Delete previous result
         kwargs = {'fp_version': self.fp_version, 'fp_seq': self.fp_seq}
-        self.io.delete_from_db(sql=self.sql_conf.del_res_status_result(**kwargs))
+        self.io.delete_from_db(sql=self.query.del_res_status_result(**kwargs))
 
         # Save the result on DB
         self.io.insert_to_db(df=res_final, tb_name='M4E_O402050')

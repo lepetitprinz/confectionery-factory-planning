@@ -1,5 +1,5 @@
 
-class SqlConfig(object):
+class Query(object):
     #################################
     # Master & Common Code Dataset
     #################################
@@ -9,6 +9,7 @@ class SqlConfig(object):
             SELECT ENG_ITEM_CD AS ITEM_CD
                  , ITEM_NM
                  , ITEM_ATTR03_CD
+                 , ITEM_ATTR04_CD
                  , ITEM_ATTR29_CD AS FLAVOR
                  , PKG_CTGRI_SUB_CD AS PKG
               FROM M4E_I401080
@@ -182,6 +183,20 @@ class SqlConfig(object):
                  , MP_M_VAL
                  , MP_W_VAL
               FROM M4S_I402023
+        """
+        return sql
+
+    @staticmethod
+    def sql_sim_prod_cstr(**kwargs):
+        sql = f"""
+            SELECT PLANT_CD
+                 , RES_GRP_CD
+                 , ITEM_ATTR04_CD
+                 , PKG_CTGRI_SUB_CD_1 AS PKG1
+                 , PKG_CTGRI_SUB_CD_2 AS PKG2
+                 , IS_SIMULTANEOUS AS SIM_YN
+            FROM M4E_I401280
+            WHERE FP_VRSN_ID = '{kwargs['fp_version']}'
         """
         return sql
 

@@ -41,6 +41,8 @@ col_dmd = 'dmd_id'
 col_qty = 'qty'
 col_due_date = 'due_date'
 col_duration = 'duration'
+col_start_time = 'starttime'
+col_end_time = 'endtime'
 
 # Column: Resource
 col_plant = 'plant_cd'
@@ -56,6 +58,7 @@ col_capa_unit = 'capa_unit_cd'
 col_brand = 'item_attr03_cd'
 col_flavor = 'flavor'
 col_pkg = 'pkg'
+col_item = 'item_attr04_cd'
 col_sku = 'item_cd'
 col_sku_nm = 'item_nm'
 

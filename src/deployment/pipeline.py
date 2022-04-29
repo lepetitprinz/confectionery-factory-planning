@@ -1,10 +1,10 @@
 import common.util as util
 from dao.DataIO import DataIO
-from common.SqlConfig import SqlConfig
-from init.Init import Init
-from init.DataLoad import DataLoad
-from init.Preprocess import Preprocess
-from model.OptSeqModel import OptSeqModel
+from common.sql import Query
+from init.init import Init
+from init.load import DataLoad
+from init.preprocess import Preprocess
+from model.modelBak4 import OptSeqModel
 from post.PostProcess import PostProcess
 
 
@@ -12,7 +12,7 @@ class Pipeline(object):
     def __init__(self, step_cfg: dict, exec_cfg: dict, cstr_cfg: dict, except_cfg: dict,
                  base_path: dict, fp_seq: str, fp_num='01'):
         self.io = DataIO()
-        self.sql_conf = SqlConfig()
+        self.sql_conf = Query()
         self.step_cfg = step_cfg    # Step configuration
         self.exec_cfg = exec_cfg    # Execution configuration
         self.cstr_cfg = cstr_cfg
@@ -57,7 +57,7 @@ class Pipeline(object):
         # Instantiate load class
         load = DataLoad(
             io=self.io,
-            sql_conf=self.sql_conf,
+            query=self.sql_conf,
             fp_version=self.fp_version
         )
 

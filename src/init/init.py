@@ -6,10 +6,10 @@ import datetime as dt
 
 
 class Init(object):
-    def __init__(self, io, sql_conf, default_path: dict, fp_num: str, fp_seq: str):
+    def __init__(self, io, query, default_path: dict, fp_num: str, fp_seq: str):
         # io class instance attribute
         self.io = io
-        self.sql_conf = sql_conf
+        self.query = query
         self.default_path = default_path
         self.pipeline_path = {}
 
@@ -31,7 +31,7 @@ class Init(object):
         self.set_plant_start_time()
 
     def set_calendar(self) -> None:
-        self.calendar = self.io.load_from_db(sql=self.sql_conf.sql_calendar())
+        self.calendar = self.io.load_from_db(sql=self.query.sql_calendar())
 
     def set_fp_version(self) -> None:
         today = dt.date.today().strftime('%Y%m%d')

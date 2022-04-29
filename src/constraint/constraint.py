@@ -1,0 +1,226 @@
+import common.config as config
+
+import numpy as np
+import pandas as pd
+import datetime as dt
+from typing import Hashable, Dict, Union
+
+
+class Human(object):
+    key_human_capa = config.key_human_capa      # Human capacity
+    key_human_usage = config.key_human_usage    # Human usage
+
+    col_dmd = config.col_dmd
+    col_sku = config.col_sku
+    col_pkg = config.col_pkg
+    col_item = config.col_item
+    col_plant = config.col_plant
+    col_res_grp = config.col_res_grp
+    col_due_date = config.col_due_date
+
+    col_duration = config.col_duration
+    col_end_time = config.col_end_time
+    col_start_time = config.col_start_time
+
+    use_col_item = [col_sku, col_item, col_pkg]
+    use_col_dmd = [col_dmd, col_res_grp, col_sku, col_due_date]
+    use_col_human_capa = [col_plant, 'floor', 'm_val', 'w_val']
+
+    def __init__(self,
+                 plant: str,
+                 plant_start_time: dt.datetime,
+                 cstr: dict,
+                 item: pd.DataFrame,
+                 demand: pd.DataFrame,
+                 ):
+        self.plant = plant
+        self.plant_start_time = plant_start_time
+        self.cstr = cstr
+        self.item = item
+        self.demand = demand
+
+        self.floor_capa = {}
+        self.prod_time_comp_standard = 'min'
+
+    def apply(self, data):
+        dmd_by_floor, non_apply_dmd = self.preprocess(data=data)
+
+        result = pd.DataFrame()
+        for floor, schedule_dmd in dmd_by_floor.items():
+            floor_time = 0
+            floor_capa = self.floor_capa[floor]
+            floor_schedule = pd.DataFrame()
+            curr_prod_dmd = pd.DataFrame()
+            while len(schedule_dmd) > 0:
+                # Search
+                cand_dmd = self.search_dmd_candidate(data=schedule_dmd)
+                flag = self.check_prod_availability(floor_capa=floor_capa, data=cand_dmd)
+
+                if flag:
+                    # Confirm demand production
+                    floor_capa, schedule_dmd, floor_schedule, curr_prod_dmd = self.confirm_dmd_prod(
+                        floor_capa=floor_capa,
+                        cand_dmd=cand_dmd,
+                        schedule_dmd=schedule_dmd,
+                        floor_schedule=floor_schedule,
+                        curr_prod_dmd=curr_prod_dmd,
+                    )
+                else:
+                    floor_capa, floor_time, curr_prod_dmd = self.finish_latest_dmd(
+                        floor_capa=floor_capa,
+                        floor_time=floor_time,
+                        curr_prod_dmd=curr_prod_dmd,
+                    )
+
+    def finish_latest_dmd(self, floor_capa, floor_time, curr_prod_dmd):
+        latest_finish_dmd = curr_prod_dmd[curr_prod_dmd[self.col_end_time] == curr_prod_dmd[self.col_end_time].min()]
+
+        return floor_capa, floor_time, curr_prod_dmd
+
+    def confirm_dmd_prod(self, floor_capa, cand_dmd: Union[pd.DataFrame, pd.Series], schedule_dmd: pd.DataFrame,
+                         floor_schedule: pd.DataFrame, curr_prod_dmd: pd.DataFrame):
+        dmd = cand_dmd[cand_dmd['kind'] == 'demand']
+        dmd_usage = dmd[['m_val', 'w_val']].values[0]
+
+        # update current capacity
+        floor_capa = floor_capa - dmd_usage
+
+        # add production information
+        floor_schedule = pd.concat([floor_schedule, cand_dmd], axis=0)
+
+        # Remove on candidates
+        schedule_dmd = schedule_dmd.drop(labels=cand_dmd.index)
+
+        # Update current production demand
+        curr_prod_dmd = pd.concat([curr_prod_dmd, dmd])
+
+        return floor_capa, schedule_dmd, floor_schedule, curr_prod_dmd
+
+    def search_dmd_candidate(self, data: pd.DataFrame) -> pd.Series:
+        min_start_dmd = data[data[self.col_start_time] == data[self.col_start_time].min()]
+
+        if len(min_start_dmd[min_start_dmd['kind'] == 'demand']) == 1:
+            return min_start_dmd
+        else:
+            min_start_dmd = min_start_dmd[min_start_dmd[self.col_due_date] == min_start_dmd[self.col_due_date].min()]
+
+            if len(min_start_dmd) == 1:
+                return min_start_dmd
+            else:
+                min_start_dmd = min_start_dmd.sort_values(by=self.col_duration, ascending=True)
+                if self.prod_time_comp_standard == 'min':
+                    min_start_dmd = min_start_dmd.iloc[0, :]
+                else:
+                    min_start_dmd = min_start_dmd.iloc[-1, :]
+
+                return min_start_dmd
+
+    def check_prod_availability(self, floor_capa, data: Union[pd.DataFrame, pd.Series]):
+        flag = False
+        dmd = data[data['kind'] == 'demand']
+        dmd_usage = dmd[['m_val', 'w_val']].values[0]
+        diff = floor_capa - dmd_usage
+        if sum(diff < 0) == 0:
+            flag = True
+
+        return flag
+
+    def preprocess(self, data: pd.DataFrame):
+        # Preprocess the dataset
+        item = self.prep_item()
+        usage = self.prep_usage()
+        data = self.prep_result(data=data)
+        self.prep_capacity()
+
+        apply_dmd, non_apply_dmd = self.separate_dmd_on_capa_existence(
+            item=item,
+            usage=usage,
+            result=data
+        )
+
+        dmd_by_floor = self.set_dmd_list_by_floor(data=apply_dmd)
+
+        return dmd_by_floor, non_apply_dmd
+
+    def separate_dmd_on_capa_existence(self, item: pd.DataFrame, usage: pd.DataFrame, result: pd.DataFrame):
+        # add due date information
+        dmd = pd.merge(result, item, on=self.col_sku)
+
+        # add item information (item / pkg)
+        dmd = pd.merge(result, item, on=self.col_sku)
+
+        # separate demands based on item trait
+        apply_dmd = dmd[~dmd[self.col_pkg].isnull()]
+        non_apply_dmd = dmd[dmd[self.col_pkg].isnull()]
+
+        # add human usage information
+        apply_dmd = pd.merge(apply_dmd, usage, how='left', on=[self.col_res_grp, self.col_item, self.col_pkg])
+
+        # separate demands based on resource (internal/external)
+        non_apply_dmd = pd.concat([non_apply_dmd, apply_dmd[apply_dmd['floor'].isnull()]])
+        apply_dmd = apply_dmd[~apply_dmd['floor'].isnull()]
+
+        drop_col = [self.col_plant, self.col_item, self.col_pkg]
+        non_apply_dmd = non_apply_dmd.drop(columns=drop_col)
+        apply_dmd = apply_dmd.drop(columns=drop_col)
+
+        return apply_dmd, non_apply_dmd
+
+    def prep_item(self):
+        item = self.item
+        item = item[self.use_col_item]
+        item = item.drop_duplicates()
+
+        return item
+
+    def prep_capacity(self) -> None:
+        capacity = self.cstr[self.key_human_capa]
+
+        capacity = capacity[self.use_col_human_capa]
+        capacity = capacity[capacity[self.col_plant] == self.plant]
+
+        floor_capa = {}
+        for floor, m_val, w_val in zip(capacity['floor'], capacity['m_val'], capacity['w_val']):
+            floor_capa[floor] = np.array([m_val, w_val])
+
+        self.floor_capa = floor_capa
+
+    def prep_usage(self):
+        usage = self.cstr[self.key_human_usage]
+
+        # Temp
+        usage.columns = [col.lower() for col in usage.columns]
+
+        usage = usage[usage[self.col_plant] == self.plant]
+
+        # Change data type
+        usage[self.col_pkg] = usage[self.col_pkg].astype(str)
+        usage[self.col_res_grp] = usage[self.col_res_grp].astype(str)
+
+        # Temp
+        usage[self.col_pkg] = [val.zfill(5) for val in usage[self.col_pkg].values]
+
+        return usage
+
+    def prep_result(self, data: pd.DataFrame) -> pd.DataFrame:
+        demand = self.demand[[self.col_dmd, self.col_due_date]]
+
+        data = pd.merge(data, demand, how='left', on=self.col_dmd)
+        data[self.col_due_date] = data[self.col_due_date].fillna(0)
+
+        return data
+
+    def set_dmd_list_by_floor(self, data: pd.DataFrame) -> Dict[Hashable, pd.DataFrame]:
+        data['duration'] = data[self.col_end_time] - data[self.col_start_time]
+
+        dmd_by_floor = {}
+        for floor, floor_df in data.groupby(by='floor'):
+            dmd_by_floor[floor] = floor_df
+
+        return dmd_by_floor
+
+    def get_prod_start_time(self):
+        pass
+
+    def determine_prod_dmd(self):
+        pass
