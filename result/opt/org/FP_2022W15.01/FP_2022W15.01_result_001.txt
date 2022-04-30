@@ -1,0 +1,62 @@
+# reading data ... done: 0.00(s)
+
+# random seed: 1
+
+# tabu tenure: 1
+
+# cpu time limit: 10.00(s)
+
+# iteration limit: 1073741823
+
+# computing all-pairs longest paths and strongly connected components ... done
+
+#scc 5
+
+objective value = 300 (cpu time = 0.00(s), iteration = 0)
+
+0: 0.00(s): 300/300
+
+
+
+--- best solution ---
+
+source,---, 0 0
+
+sink,---, 300 300
+
+Act[FP_134@5142931@X267],---, 200 200--300 300
+
+Act[FP_28@5142932@X267],---, 0 0--100 100
+
+Act[FP_39@5141600@X267],---, 100 100--200 200
+
+--- tardy activity ---
+
+sink: 300
+
+--- resource residuals ---
+
+X267: [0,300] 0 
+
+
+
+--- best activity list ---
+
+source ---
+
+Act[FP_28@5142932@X267] ---
+
+Act[FP_39@5141600@X267] ---
+
+Act[FP_134@5142931@X267] ---
+
+sink ---
+
+
+
+objective value = 300
+
+cpu time = 0.00/10.00(s)
+
+iteration = 0/1007158
+
