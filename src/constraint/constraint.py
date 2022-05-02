@@ -26,13 +26,14 @@ class Human(object):
     use_col_dmd = [col_dmd, col_res_grp, col_sku, col_due_date]
     use_col_human_capa = [col_plant, 'floor', 'm_val', 'w_val']
 
-    def __init__(self,
-                 plant: str,
-                 plant_start_time: dt.datetime,
-                 cstr: dict,
-                 item: pd.DataFrame,
-                 demand: pd.DataFrame,
-                 ):
+    def __init__(
+            self,
+            plant: str,
+            plant_start_time: dt.datetime,
+            cstr: dict,
+            item: pd.DataFrame,
+            demand: pd.DataFrame,
+            ):
         self.plant = plant
         self.plant_start_time = plant_start_time
         self.cstr = cstr
@@ -47,43 +48,62 @@ class Human(object):
 
         result = pd.DataFrame()
         for floor, schedule_dmd in dmd_by_floor.items():
-            floor_time = 0
-            floor_capa = self.floor_capa[floor]
+            curr_time = 0
+            curr_capa = self.floor_capa[floor]
             floor_schedule = pd.DataFrame()
             curr_prod_dmd = pd.DataFrame()
             while len(schedule_dmd) > 0:
                 # Search
                 cand_dmd = self.search_dmd_candidate(data=schedule_dmd)
-                flag = self.check_prod_availability(floor_capa=floor_capa, data=cand_dmd)
+                flag = self.check_prod_availability(curr_capa=curr_capa, data=cand_dmd)
 
                 if flag:
                     # Confirm demand production
-                    floor_capa, schedule_dmd, floor_schedule, curr_prod_dmd = self.confirm_dmd_prod(
-                        floor_capa=floor_capa,
+                    curr_capa, schedule_dmd, floor_schedule, curr_prod_dmd = self.confirm_dmd_prod(
+                        curr_capa=curr_capa,
                         cand_dmd=cand_dmd,
                         schedule_dmd=schedule_dmd,
                         floor_schedule=floor_schedule,
                         curr_prod_dmd=curr_prod_dmd,
                     )
                 else:
-                    floor_capa, floor_time, curr_prod_dmd = self.finish_latest_dmd(
-                        floor_capa=floor_capa,
-                        floor_time=floor_time,
+                    # Finish the latest demand
+                    curr_capa, curr_time, curr_prod_dmd = self.finish_latest_dmd(
+                        curr_capa=curr_capa,
+                        curr_time=curr_time,
                         curr_prod_dmd=curr_prod_dmd,
                     )
+                    # update timeline of remaining demands
+                    self.update_remain_dmd_timeline(
+                        schedule_dmd=schedule_dmd,
+                        curr_time=curr_time,
+                    )
 
-    def finish_latest_dmd(self, floor_capa, floor_time, curr_prod_dmd):
+    def update_remain_dmd_timeline(self, schedule_dmd, curr_time):
+        pass
+
+    def finish_latest_dmd(self, curr_capa, curr_time, curr_prod_dmd):
         latest_finish_dmd = curr_prod_dmd[curr_prod_dmd[self.col_end_time] == curr_prod_dmd[self.col_end_time].min()]
 
-        return floor_capa, floor_time, curr_prod_dmd
+        # Update current time    # Todo: need to check the logic
+        curr_time = latest_finish_dmd[self.col_end_time].values[0]
 
-    def confirm_dmd_prod(self, floor_capa, cand_dmd: Union[pd.DataFrame, pd.Series], schedule_dmd: pd.DataFrame,
+        # Update current human capacity
+        finished_dmd_capa = latest_finish_dmd[['m_val', 'w_val']].values.sum(axis=0)
+        curr_capa = curr_capa + finished_dmd_capa
+
+        # Update current producing demand
+        curr_prod_dmd = curr_prod_dmd.drop(labels=latest_finish_dmd.index)
+
+        return curr_capa, curr_time, curr_prod_dmd
+
+    def confirm_dmd_prod(self, curr_capa, cand_dmd: Union[pd.DataFrame, pd.Series], schedule_dmd: pd.DataFrame,
                          floor_schedule: pd.DataFrame, curr_prod_dmd: pd.DataFrame):
         dmd = cand_dmd[cand_dmd['kind'] == 'demand']
         dmd_usage = dmd[['m_val', 'w_val']].values[0]
 
         # update current capacity
-        floor_capa = floor_capa - dmd_usage
+        curr_capa = curr_capa - dmd_usage
 
         # add production information
         floor_schedule = pd.concat([floor_schedule, cand_dmd], axis=0)
@@ -94,7 +114,7 @@ class Human(object):
         # Update current production demand
         curr_prod_dmd = pd.concat([curr_prod_dmd, dmd])
 
-        return floor_capa, schedule_dmd, floor_schedule, curr_prod_dmd
+        return curr_capa, schedule_dmd, floor_schedule, curr_prod_dmd
 
     def search_dmd_candidate(self, data: pd.DataFrame) -> pd.Series:
         min_start_dmd = data[data[self.col_start_time] == data[self.col_start_time].min()]
@@ -115,11 +135,11 @@ class Human(object):
 
                 return min_start_dmd
 
-    def check_prod_availability(self, floor_capa, data: Union[pd.DataFrame, pd.Series]):
+    def check_prod_availability(self, curr_capa, data: Union[pd.DataFrame, pd.Series]):
         flag = False
         dmd = data[data['kind'] == 'demand']
         dmd_usage = dmd[['m_val', 'w_val']].values[0]
-        diff = floor_capa - dmd_usage
+        diff = curr_capa - dmd_usage
         if sum(diff < 0) == 0:
             flag = True
 

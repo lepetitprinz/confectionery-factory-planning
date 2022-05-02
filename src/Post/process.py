@@ -68,19 +68,20 @@ class Process(object):
     res_schd_cols = [col_res, col_start_time, col_end_time, col_res_capa]
     act_cols = [col_dmd, col_sku, col_res_grp, col_res, col_start_time, col_end_time, 'kind']
 
-    def __init__(self,
-                 io,
-                 query,
-                 exec_cfg: dict,
-                 cstr_cfg: dict,
-                 fp_version: str,
-                 fp_seq: str,
-                 plant: str,
-                 plant_start_time: dt.datetime,
-                 data: dict,
-                 prep_data: dict,
-                 model_init: dict
-                 ):
+    def __init__(
+            self,
+            io,
+            query,
+            exec_cfg: dict,
+            cstr_cfg: dict,
+            fp_version: str,
+            fp_seq: str,
+            plant: str,
+            plant_start_time: dt.datetime,
+            data: dict,
+            prep_data: dict,
+            model_init: dict
+         ):
         # Class instance attribute
         self.io = io
         self.query = query

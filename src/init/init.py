@@ -16,8 +16,8 @@ class Init(object):
         # Forward planning instance attribute
         self.fp_num = fp_num
         self.fp_seq = fp_seq
-        self.fp_version = ''
-        # self.fp_version = 'FP_2022W16.01'    # Todo : Temp
+        # self.fp_version = ''
+        self.fp_version = 'FP_2022W17.01'    # Todo : Temp
 
         # Time instance attribute
         self.calendar = None
@@ -26,7 +26,7 @@ class Init(object):
 
     def run(self):
         self.set_calendar()
-        self.set_fp_version()
+        # self.set_fp_version()
         self.set_pipeline_path()
         self.set_plant_start_time()
 
