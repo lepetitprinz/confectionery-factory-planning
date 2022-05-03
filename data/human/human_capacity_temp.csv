@@ -1,2 +1,5 @@
-plant_cd,yy,week,floor,m_val,w_val
-K130,2022,W17,A,7,5
+,plant_cd,yy,week,floor,m_val,w_val
+0,K130,2022,W18,A,7,5
+0,K110,2022,W18,A,7,5
+1,K120,2022,W18,A,7,5
+2,K140,2022,W18,A,7,5

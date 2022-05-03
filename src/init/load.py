@@ -77,13 +77,13 @@ class DataLoad(object):
             # Resource available time
             self.key_res_avail_time: self.io.load_from_db(sql=self.query.sql_res_avail_time(**self.fp_vrsn_dict)),
             # Human resource capacity
-            # self.key_human_capa: self.io.load_from_db(sql=self.sql_conf.sql_res_human_capacity(**self.fp_vrsn_dict)),
+            # self.key_human_capa: self.io.load_from_db(sql=self.query.sql_res_human_capacity(**self.fp_vrsn_dict)),
             self.key_human_capa: self.io.load_object(    # ToDo: Temp dataset
                 path=os.path.join('..', '..', 'data', 'human', 'human_capacity_temp.csv'), data_type='csv'),
             # Human resource usage
-            # self.key_human_usage: self.io.load_from_db(sql=self.sql_conf.sql_res_human_usage(**self.fp_vrsn_dict)),
-            self.key_human_usage: self.io.load_object(    # ToDo: Temp dataset
-                path=os.path.join('..', '..', 'data', 'human', 'human_usage_temp.csv'), data_type='csv'),
+            self.key_human_usage: self.io.load_from_db(sql=self.query.sql_res_human_usage(**self.fp_vrsn_dict)),
+            # self.key_human_usage: self.io.load_object(    # ToDo: Temp dataset
+            #     path=os.path.join('..', '..', 'data', 'human', 'human_usage_temp.csv'), data_type='csv'),
             # Simultaneous production constraint
             self.key_sim_prod_cstr: self.io.load_object(    # ToDo: Temp dataset
                 path=os.path.join('..', '..', 'data', 'K130_simul_prod_cnst_sample.csv'), data_type='csv'),

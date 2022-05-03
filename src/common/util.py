@@ -52,3 +52,22 @@ def change_dmd_qty(data, method):
         data[config.col_qty] = qty
 
     return data
+
+
+def calc_daily_avail_time(day: int, time, start_time, end_time):
+    if not isinstance(time, int):
+        raise TypeError("Time is not integer")
+
+    sec_of_day = 86400
+
+    if day % 5 == 0:
+        end_time = start_time + sec_of_day
+        start_time = start_time + sec_of_day - time
+    elif day % 5 == 4:
+        start_time = end_time
+        end_time = end_time + time
+    else:
+        start_time = end_time
+        end_time = end_time + sec_of_day
+
+    return start_time, end_time

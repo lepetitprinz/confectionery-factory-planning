@@ -91,13 +91,13 @@ class Process(object):
         # Model version instance attribute
         self.fp_seq = fp_seq
         self.fp_version = fp_version
-        self.fp_name = fp_version + '_' + fp_seq
+        self.fp_name = fp_version + '_' + fp_seq + '_' + plant
         self.project_cd = 'ENT001'
         self.act_mode_name_map = model_init['act_mode_name']
 
         # Plant instance attribute
         self.plant = plant
-        self.plant_start_hour = 7
+        self.sec_of_half_day = 43200
         self.plant_start_time = plant_start_time
 
         # Data instance attribute
@@ -130,9 +130,6 @@ class Process(object):
 
         # Calculate the average duration of producing item
         self.calc_item_res_avg_duration()
-
-        # Save the original result
-        self.save_org_result()
 
         # Best activity
         self.post_process()
@@ -208,7 +205,10 @@ class Process(object):
             self.draw_gantt(data=result)
 
     def get_best_activity(self) -> list:
-        with open(self.optseq_output_path) as f:
+        result_dir = os.path.join(self.save_path, 'opt', 'org', self.fp_version)
+        result_path = os.path.join(result_dir, 'result_' + self.fp_name + '.txt')
+
+        with open(result_path) as f:
             add_phase_yn = False
             solve_result = []
             for line in f:
@@ -474,7 +474,7 @@ class Process(object):
         save_dir = os.path.join(self.save_path, 'gantt', self.fp_version)
         util.make_dir(path=save_dir)
 
-        fig.write_html(os.path.join(save_dir, name + '_' + self.fp_seq + '.html'))
+        fig.write_html(os.path.join(save_dir, name + '_' + self.fp_seq + '_' + self.plant +'.html'))
         # fig.write_image(os.path.join(save_dir, name))
 
     def make_fp_seq(self) -> str:
@@ -528,7 +528,7 @@ class Process(object):
         data[self.col_plant] = self.plant
         data[self.col_date] = data[self.col_date].dt.strftime('%Y%m%d')
 
-        kwargs = {'fp_version': self.fp_version, 'fp_seq': self.fp_seq}
+        kwargs = {'fp_version': self.fp_version, 'fp_seq': self.fp_seq, 'plant_cd': self.plant}
         self.io.delete_from_db(sql=self.query.del_res_day_night_qty(**kwargs))
 
         # Save the result on DB
@@ -576,7 +576,7 @@ class Process(object):
         data = data.drop(columns=['kind', 'capa_rate'])
 
         # Delete previous result
-        kwargs = {'fp_version': self.fp_version, 'fp_seq': self.fp_seq}
+        kwargs = {'fp_version': self.fp_version, 'fp_seq': self.fp_seq, 'plant_cd': self.plant}
         self.io.delete_from_db(sql=self.query.del_gantt_result(**kwargs))
 
         # Save the result on DB
@@ -613,22 +613,31 @@ class Process(object):
 
         # Resource usage
         res_final['day'] = [dt.datetime.strptime(day, '%Y%m%d').weekday() for day in res_final[self.col_date]]
-        res_final[self.col_res_capa] = [self.res_avail_time[res][day] * 60 for res, day in
-                                        zip(res_final[self.col_res], res_final['day'])]
+        res_capa = []
+        for res, day in zip(res_final[self.col_res], res_final['day']):
+            res_avail_time = self.res_avail_time[res]
+            # Todo : Temp
+            res_avail_time = [res_avail_time[0]] + [1440, 1440, 1440] + [res_avail_time[-1]]
+            res_capa.append(res_avail_time[day] * 60)
+        res_final[self.col_res_capa] = res_capa
 
+        # Resource capacity time
         res_capa_val = []
-        for time_idx_type, capacity, in zip(res_final[self.col_time_idx_type], res_final[self.col_res_capa]):
-            val = 0
-            if time_idx_type == 'D':
-                val = min(capacity, (12-self.plant_start_hour) * 60 * 60)
-            elif time_idx_type == 'N':
-                val = capacity - min(capacity, (12-self.plant_start_hour) * 60 * 60)
+        for day, time_idx_type, capacity in zip(
+                res_final['day'], res_final[self.col_time_idx_type], res_final[self.col_res_capa]):
+            val = self.calc_day_night_res_capacity(day=day, time_idx_type=time_idx_type, capacity=capacity)
             res_capa_val.append(val)
-
         res_final['res_capa_val'] = res_capa_val
 
-        unavail_time = self.plant_start_hour * 60 * 60
-        res_final['res_unavail_val'] = np.where(res_final[self.col_time_idx_type] == 'D', unavail_time, 0)
+        # Resource unavailable time
+        res_unavail_val = []
+        for day, time_idx_type, capacity in zip(
+                res_final['day'], res_final[self.col_time_idx_type], res_final['res_capa_val']):
+            val = self.calc_res_unavail_time(day=day, time_idx_type=time_idx_type, capacity=capacity)
+            res_unavail_val.append(val)
+        res_final['res_unavail_val'] = res_unavail_val
+
+        # Resource available time
         res_final['res_avail_val'] = res_final['res_capa_val'] - res_final['res_use_capa_val'] - res_final['res_jc_val']
 
         res_grp_mst = self.res_grp_mst[[self.col_res, 'res_type_cd']]
@@ -641,15 +650,42 @@ class Process(object):
                                        for res_cd in res_final[self.col_res]]
         res_final = self.add_version_info(data=res_final, seq=seq)
 
-        # res_final = res_final.drop(columns=[self.col_res_capa, 'day'])
         res_final = res_final.drop(columns=[self.col_res_capa, 'day', 'res_capa_val'])
 
         # Delete previous result
-        kwargs = {'fp_version': self.fp_version, 'fp_seq': self.fp_seq}
+        kwargs = {'fp_version': self.fp_version, 'fp_seq': self.fp_seq, 'plant_cd': self.plant}
         self.io.delete_from_db(sql=self.query.del_res_status_result(**kwargs))
 
         # Save the result on DB
         self.io.insert_to_db(df=res_final, tb_name='M4E_O402050')
+
+    def calc_res_unavail_time(self, day: int, time_idx_type: str, capacity: int):
+        val = 0
+        if day in [0, 4]:
+            val = self.sec_of_half_day - capacity
+        elif day in [1, 2, 3]:
+            val = 0   # ToDo: temp
+            # val = self.sec_of_half_day * 2 - capacity    # ToDo: will be used
+
+        return val
+
+    def calc_day_night_res_capacity(self, day: int, time_idx_type: str, capacity: int):
+        val = 0
+        if day == 0:
+            if time_idx_type == 'D':
+                val = max(0, capacity - self.sec_of_half_day)
+            elif time_idx_type == 'N':
+                val = min(capacity, self.sec_of_half_day)
+        elif day in [1, 2, 3]:
+            val = self.sec_of_half_day    # ToDo: temp
+            # val = capacity    # ToDo: will be used
+        else:
+            if time_idx_type == 'D':
+                val = min(capacity, self.sec_of_half_day)
+            elif time_idx_type == 'N':
+                val = max(0, capacity - self.sec_of_half_day)
+
+        return val
 
     def calc_res_duration(self, res, kind, start, end):
         timeline = []

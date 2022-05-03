@@ -1,6 +1,7 @@
 import common.util as util
 import common.config as config
 
+import os
 from itertools import permutations
 from typing import Dict, Tuple, List
 from optimize.optseq import Model, Mode, Parameters, Activity, Resource
@@ -33,11 +34,25 @@ class OptSeqModel(object):
     optput_flag = config.optput_flag
     max_iteration = config.max_iteration
 
-    def __init__(self, exec_cfg: dict, cstr_cfg: dict, except_cfg: dict, plant: str, plant_data: dict):
+    def __init__(
+            self,
+            exec_cfg: dict,
+            cstr_cfg: dict,
+            except_cfg: dict,
+            plant: str,
+            plant_data: dict,
+            fp_seq: str,
+            fp_version: str,
+    ):
         # Execution instance attribute
         self.exec_cfg = exec_cfg
         self.cstr_cfg = cstr_cfg
         self.except_cfg = except_cfg
+
+        self.plant = plant
+        self.fp_seq = fp_seq
+        self.fp_version = fp_version
+        self.fp_name = fp_version + '_' + fp_seq + '_' + plant
 
         # Resource instance attribute
         self.res_to_res_grp = {}
@@ -47,12 +62,16 @@ class OptSeqModel(object):
         self.work_days = 5
         self.schedule_weeks = 4
         self.sec_of_day = 86400
-        self.plant_start_hour = 25200    # 25200(sec) = 7(hour) * 60 * 60
+        self.plant_start_hour = 0    # 25200(sec) = 7(hour) * 60 * 60
 
         # Resource Duration instance attribute
         self.time_unit = 'M'
         self.default_res_duration = 1
         self.item_res_duration = plant_data[self.key_res][self.key_item_res_duration][plant]
+
+        # Path instance attribute
+        self.save_path = os.path.join('..', '..', 'result')
+        self.optseq_output_path = os.path.join('..', 'operation', 'optseq_output.txt')
 
         # Constraint
         # Resource available time instance attribute
@@ -68,9 +87,9 @@ class OptSeqModel(object):
         if self.cstr_cfg['apply_sim_prod_cstr']:
             self.sim_prod_cstr = plant_data[self.key_cstr][self.key_sim_prod_cstr].get(plant, None)
 
-    def init(self, dmd_list: list, res_grp_dict: dict):
+    def init(self, plant:str, dmd_list: list, res_grp_dict: dict):
         # Step1. Instantiate the model
-        model = Model(name='lotte')
+        model = Model(name=plant)
 
         # Step2. Set the resource
         model_res, res_grp_dict = self.set_resource(model=model, res_grp_dict=res_grp_dict)
@@ -164,6 +183,29 @@ class OptSeqModel(object):
         return model_res_grp
 
     def add_res_capacity(self, res: Resource, avail_time) -> Resource:
+        time_multiple = 1
+        if self.time_unit == 'M':
+            time_multiple = 60
+
+        start_time = self.plant_start_hour
+        end_time = self.plant_start_hour
+        for i, time in enumerate(avail_time * self.schedule_weeks):
+            start_time, end_time = util.calc_daily_avail_time(
+                day=i, time=time*time_multiple, start_time=start_time, end_time=end_time
+            )
+
+            # Add the capacity
+            res.addCapacity(start_time, end_time, 1)
+
+            if i % 5 == 4:    # skip saturday & sunday
+                start_time += self.sec_of_day * 3
+
+        # Exception for over demand
+        res.addCapacity(start_time + self.sec_of_day, 'inf', 1)
+
+        return res
+
+    def add_res_capacity_bak(self, res: Resource, avail_time) -> Resource:
         time_multiple = 1
         if self.time_unit == 'M':
             time_multiple = 60
@@ -550,3 +592,18 @@ class OptSeqModel(object):
                 res_to_res_grp[res_cd] = res_grp_cd
 
         self.res_to_res_grp = res_to_res_grp
+
+    #####################
+    # Save
+    #####################
+    def save_org_result(self) -> None:
+        save_dir = os.path.join(self.save_path, 'opt', 'org', self.fp_version)
+        util.make_dir(path=save_dir)
+
+        result = open(os.path.join(save_dir, 'result_' + self.fp_name + '.txt'), 'w')
+        with open(self.optseq_output_path, 'r') as f:
+            for line in f:
+                result.write(line)
+
+        f.close()
+        result.close()

@@ -27,7 +27,7 @@ class Query(object):
                  , RES_GRP_NM
               FROM M4S_I305100
              WHERE USE_YN = 'Y'
-               AND PLANT_CD IN ('K130')
+               AND PLANT_CD NOT IN ('K170')
         """
         return sql
 
@@ -67,7 +67,7 @@ class Query(object):
                       FROM M4E_I401060
                      WHERE FP_VRSN_ID = '{kwargs['fp_version']}'
                        AND REQ_FP_QTY > 0
-                       AND PLANT_CD IN ('K130')
+                      AND PLANT_CD NOT IN ('K170')
                    ) DMD
              INNER JOIN (
                          SELECT ITEM_CD
@@ -95,7 +95,7 @@ class Query(object):
                  , END_TIME_INDEX
               FROM M4E_I401100
              WHERE FP_VRSN_ID = '{kwargs['fp_version']}'
-               AND PLANT_CD IN ('K130')
+             AND PLANT_CD NOT IN ('K170')
         """
         return sql
 
@@ -110,7 +110,7 @@ class Query(object):
              WHERE CAPA_USE_RATE IS NOT NULL
                AND FP_VRSN_ID = '{kwargs['fp_version']}'
                AND CAPA_USE_RATE > 0
-               AND PLANT_CD IN ('K130')
+              AND PLANT_CD NOT IN ('K170')
         """
         return sql
 
@@ -139,7 +139,7 @@ class Query(object):
              , CAPA05_VAL AS CAPACITY5
           FROM M4E_I401140
          WHERE FP_VRSN_ID = '{kwargs['fp_version']}'
-           AND PLANT_CD IN ('K130')
+         AND PLANT_CD NOT IN ('K170')
         """
         return sql
 
@@ -155,7 +155,7 @@ class Query(object):
                  , UNIT_CD AS JC_UNIT
               FROM M4E_I401271
              WHERE FP_VRSN_ID = '{kwargs['fp_version']}'
-               AND PLANT_CD IN ('K130')  
+            AND PLANT_CD NOT IN ('K170')
         """
         return sql
 
@@ -167,8 +167,8 @@ class Query(object):
                  , ITEM_ATTR04_CD
                  , PKG_CTGRI_SUB_CD AS PKG
                  , ATTR01_VAL AS FLOOR
-                 , MP_M_VAL
-                 , MP_W_VAL
+                 , MP_M_VAL AS M_VAL
+                 , MP_W_VAL AS W_VAL
               FROM M4S_I402020
         """
         return sql
@@ -220,6 +220,7 @@ class Query(object):
               FROM M4E_O402130
              WHERE FP_VRSN_ID = '{kwargs['fp_version']}'
                AND FP_VRSN_SEQ = '{kwargs['fp_seq']}'
+               AND PLANT_CD = '{kwargs['plant_cd']}'
         """
         return sql
 
@@ -230,6 +231,7 @@ class Query(object):
               FROM M4E_O402050
              WHERE FP_VRSN_ID = '{kwargs['fp_version']}'
                AND FP_VRSN_SEQ = '{kwargs['fp_seq']}'
+               AND PLANT_CD = '{kwargs['plant_cd']}'
         """
         return sql
 
@@ -240,5 +242,6 @@ class Query(object):
               FROM M4E_O402140
              WHERE FP_VRSN_ID = '{kwargs['fp_version']}'
                AND FP_VRSN_SEQ = '{kwargs['fp_seq']}'
+               AND PLANT_CD = '{kwargs['plant_cd']}'
         """
         return sql

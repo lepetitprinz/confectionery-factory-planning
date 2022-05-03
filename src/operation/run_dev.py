@@ -10,7 +10,6 @@ fp_seq = '1'
 # 003 : Resource capacity constraint (K120) (complete) - 2022W16
 # 004 : Job change constraint (K130) - 2022W16
 # 005 : Simultaneous production constraint (K130) - 2022W16
-# 1 : res_avail / jc (K130) - 2022W17
 
 base_path = {
     'root': os.path.join('..', '..'),

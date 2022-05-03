@@ -1,3 +1,4 @@
+import common.util as util
 import common.config as config
 from dao.DataIO import DataIO
 from common.sql import Query
@@ -121,11 +122,14 @@ class Pipeline(object):
                     cstr_cfg=self.cstr_cfg,
                     except_cfg=self.except_cfg,
                     plant=plant,
-                    plant_data=prep_data
+                    plant_data=prep_data,
+                    fp_seq=self.fp_seq,
+                    fp_version=self.fp_version
                 )
 
                 # Initialize the each model of plant
                 model, rm_act_list = opt_seq.init(
+                    plant=plant,
                     dmd_list=prep_data[self.key_dmd][self.key_dmd_list_by_plant][plant],
                     res_grp_dict=prep_data[self.key_res][self.key_res_grp][plant]
                 )
@@ -145,11 +149,13 @@ class Pipeline(object):
                 print(f" - Optimize the OtpSeq model: {plant}")
                 opt_seq.optimize(model=model)
 
+                # Save original result
+                opt_seq.save_org_result()
+
             if self.exec_cfg['save_step_yn']:
                 self.io.save_object(data=plant_model, path=self.path['model'], data_type='binary')
 
             print("Modeling & Optimization is finished.\n")
-
         # =================================================================== #
         # Post Process
         # =================================================================== #
@@ -170,19 +176,20 @@ class Pipeline(object):
 
             # Post Process after optimization
             for plant in prep_data[self.key_dmd][self.key_dmd_list_by_plant]:
-                pp = Process(
-                    io=self.io,
-                    query=self.query,
-                    exec_cfg=self.exec_cfg,
-                    cstr_cfg=self.cstr_cfg,
-                    fp_version=self.fp_version,
-                    fp_seq=self.fp_seq,
-                    plant=plant,
-                    plant_start_time=self.plant_start_time,
-                    data=data,
-                    prep_data=prep_data,
-                    model_init=plant_model[plant]
-                )
-                pp.run()
+                if len(plant_model[plant]['model'].act) > 0:
+                    pp = Process(
+                        io=self.io,
+                        query=self.query,
+                        exec_cfg=self.exec_cfg,
+                        cstr_cfg=self.cstr_cfg,
+                        fp_version=self.fp_version,
+                        fp_seq=self.fp_seq,
+                        plant=plant,
+                        plant_start_time=self.plant_start_time,
+                        data=data,
+                        prep_data=prep_data,
+                        model_init=plant_model[plant],
+                    )
+                    pp.run()
 
-            print("Post Process is finished.")
+                # print("Post Process is finished.")

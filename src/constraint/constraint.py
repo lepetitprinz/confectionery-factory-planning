@@ -9,14 +9,17 @@ from typing import Hashable, Dict, Union
 class Human(object):
     key_human_capa = config.key_human_capa      # Human capacity
     key_human_usage = config.key_human_usage    # Human usage
+    key_res_avail_time = config.key_res_avail_time
 
     col_dmd = config.col_dmd
     col_sku = config.col_sku
     col_pkg = config.col_pkg
     col_item = config.col_item
     col_plant = config.col_plant
+    col_res = config.col_res
     col_res_grp = config.col_res_grp
     col_due_date = config.col_due_date
+    col_res_capa = config.col_res_capa
 
     col_duration = config.col_duration
     col_end_time = config.col_end_time
@@ -41,16 +44,22 @@ class Human(object):
         self.demand = demand
 
         self.floor_capa = {}
+        self.work_day = 5
         self.prod_time_comp_standard = 'min'
+        self.res_to_capa = {}
 
     def apply(self, data):
+        # preprocess demand
         dmd_by_floor, non_apply_dmd = self.preprocess(data=data)
+
+        # Resource to capacity map
+        self.set_res_capacity(data=self.cstr[self.key_res_avail_time])
 
         result = pd.DataFrame()
         for floor, schedule_dmd in dmd_by_floor.items():
             curr_time = 0
             curr_capa = self.floor_capa[floor]
-            floor_schedule = pd.DataFrame()
+            fixed_schedule = pd.DataFrame()
             curr_prod_dmd = pd.DataFrame()
             while len(schedule_dmd) > 0:
                 # Search
@@ -59,11 +68,11 @@ class Human(object):
 
                 if flag:
                     # Confirm demand production
-                    curr_capa, schedule_dmd, floor_schedule, curr_prod_dmd = self.confirm_dmd_prod(
+                    curr_capa, schedule_dmd, fixed_schedule, curr_prod_dmd = self.confirm_dmd_prod(
                         curr_capa=curr_capa,
                         cand_dmd=cand_dmd,
                         schedule_dmd=schedule_dmd,
-                        floor_schedule=floor_schedule,
+                        fixed_schedule=fixed_schedule,
                         curr_prod_dmd=curr_prod_dmd,
                     )
                 else:
@@ -73,14 +82,44 @@ class Human(object):
                         curr_time=curr_time,
                         curr_prod_dmd=curr_prod_dmd,
                     )
-                    # update timeline of remaining demands
+                    # Update timeline of remaining demands
                     self.update_remain_dmd_timeline(
                         schedule_dmd=schedule_dmd,
                         curr_time=curr_time,
                     )
+            result = pd.concat([result, fixed_schedule])
+
+        return result
+
+    def set_res_capacity(self, data: pd.DataFrame):
+        # Choose current plant
+        data = data[data[self.col_plant] == self.plant]
+
+        capa_col_list = []
+        for i in range(self.work_day):
+            capa_col = self.col_res_capa + str(i + 1)
+            capa_col_list.append(capa_col)
+
+        res_to_capa = {}
+        for res, capa_df in data.groupby(by=self.col_res):
+            res_to_capa[res] = capa_df[capa_col_list].values.tolist()[0]
+
+        self.res_to_capa = res_to_capa
 
     def update_remain_dmd_timeline(self, schedule_dmd, curr_time):
-        pass
+        move_dmd = schedule_dmd[schedule_dmd[self.col_start_time] < curr_time].copy()
+        non_move_dmd = schedule_dmd[schedule_dmd[self.col_start_time] >= curr_time].copy()
+
+        move_dmd[self.col_end_time] = move_dmd[self.col_end_time] - move_dmd[self.col_start_time] + curr_time
+        move_dmd[self.col_start_time] = curr_time
+
+        move_dmd = self.apply_res_capa_on_timeline(data=move_dmd)
+        revised_dmd = pd.concat([move_dmd, non_move_dmd], axis=0)
+
+        return revised_dmd
+
+    def apply_res_capa_on_timeline(self, data):
+        return data
 
     def finish_latest_dmd(self, curr_capa, curr_time, curr_prod_dmd):
         latest_finish_dmd = curr_prod_dmd[curr_prod_dmd[self.col_end_time] == curr_prod_dmd[self.col_end_time].min()]
@@ -98,23 +137,23 @@ class Human(object):
         return curr_capa, curr_time, curr_prod_dmd
 
     def confirm_dmd_prod(self, curr_capa, cand_dmd: Union[pd.DataFrame, pd.Series], schedule_dmd: pd.DataFrame,
-                         floor_schedule: pd.DataFrame, curr_prod_dmd: pd.DataFrame):
-        dmd = cand_dmd[cand_dmd['kind'] == 'demand']
-        dmd_usage = dmd[['m_val', 'w_val']].values[0]
+                         fixed_schedule: pd.DataFrame, curr_prod_dmd: pd.DataFrame):
+        # dmd = cand_dmd[cand_dmd['kind'] == 'demand']
+        dmd_usage = [cand_dmd['m_val'], cand_dmd['w_val']]
 
         # update current capacity
         curr_capa = curr_capa - dmd_usage
 
         # add production information
-        floor_schedule = pd.concat([floor_schedule, cand_dmd], axis=0)
+        fixed_schedule = fixed_schedule.append(cand_dmd)
 
         # Remove on candidates
-        schedule_dmd = schedule_dmd.drop(labels=cand_dmd.index)
+        schedule_dmd = schedule_dmd[schedule_dmd[self.col_dmd] != cand_dmd[self.col_dmd]]
 
         # Update current production demand
-        curr_prod_dmd = pd.concat([curr_prod_dmd, dmd])
+        curr_prod_dmd = curr_prod_dmd.append(cand_dmd)
 
-        return curr_capa, schedule_dmd, floor_schedule, curr_prod_dmd
+        return curr_capa, schedule_dmd, fixed_schedule, curr_prod_dmd
 
     def search_dmd_candidate(self, data: pd.DataFrame) -> pd.Series:
         min_start_dmd = data[data[self.col_start_time] == data[self.col_start_time].min()]
@@ -137,8 +176,8 @@ class Human(object):
 
     def check_prod_availability(self, curr_capa, data: Union[pd.DataFrame, pd.Series]):
         flag = False
-        dmd = data[data['kind'] == 'demand']
-        dmd_usage = dmd[['m_val', 'w_val']].values[0]
+        # dmd = data[data['kind'] == 'demand']
+        dmd_usage = [data['m_val'], data['w_val']]
         diff = curr_capa - dmd_usage
         if sum(diff < 0) == 0:
             flag = True
