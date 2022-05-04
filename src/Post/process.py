@@ -171,7 +171,7 @@ class Process(object):
                 demand=self.demand,
                 cstr=self.cstr
             )
-
+            print(f"Apply human capacity: Plant {self.plant}")
             result = human_cstr.apply(data=result)
 
         result = self.change_timeline(data=result)

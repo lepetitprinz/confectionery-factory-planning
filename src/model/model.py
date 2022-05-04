@@ -76,7 +76,7 @@ class OptSeqModel(object):
         # Constraint
         # Resource available time instance attribute
         if self.cstr_cfg['apply_res_available_time']:
-            self.res_avail_time = plant_data[self.key_cstr][self.key_res_avail_time].get(plant, None)
+            self.res_capa_days = plant_data[self.key_cstr][self.key_res_avail_time].get(plant, None)
 
         # Job change instance attribute
         if self.cstr_cfg['apply_job_change']:
@@ -87,7 +87,7 @@ class OptSeqModel(object):
         if self.cstr_cfg['apply_sim_prod_cstr']:
             self.sim_prod_cstr = plant_data[self.key_cstr][self.key_sim_prod_cstr].get(plant, None)
 
-    def init(self, plant:str, dmd_list: list, res_grp_dict: dict):
+    def init(self, plant: str, dmd_list: list, res_grp_dict: dict):
         # Step1. Instantiate the model
         model = Model(name=plant)
 
@@ -143,9 +143,9 @@ class OptSeqModel(object):
                 add_res = model.addResource(name=resource)
 
                 if self.cstr_cfg['apply_res_available_time']:
-                    avail_time = self.res_avail_time.get(resource, None)
-                    if avail_time:
-                        add_res = self.add_res_capacity(res=add_res, avail_time=avail_time)
+                    capa_days = self.res_capa_days.get(resource, None)
+                    if capa_days:
+                        add_res = self.add_res_capacity(res=add_res, capa_days=capa_days)
                     else:
                         # Remove resource candidate from resource group
                         res_grp_dict[res_grp].remove(resource)
@@ -182,14 +182,14 @@ class OptSeqModel(object):
 
         return model_res_grp
 
-    def add_res_capacity(self, res: Resource, avail_time) -> Resource:
+    def add_res_capacity(self, res: Resource, capa_days) -> Resource:
         time_multiple = 1
         if self.time_unit == 'M':
             time_multiple = 60
 
         start_time = self.plant_start_hour
         end_time = self.plant_start_hour
-        for i, time in enumerate(avail_time * self.schedule_weeks):
+        for i, time in enumerate(capa_days * self.schedule_weeks):
             start_time, end_time = util.calc_daily_avail_time(
                 day=i, time=time*time_multiple, start_time=start_time, end_time=end_time
             )
