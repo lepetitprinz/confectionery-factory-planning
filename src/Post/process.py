@@ -163,6 +163,8 @@ class Process(object):
         result = self.conv_to_df(data=activity, kind='activity')
         result = self.fill_na(data=result)
 
+        result = self.correct_job_change_error(data=result)
+
         if self.cstr_cfg['apply_human_capacity']:
             human_cstr = Human(
                 plant=self.plant,
@@ -225,6 +227,27 @@ class Process(object):
 
         return solve_result
 
+    def correct_job_change_error(self, data) -> pd.DataFrame:
+        jc = data[data['kind'] == 'job_change'].copy()
+        jc_dmd_list = [[idx, res] + dmd for idx, res, dmd in zip(
+            jc.index,
+            jc[self.col_res],
+            jc[self.col_dmd].str.split(self.split_symbol)
+        )]
+
+        filter_idx_list = []
+        for idx, jc_res, from_dmd, to_dmd in jc_dmd_list:
+            from_res = data[data[self.col_dmd] == from_dmd][self.col_res].unique()
+            to_res = data[data[self.col_dmd] == to_dmd][self.col_res].unique()
+            if from_res != to_res:
+                filter_idx_list.append(idx)
+            elif (jc_res != from_res) or (jc_res != to_res):
+                filter_idx_list.append(idx)
+
+        data = data.drop(labels=filter_idx_list)
+
+        return data
+
     def prep_act_mode_result(self, line: str):
         # Split result
         activity, mode, schedule = line.strip().split(',')
@@ -238,25 +261,25 @@ class Process(object):
 
             act_kind = activity[:activity.index('[')]
             if act_kind == 'Act':
-                dmd_id, item_cd, res_grp = activity.split('@')
+                dmd_id, item_cd, res_grp = activity.split(self.split_symbol)
                 dmd_id = dmd_id[dmd_id.index('[') + 1:]
                 res_grp = res_grp[:res_grp.index(']')]
 
                 # preprocess the mode
-                res = mode.split('@')[-1]
+                res = mode.split(self.split_symbol)[-1]
                 res = res[:res.index(']')]
                 kind = 'demand'
 
             elif act_kind == 'Setup':
-                _, item_cd, res_grp, res = activity.split('@')
+                _, item_cd, res_grp, res = activity.split(self.split_symbol)
                 res = res[:res.index(']')]
 
                 from_dmd, to_dmd, mode = mode.split('|')
-                from_dmd = from_dmd.split('@')
+                from_dmd = from_dmd.split(self.split_symbol)
                 if len(from_dmd) > 1:
                     from_dmd = from_dmd[0][from_dmd[0].index('[') + 1:]
-                    to_dmd = to_dmd.split('@')[0]
-                    dmd_id = from_dmd + '_' + to_dmd
+                    to_dmd = to_dmd.split(self.split_symbol)[0]
+                    dmd_id = from_dmd + self.split_symbol + to_dmd
                     kind = 'job_change'
                 else:
                     return None

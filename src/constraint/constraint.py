@@ -70,8 +70,11 @@ class Human(object):
             while len(schedule_dmd) > 0:
                 # Search
                 print(curr_capa)
-                cand_dmd = self.search_dmd_candidate(data=schedule_dmd)
-                flag = self.check_prod_availability(curr_capa=curr_capa, data=cand_dmd)
+                cand_dmd = self.search_dmd_candidate(data=schedule_dmd, curr_prod_dmd=curr_prod_dmd)
+                if cand_dmd is not None:
+                    flag = self.check_prod_availability(curr_capa=curr_capa, data=cand_dmd)
+                else:
+                    flag = False
 
                 if flag:
                     # Confirm demand production
@@ -241,26 +244,30 @@ class Human(object):
 
         return curr_capa, schedule_dmd, fixed_schedule, curr_prod_dmd
 
-    def search_dmd_candidate(self, data: pd.DataFrame) -> pd.Series:
-        min_start_dmd = data[data[self.col_start_time] == data[self.col_start_time].min()]
+    def search_dmd_candidate(self, data: pd.DataFrame, curr_prod_dmd: pd.DataFrame) -> Union[pd.Series, None]:
+        # Filter current using resource
+        if len(curr_prod_dmd) > 0:
+            using_resource = curr_prod_dmd[self.col_res].unique()
+            data = data[~data[self.col_res].isin(using_resource)].copy()
+            if len(data) == 0:
+                return None
 
-        if len(min_start_dmd[min_start_dmd['kind'] == 'demand']) == 1:
-            # return min_start_dmd
+        min_start_dmd = data[data[self.col_start_time] == data[self.col_start_time].min()]
+        if len(min_start_dmd) == 1:
             pass
         else:
             min_start_dmd = min_start_dmd[min_start_dmd[self.col_due_date] == min_start_dmd[self.col_due_date].min()]
-
             if len(min_start_dmd) == 1:
-                # return min_start_dmd
                 pass
             else:
                 min_start_dmd = min_start_dmd.sort_values(by=self.col_duration, ascending=True)
+                if len(min_start_dmd) == 0:
+                    print("")
                 if self.prod_time_comp_standard == 'min':
                     min_start_dmd = min_start_dmd.iloc[0]
                 else:
                     min_start_dmd = min_start_dmd.iloc[-1]
 
-                # return min_start_dmd
         if isinstance(min_start_dmd, pd.DataFrame):
             min_start_dmd = min_start_dmd.squeeze()
 
