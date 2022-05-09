@@ -22,6 +22,7 @@ key_dmd_item_list_by_plant = 'dmd_item_list_by_plant'
 key_dmd_res_grp_list_by_plant = 'dmd_res_grp_list_by_plant'
 
 # Resource
+key_res_nm = 'res_nm'
 key_res_grp = 'res_grp'
 key_res_grp_nm = 'res_grp_nm'
 key_res_duration = 'res_duration'

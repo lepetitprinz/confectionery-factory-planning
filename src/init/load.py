@@ -27,7 +27,7 @@ class DataLoad(object):
     key_sim_prod_cstr = config.key_sim_prod_cstr
     key_res_avail_time = config.key_res_avail_time
 
-    def __init__(self, io, query, fp_version: str):
+    def __init__(self, io, query, fp_version: str, fp_seq: str):
         """
         :param io: Pipeline step configuration
         :param query: SQL configuration
@@ -35,8 +35,9 @@ class DataLoad(object):
         """
         self.io = io
         self.query = query
+        self.fp_seq = fp_seq
         self.fp_version = fp_version
-        self.fp_vrsn_dict = {'fp_version': fp_version}
+        self.fp_vrsn_dict = {'fp_vrsn_id': fp_version, 'fp_vrsn_seq': fp_seq}
 
     def load_data(self) -> Dict[str, Dict[str, pd.DataFrame]]:
         demand = self.load_demand()      # Load the demand dataset
@@ -82,8 +83,6 @@ class DataLoad(object):
                 path=os.path.join('..', '..', 'data', 'human', 'human_capacity_temp.csv'), data_type='csv'),
             # Human resource usage
             self.key_human_usage: self.io.load_from_db(sql=self.query.sql_res_human_usage(**self.fp_vrsn_dict)),
-            # self.key_human_usage: self.io.load_object(    # ToDo: Temp dataset
-            #     path=os.path.join('..', '..', 'data', 'human', 'human_usage_temp.csv'), data_type='csv'),
             # Simultaneous production constraint
             self.key_sim_prod_cstr: self.io.load_object(    # ToDo: Temp dataset
                 path=os.path.join('..', '..', 'data', 'K130_simul_prod_cnst_sample.csv'), data_type='csv'),

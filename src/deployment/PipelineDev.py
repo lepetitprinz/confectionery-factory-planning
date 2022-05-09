@@ -69,7 +69,8 @@ class Pipeline(object):
         load = DataLoad(
             io=self.io,
             query=self.query,
-            fp_version=self.fp_version
+            fp_version=self.fp_version,
+            fp_seq=self.fp_seq
         )
 
         data = None

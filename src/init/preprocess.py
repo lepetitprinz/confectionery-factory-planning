@@ -25,6 +25,7 @@ class Preprocess(object):
     key_dmd_res_grp_list_by_plant = config.key_dmd_res_grp_list_by_plant
 
     # Resource
+    key_res_nm = config.key_res_nm
     key_res_grp = config.key_res_grp          # Resource group code
     key_res_grp_nm = config.key_res_grp_nm    # Resource group name
     key_res_duration = config.key_res_duration    # Resource duration
@@ -165,6 +166,7 @@ class Preprocess(object):
         data = data[data[self.col_plant].isin(self.plant_list_in_dmd)].copy()
 
         # Choose current week capacity
+        # ToDo: Temporal code
         data['fp_version'] = 'FP_' + data['yy'] + data['week']
         data = data[data['fp_version'] == self.fp_version[:self.fp_version.index('.')]]
 

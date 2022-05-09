@@ -17,7 +17,7 @@ class Init(object):
         self.fp_num = fp_num
         self.fp_seq = fp_seq
         self.fp_version = ''
-        # self.fp_version = 'FP_2022W17.01'    # Todo : Temp
+        # self.fp_version = 'FP_2022W18.01'    # Todo : Temp
 
         # Time instance attribute
         self.calendar = None
@@ -46,7 +46,6 @@ class Init(object):
         today = dt.datetime.combine(dt.datetime.today(), dt.datetime.min.time())
         today = today - datetime.timedelta(days=today.weekday())    # This monday
 
-        # self.plant_start_day = today + dt.timedelta(hours=self.plant_start_hour)
         self.plant_start_day = today
 
     def set_pipeline_path(self) -> None:

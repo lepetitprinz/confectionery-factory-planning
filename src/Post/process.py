@@ -1,13 +1,12 @@
-import common.util as util
 import common.config as config
 from constraint.constraint import Human
+from Post.save import Save
+from Post.plot import Gantt
 
 import os
 import numpy as np
 import pandas as pd
 import datetime as dt
-import plotly.express as px
-import matplotlib.pyplot as plt
 
 
 class Process(object):
@@ -25,15 +24,19 @@ class Process(object):
     ############################################
     # Dictionary key configuration
     ############################################
+    # Demand
     key_dmd = config.key_dmd
     key_res = config.key_res
     key_item = config.key_item
     key_cstr = config.key_cstr
+
+    # Resource
+    key_res_nm = config.key_res_nm
     key_res_grp = config.key_res_grp
     key_res_grp_nm = config.key_res_grp_nm
-    key_item_res_duration = config.key_res_duration
+    key_res_duration = config.key_res_duration
 
-    # Constrain
+    # Constraint
     key_human_res = config.key_human_res
     key_res_avail_time = config.key_res_avail_time
 
@@ -112,7 +115,7 @@ class Process(object):
         self.res_grp = prep_data[self.key_res][self.key_res_grp][plant]
         self.res_grp_nm = prep_data[self.key_res][self.key_res_grp_nm][plant]
         self.res_nm_map = prep_data[self.key_res]['plant_res_nm'][plant]
-        self.item_res_duration = prep_data[self.key_res][self.key_item_res_duration][plant]
+        self.item_res_duration = prep_data[self.key_res][self.key_res_duration][plant]
 
         # Constraint instance attribute
         self.inf_val = 10 ** 7 - 1
@@ -180,31 +183,54 @@ class Process(object):
 
         prod_qty = self.calc_timeline_prod_qty(data=result)
 
-        if self.exec_cfg['save_step_yn']:
-            # Csv.save(data=result, name='act')
+        if self.exec_cfg['save_step_yn'] or self.exec_cfg['save_db_yn']:
+            save = Save(
+                fp_version=self.fp_version,
+                fp_name=self.fp_name
+            )
 
-            # Save the activity
-            self.save_opt_result(data=result, name='act')
+            if self.exec_cfg['save_step_yn']:
+                # Save the activity
+                save.to_csv(data=result, path=self.save_path, name='act')
 
-            # Save the result
-            self.save_opt_result(data=prod_qty, name='qty')
+                # Save the result
+                save.to_csv(data=prod_qty, path=self.save_path, name='qty')
 
-        if self.exec_cfg['save_db_yn']:
-            # seq = self.make_fp_seq()
+            if self.exec_cfg['save_db_yn']:
+                # seq = self.make_fp_seq()
+                # Resource status
+                self.save_res_status_on_db(data=result, seq=self.fp_seq)
 
-            self.save_res_status_on_db(data=result, seq=self.fp_seq)
+                # Demand (req quantity vs prod quantity)
+                self.save_req_prod_qty_on_db(data=result, seq=self.fp_seq)
 
-            # Demand (req quantity vs prod quantity)
-            self.save_req_prod_qty_on_db(data=result, seq=self.fp_seq)
+                # Resource
+                self.save_gantt_on_db(data=result, seq=self.fp_seq)
 
-            # Resource
-            self.save_gantt_on_db(data=result, seq=self.fp_seq)
-
-            # Production quantity on day & night
-            self.save_res_day_night_qty_on_db(data=prod_qty, seq=self.fp_seq)
+                # Production quantity on day & night
+                self.save_res_day_night_qty_on_db(data=prod_qty, seq=self.fp_seq)
 
         if self.exec_cfg['save_graph_yn']:
-            self.draw_gantt(data=result)
+            gantt = Gantt(
+                fp_version=self.fp_version,
+                fp_seq=self.fp_seq,
+                plant=self.plant,
+                path=self.save_path
+            )
+            # Draw demand
+            gantt.draw(
+                data=result[result['kind'] == 'demand'],
+                y=self.col_dmd,
+                color=self.col_res,
+                name='act_demand'
+            )
+
+            gantt.draw(
+                data=result,
+                y=self.col_res,
+                color=self.col_dmd,
+                name='act_resource'
+            )
 
     def get_best_activity(self) -> list:
         result_dir = os.path.join(self.save_path, 'opt', 'org', self.fp_version)
@@ -455,51 +481,9 @@ class Process(object):
 
         return data
 
-    def draw_gantt(self, data: pd.DataFrame) -> None:
-        # data = self.change_timeline(data=data)
-        self.draw_activity(data=data[data['kind'] == 'demand'], y=self.col_dmd, color=self.col_res, name='act_demand')
-        self.draw_activity(data=data, y=self.col_res, color=self.col_dmd, name='act_resource')
-
-    def draw_activity(self, data: pd.DataFrame, y: str, color: str, name: str):
-        fig = px.timeline(data, x_start='start', x_end='end', y=y, color=color,
-                          color_discrete_sequence=px.colors.qualitative.Set3)
-        fig.update_xaxes(showgrid=True)
-        fig.update_yaxes(autorange="reversed")
-
-        # Save the graph
-        self.save_fig(fig=fig, name=name)
-
-        plt.close()
-
     #####################
     # Save
     #####################
-    def save_org_result(self) -> None:
-        save_dir = os.path.join(self.save_path, 'opt', 'org', self.fp_version)
-        util.make_dir(path=save_dir)
-
-        result = open(os.path.join(save_dir, 'result_' + self.fp_name + '.txt'), 'w')
-        with open(self.optseq_output_path, 'r') as f:
-            for line in f:
-                result.write(line)
-
-        f.close()
-        result.close()
-
-    def save_opt_result(self, data: pd.DataFrame, name: str) -> None:
-        save_dir = os.path.join(self.save_path, 'opt', 'csv', self.fp_version)
-        util.make_dir(path=save_dir)
-
-        # Save the optimization result
-        data.to_csv(os.path.join(save_dir, name + '_' + self.fp_name + '.csv'), index=False, encoding='cp949')
-
-    def save_fig(self, fig, name: str) -> None:
-        save_dir = os.path.join(self.save_path, 'gantt', self.fp_version)
-        util.make_dir(path=save_dir)
-
-        fig.write_html(os.path.join(save_dir, name + '_' + self.fp_seq + '_' + self.plant +'.html'))
-        # fig.write_image(os.path.join(save_dir, name))
-
     def make_fp_seq(self) -> str:
         fp_seq_df = self.io.load_from_db(
             sql=self.query.sql_fp_seq_list(**{self.col_fp_version_id: self.fp_version})

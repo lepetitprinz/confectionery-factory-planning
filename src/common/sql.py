@@ -14,7 +14,8 @@ class Query(object):
                  , PKG_CTGRI_SUB_CD AS PKG
               FROM M4E_I401080
              WHERE ITEM_TYPE_CD IN ('FERT', 'HAWA')
-               AND FP_VRSN_ID = '{kwargs['fp_version']}'
+               AND FP_VRSN_ID = '{kwargs['fp_vrsn_id']}'
+               AND FP_VRSN_SEQ = '{kwargs['fp_vrsn_seq']}'
 
         """
         return sql
@@ -27,7 +28,7 @@ class Query(object):
                  , RES_GRP_NM
               FROM M4S_I305100
              WHERE USE_YN = 'Y'
-               AND PLANT_CD NOT IN ('K170')
+            -- AND PLANT_CD NOT IN ('K170')
         """
         return sql
 
@@ -65,16 +66,17 @@ class Query(object):
                          , TIME_INDEX          AS DUE_DATE
                          , CEILING(REQ_FP_QTY) AS QTY
                       FROM M4E_I401060
-                     WHERE FP_VRSN_ID = '{kwargs['fp_version']}'
+                     WHERE FP_VRSN_ID = '{kwargs['fp_vrsn_id']}'
+                       AND FP_VRSN_SEQ = '{kwargs['fp_vrsn_seq']}'
                        AND REQ_FP_QTY > 0
-                      AND PLANT_CD NOT IN ('K170')
+                    -- AND PLANT_CD NOT IN ('K170')
                    ) DMD
              INNER JOIN (
                          SELECT ITEM_CD
                               , ITEM_ATTR01_CD
                            FROM VIEW_I002040
-                         WHERE USE_YN = 'Y'
-                           AND DEL_YN = 'N'
+                          WHERE USE_YN = 'Y'
+                            AND DEL_YN = 'N'
                         ) ITEM
                 ON DMD.ITEM_CD = ITEM.ITEM_CD
              WHERE ITEM.ITEM_ATTR01_CD = 'P1'  -- Exception
@@ -94,8 +96,9 @@ class Query(object):
                  , START_TIME_INDEX
                  , END_TIME_INDEX
               FROM M4E_I401100
-             WHERE FP_VRSN_ID = '{kwargs['fp_version']}'
-             AND PLANT_CD NOT IN ('K170')
+             WHERE FP_VRSN_ID = '{kwargs['fp_vrsn_id']}'
+               AND FP_VRSN_SEQ = '{kwargs['fp_vrsn_seq']}'
+            -- AND PLANT_CD NOT IN ('K170')
         """
         return sql
 
@@ -108,9 +111,10 @@ class Query(object):
                  , ROUND(60 * CAPA_USE_RATE, 0) AS DURATION
               FROM M4E_I401120
              WHERE CAPA_USE_RATE IS NOT NULL
-               AND FP_VRSN_ID = '{kwargs['fp_version']}'
+               AND FP_VRSN_ID = '{kwargs['fp_vrsn_id']}'
+               AND FP_VRSN_SEQ = '{kwargs['fp_vrsn_seq']}'
                AND CAPA_USE_RATE > 0
-              AND PLANT_CD NOT IN ('K170')
+            -- AND PLANT_CD NOT IN ('K170')
         """
         return sql
 
@@ -120,6 +124,7 @@ class Query(object):
             SELECT FP_VRSN_SEQ
               FROM M4E_O402130
              WHERE FP_VRSN_ID = '{kwargs['fp_vrsn_id']}'
+               AND FP_VRSN_SEQ = '{kwargs['fp_vrsn_seq']}'
              GROUP BY FP_VRSN_SEQ     
         """
         return sql
@@ -130,16 +135,17 @@ class Query(object):
     @staticmethod
     def sql_res_avail_time(**kwargs):
         sql = f"""
-        SELECT PLANT_CD
-             , RES_CD
-             , CAPA01_VAL AS CAPACITY1
-             , CAPA02_VAL AS CAPACITY2
-             , CAPA03_VAL AS CAPACITY3
-             , CAPA04_VAL AS CAPACITY4
-             , CAPA05_VAL AS CAPACITY5
-          FROM M4E_I401140
-         WHERE FP_VRSN_ID = '{kwargs['fp_version']}'
-         AND PLANT_CD NOT IN ('K170')
+            SELECT PLANT_CD
+                 , RES_CD
+                 , CAPA01_VAL AS CAPACITY1
+                 , CAPA02_VAL AS CAPACITY2
+                 , CAPA03_VAL AS CAPACITY3
+                 , CAPA04_VAL AS CAPACITY4
+                 , CAPA05_VAL AS CAPACITY5
+              FROM M4E_I401140
+             WHERE FP_VRSN_ID = '{kwargs['fp_vrsn_id']}'
+               AND FP_VRSN_SEQ = '{kwargs['fp_vrsn_seq']}'
+            -- AND PLANT_CD NOT IN ('K170')
         """
         return sql
 
@@ -154,8 +160,9 @@ class Query(object):
                  , WORKING_TIME AS JC_TIME
                  , UNIT_CD AS JC_UNIT
               FROM M4E_I401271
-             WHERE FP_VRSN_ID = '{kwargs['fp_version']}'
-            AND PLANT_CD NOT IN ('K170')
+             WHERE FP_VRSN_ID = '{kwargs['fp_vrsn_id']}'
+               AND FP_VRSN_SEQ = '{kwargs['fp_vrsn_seq']}'
+            -- AND PLANT_CD NOT IN ('K170')
         """
         return sql
 
@@ -195,8 +202,9 @@ class Query(object):
                  , PKG_CTGRI_SUB_CD_1 AS PKG1
                  , PKG_CTGRI_SUB_CD_2 AS PKG2
                  , IS_SIMULTANEOUS AS SIM_YN
-            FROM M4E_I401280
-            WHERE FP_VRSN_ID = '{kwargs['fp_version']}'
+              FROM M4E_I401280
+             WHERE FP_VRSN_ID = '{kwargs['fp_vrsn_id']}'
+               AND FP_VRSN_SEQ = '{kwargs['fp_vrsn_seq']}'
         """
         return sql
 

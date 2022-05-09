@@ -4,12 +4,7 @@ import os
 import datetime
 
 fp_num = '01'
-fp_seq = '1'
-# 001 : Default (K130) (complete) - 2022W16
-# 002 : Resource capacity constraint (K130) (complete) - 2022W16
-# 003 : Resource capacity constraint (K120) (complete) - 2022W16
-# 004 : Job change constraint (K130) - 2022W16
-# 005 : Simultaneous production constraint (K130) - 2022W16
+fp_seq = '2'
 
 base_path = {
     'root': os.path.join('..', '..'),
