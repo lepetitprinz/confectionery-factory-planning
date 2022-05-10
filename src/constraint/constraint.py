@@ -4,7 +4,7 @@ import common.util as util
 import numpy as np
 import pandas as pd
 import datetime as dt
-from typing import Hashable, Dict, Union
+from typing import Hashable, Dict, Union, Tuple
 
 
 class Human(object):
@@ -12,23 +12,32 @@ class Human(object):
     key_human_usage = config.key_human_usage    # Human usage
     key_res_avail_time = config.key_res_avail_time
 
-    col_dmd = config.col_dmd
-    col_sku = config.col_sku
+    # Column: Item
     col_pkg = config.col_pkg
+    col_sku = config.col_sku
+
+    # Column: Demand
+    col_dmd = config.col_dmd
     col_item = config.col_item
     col_plant = config.col_plant
+    col_start_time = config.col_start_time
+    col_end_time = config.col_end_time
+    col_duration = config.col_duration
+
+    # Column: Resource
     col_res = config.col_res
     col_res_grp = config.col_res_grp
     col_due_date = config.col_due_date
     col_res_capa = config.col_res_capa
 
-    col_duration = config.col_duration
-    col_end_time = config.col_end_time
-    col_start_time = config.col_start_time
+    # Column: Constraint
+    col_m_val = config.col_m_val
+    col_w_val = config.col_w_val
+    col_floor = config.col_floor
 
     use_col_item = [col_sku, col_item, col_pkg]
     use_col_dmd = [col_dmd, col_res_grp, col_sku, col_due_date]
-    use_col_human_capa = [col_plant, 'floor', 'm_val', 'w_val']
+    use_col_human_capa = [col_plant, col_floor, col_m_val, col_w_val]
 
     def __init__(
             self,
@@ -49,40 +58,43 @@ class Human(object):
         self.prod_time_comp_standard = 'min'
 
         # Time instance attribute
-        self.work_day = 5    # Monday ~ Friday
+        self.work_day = 5          # Monday ~ Friday
         self.sec_of_day = 86400    # Seconds of 1 day
         self.time_multiple = 60    # Minute -> Seconds
-        self.schedule_weeks = 30
+        self.schedule_weeks = 17
         self.plant_start_hour = 0
 
     def apply(self, data):
         # preprocess demand
-        dmd_by_floor, non_apply_dmd = self.preprocess(data=data)
+        capa_apply_dmd, non_apply_dmd = self.preprocess(data=data)
 
         # Resource to capacity map
         self.set_res_capacity(data=self.cstr[self.key_res_avail_time])
 
         result = pd.DataFrame()
-        for floor, schedule_dmd in dmd_by_floor.items():
+        for floor, schedule_dmd in capa_apply_dmd.items():
+            # Initialization
             curr_capa = self.floor_capa[floor]
-            fixed_schedule = pd.DataFrame()
-            curr_prod_dmd = pd.DataFrame()
+            confirmed_schedule = pd.DataFrame()    # confirmed schedule
+            curr_prod_dmd = pd.DataFrame()     # Current producing demand
+
             while len(schedule_dmd) > 0:
-                # Search
-                print(curr_capa)
-                cand_dmd = self.search_dmd_candidate(data=schedule_dmd, curr_prod_dmd=curr_prod_dmd)
-                if cand_dmd is not None:
-                    flag = self.check_prod_availability(curr_capa=curr_capa, data=cand_dmd)
+                # Search demand candidate
+                candidate_dmd = self.search_candidate_dmd(data=schedule_dmd, curr_prod_dmd=curr_prod_dmd)
+
+                # Check that capacity is available
+                if candidate_dmd is not None:
+                    flag = self.check_available_capa(curr_capa=curr_capa, data=candidate_dmd)
                 else:
                     flag = False
 
                 if flag:
                     # Confirm demand production
-                    curr_capa, schedule_dmd, fixed_schedule, curr_prod_dmd = self.confirm_dmd_prod(
+                    curr_capa, schedule_dmd, confirmed_schedule, curr_prod_dmd = self.confirm_dmd_prod(
                         curr_capa=curr_capa,
-                        cand_dmd=cand_dmd,
+                        candidate_dmd=candidate_dmd,
                         schedule_dmd=schedule_dmd,
-                        fixed_schedule=fixed_schedule,
+                        confirmed_schedule=confirmed_schedule,
                         curr_prod_dmd=curr_prod_dmd,
                     )
                 else:
@@ -97,7 +109,7 @@ class Human(object):
                             schedule_dmd=schedule_dmd,
                             curr_time=curr_time,
                         )
-            result = pd.concat([result, fixed_schedule])
+            result = pd.concat([result, confirmed_schedule])
 
         return result
 
@@ -129,44 +141,60 @@ class Human(object):
 
         self.res_to_capa = res_to_capa
 
-    def connect_continuous_capa(self, data: list):
+    @staticmethod
+    def connect_continuous_capa(data: list):
         result = []
         idx = 0
         add_idx = 1
+        curr_capa = []
         while idx + add_idx < len(data):
-            curr = data[idx]
-            next = data[idx + add_idx]
-            if curr[1] == next[0]:
-                curr[1] = next[1]
+            curr_capa = data[idx]
+            next_capa = data[idx + add_idx]
+            if curr_capa[1] == next_capa[0]:
+                curr_capa[1] = next_capa[1]
                 add_idx += 1
             else:
-                result.append(curr)
+                result.append(curr_capa)
                 idx += add_idx
                 add_idx = 1
 
-        result.append(curr)
+        result.append(curr_capa)
 
         return result
 
-    def update_remain_dmd_timeline(self, schedule_dmd, curr_time):
-        moving_res_list = schedule_dmd[schedule_dmd[self.col_start_time] < curr_time][self.col_res].unique()
-        move_dmd = schedule_dmd[schedule_dmd[self.col_res].isin(moving_res_list)].copy()
-        non_move_dmd = schedule_dmd[~schedule_dmd[self.col_res].isin(moving_res_list)].copy()
+    def update_remain_dmd_timeline(self, schedule_dmd: pd.DataFrame, curr_time: int) -> pd.DataFrame:
+        # Classify timeline movement
+        move_dmd, non_move_dmd = self.classify_dmd_move_or_not(data=schedule_dmd, time=curr_time)
 
-        # move timeline by each resource
-        move_dmd_add_time = pd.DataFrame()
-        for res, res_df in move_dmd.groupby(by=self.col_res):
-            time_gap = max(0, curr_time - res_df[self.col_start_time].min())
-            res_df[self.col_end_time] = res_df[self.col_end_time] + int(time_gap)
-            res_df[self.col_start_time] = res_df[self.col_start_time] + int(time_gap)
-            move_dmd_add_time = move_dmd_add_time.append(res_df)
+        # Move timeline by each resource
+        time_moved_dmd = self.move_timeline(data=move_dmd, time=curr_time)
 
-        if len(move_dmd_add_time) > 0:
-            move_dmd_add_time = self.apply_res_capa_on_timeline(data=move_dmd_add_time)
-        revised_dmd = pd.concat([move_dmd_add_time, non_move_dmd], axis=0)
+        if len(time_moved_dmd) > 0:
+            time_moved_dmd = self.apply_res_capa_on_timeline(data=time_moved_dmd)
+
+        revised_dmd = pd.concat([time_moved_dmd, non_move_dmd], axis=0)
         revised_dmd = revised_dmd.reset_index(drop=True)
 
         return revised_dmd
+
+    # Classify the demand if timeline will be moved or not
+    def classify_dmd_move_or_not(self, data: pd.DataFrame, time: int) -> Tuple[pd.DataFrame, pd.DataFrame]:
+        moving_res_list = data[data[self.col_start_time] < time][self.col_res].unique()
+        move_dmd = data[data[self.col_res].isin(moving_res_list)].copy()
+        non_move_dmd = data[~data[self.col_res].isin(moving_res_list)].copy()
+
+        return move_dmd, non_move_dmd
+
+    # Move timeline by each resource
+    def move_timeline(self, data: pd.DataFrame, time: int) -> pd.DataFrame:
+        time_moved_dmd = pd.DataFrame()
+        for res, res_df in data.groupby(by=self.col_res):
+            time_gap = max(0, time - res_df[self.col_start_time].min())
+            res_df[self.col_end_time] = res_df[self.col_end_time] + int(time_gap)
+            res_df[self.col_start_time] = res_df[self.col_start_time] + int(time_gap)
+            time_moved_dmd = time_moved_dmd.append(res_df)
+
+        return time_moved_dmd
 
     def apply_res_capa_on_timeline(self, data):
         applied_data = pd.DataFrame()
@@ -210,77 +238,92 @@ class Human(object):
 
         return applied_data
 
-    def finish_latest_dmd(self, curr_capa, curr_prod_dmd):
+    def finish_latest_dmd(self, curr_capa, curr_prod_dmd: pd.DataFrame):
         latest_finish_dmd = curr_prod_dmd[curr_prod_dmd[self.col_end_time] == curr_prod_dmd[self.col_end_time].min()]
 
         # Update current time    # Todo: need to check the logic
         curr_time = latest_finish_dmd[self.col_end_time].values[0]
 
-        # Update current human capacity
-        finished_dmd_capa = latest_finish_dmd[['m_val', 'w_val']].values.sum(axis=0)
+        # Update human capacity
+        finished_dmd_capa = latest_finish_dmd[[self.col_m_val, self.col_w_val]].values.sum(axis=0)
         curr_capa = curr_capa + finished_dmd_capa
 
-        # Update current producing demand
+        # Drop the demand that is finished
         curr_prod_dmd = curr_prod_dmd.drop(labels=latest_finish_dmd.index)
 
         return curr_capa, curr_time, curr_prod_dmd
 
-    def confirm_dmd_prod(self, curr_capa, cand_dmd: pd.Series, schedule_dmd: pd.DataFrame,
-                         fixed_schedule: pd.DataFrame, curr_prod_dmd: pd.DataFrame):
-        # dmd = cand_dmd[cand_dmd['kind'] == 'demand']
-        dmd_usage = [cand_dmd['m_val'], cand_dmd['w_val']]
+    def confirm_dmd_prod(self, curr_capa, candidate_dmd: pd.Series, schedule_dmd: pd.DataFrame,
+                         confirmed_schedule: pd.DataFrame, curr_prod_dmd: pd.DataFrame):
+        # Get demand usage
+        dmd_usage = [candidate_dmd[self.col_m_val], candidate_dmd[self.col_w_val]]
 
         # update current capacity
         curr_capa = curr_capa - dmd_usage
 
         # add production information
-        fixed_schedule = fixed_schedule.append(cand_dmd)
+        confirmed_schedule = confirmed_schedule.append(candidate_dmd)
 
-        # Remove on candidates
-        schedule_dmd = schedule_dmd.drop(labels=cand_dmd.name)
+        # Remove confirmed demand from candidates
+        schedule_dmd = schedule_dmd.drop(labels=candidate_dmd.name)
 
         # Update current production demand
-        curr_prod_dmd = curr_prod_dmd.append(cand_dmd)
+        curr_prod_dmd = curr_prod_dmd.append(candidate_dmd)
 
-        return curr_capa, schedule_dmd, fixed_schedule, curr_prod_dmd
+        return curr_capa, schedule_dmd, confirmed_schedule, curr_prod_dmd
 
-    def search_dmd_candidate(self, data: pd.DataFrame, curr_prod_dmd: pd.DataFrame) -> Union[pd.Series, None]:
-        # Filter current using resource
+    def search_candidate_dmd(self, data: pd.DataFrame, curr_prod_dmd: pd.DataFrame) -> Union[pd.Series, None]:
+        # Filter resources that are used now
         if len(curr_prod_dmd) > 0:
-            using_resource = curr_prod_dmd[self.col_res].unique()
-            data = data[~data[self.col_res].isin(using_resource)].copy()
+            data = self.exclude_current_use_resource(data=data, curr_prod_dmd=curr_prod_dmd)
+
+            # if all of resource are used then none of demand can be made
             if len(data) == 0:
                 return None
 
-        min_start_dmd = data[data[self.col_start_time] == data[self.col_start_time].min()]
-        if len(min_start_dmd) == 1:
-            pass
-        else:
-            min_start_dmd = min_start_dmd[min_start_dmd[self.col_due_date] == min_start_dmd[self.col_due_date].min()]
-            if len(min_start_dmd) == 1:
-                pass
-            else:
-                min_start_dmd = min_start_dmd.sort_values(by=self.col_duration, ascending=True)
-                if len(min_start_dmd) == 0:
-                    print("")
-                if self.prod_time_comp_standard == 'min':
-                    min_start_dmd = min_start_dmd.iloc[0]
-                else:
-                    min_start_dmd = min_start_dmd.iloc[-1]
+        # Search the first start demand on product start time
+        fst_start_dmd = data[data[self.col_start_time] == data[self.col_start_time].min()]
 
-        if isinstance(min_start_dmd, pd.DataFrame):
-            min_start_dmd = min_start_dmd.squeeze()
+        if len(fst_start_dmd) > 1:
+            # Search the first start demand on product due date
+            fst_start_dmd = fst_start_dmd[fst_start_dmd[self.col_due_date] == fst_start_dmd[self.col_due_date].min()]
 
-        return min_start_dmd
+            if len(fst_start_dmd) > 1:
+                # Search the first start demand on product duration
+                fst_start_dmd = fst_start_dmd.sort_values(by=self.col_duration, ascending=True)
+                fst_start_dmd = self.first_start_by_duration(data=fst_start_dmd)
 
-    def check_prod_availability(self, curr_capa, data: Union[pd.DataFrame, pd.Series]):
+        # Convert dataframe to series if result is dataframe
+        if isinstance(fst_start_dmd, pd.DataFrame):
+            fst_start_dmd = fst_start_dmd.squeeze()
+
+        return fst_start_dmd
+
+    # Exclude resources that are currently used
+    def exclude_current_use_resource(self, data, curr_prod_dmd) -> pd.DataFrame:
+        using_resource = curr_prod_dmd[self.col_res].unique()
+
+        # Filter resources that are used now
+        data = data[~data[self.col_res].isin(using_resource)].copy()
+
+        return data
+
+    def first_start_by_duration(self, data: pd.DataFrame):
+        if self.prod_time_comp_standard == 'min':
+            data = data.iloc[0]
+        elif self.prod_time_comp_standard == 'max':
+            data = data.iloc[-1]
+
+        return data
+
+    def check_available_capa(self, data: Union[pd.DataFrame, pd.Series], curr_capa):
         flag = False
-        # dmd = data[data['kind'] == 'demand']
+
         dmd_usage = None
         if isinstance(data, pd.DataFrame):
-            dmd_usage = data[['m_val', 'w_val']].values[0]
+            dmd_usage = data[[self.col_m_val, self.col_w_val]].values[0]
         elif isinstance(data, pd.Series):
-            dmd_usage = [data['m_val'], data['w_val']]
+            dmd_usage = [data[self.col_m_val], data[self.col_w_val]]
 
         diff = curr_capa - dmd_usage
         if sum(diff < 0) == 0:
@@ -295,20 +338,17 @@ class Human(object):
         data = self.prep_result(data=data)
         self.prep_capacity()
 
-        apply_dmd, non_apply_dmd = self.separate_dmd_on_capa_existence(
+        capa_apply_dmd, non_apply_dmd = self.separate_dmd_on_capa_existence(
             item=item,
             usage=usage,
             result=data
         )
 
-        dmd_by_floor = self.set_dmd_list_by_floor(data=apply_dmd)
+        capa_apply_dmd = self.set_dmd_list_by_floor(data=capa_apply_dmd)
 
-        return dmd_by_floor, non_apply_dmd
+        return capa_apply_dmd, non_apply_dmd
 
     def separate_dmd_on_capa_existence(self, item: pd.DataFrame, usage: pd.DataFrame, result: pd.DataFrame):
-        # add due date information
-        dmd = pd.merge(result, item, on=self.col_sku)
-
         # add item information (item / pkg)
         dmd = pd.merge(result, item, on=self.col_sku)
 
@@ -320,8 +360,8 @@ class Human(object):
         apply_dmd = pd.merge(apply_dmd, usage, how='left', on=[self.col_res_grp, self.col_item, self.col_pkg])
 
         # separate demands based on resource (internal/external)
-        non_apply_dmd = pd.concat([non_apply_dmd, apply_dmd[apply_dmd['floor'].isnull()]])
-        apply_dmd = apply_dmd[~apply_dmd['floor'].isnull()]
+        non_apply_dmd = pd.concat([non_apply_dmd, apply_dmd[apply_dmd[self.col_floor].isnull()]])
+        apply_dmd = apply_dmd[~apply_dmd[self.col_floor].isnull()]
 
         drop_col = [self.col_plant, self.col_item, self.col_pkg]
         non_apply_dmd = non_apply_dmd.drop(columns=drop_col)
@@ -329,13 +369,14 @@ class Human(object):
 
         return apply_dmd, non_apply_dmd
 
-    def prep_item(self):
+    def prep_item(self) -> pd.DataFrame:
         item = self.item
         item = item[self.use_col_item]
         item = item.drop_duplicates()
 
         return item
 
+    # Preprocess the human usage dataset
     def prep_capacity(self) -> None:
         capacity = self.cstr[self.key_human_capa]
 
@@ -343,12 +384,13 @@ class Human(object):
         capacity = capacity[capacity[self.col_plant] == self.plant]
 
         floor_capa = {}
-        for floor, m_val, w_val in zip(capacity['floor'], capacity['m_val'], capacity['w_val']):
+        for floor, m_val, w_val in zip(capacity[self.col_floor], capacity[self.col_m_val], capacity[self.col_w_val]):
             floor_capa[floor] = np.array([m_val, w_val])
 
         self.floor_capa = floor_capa
 
-    def prep_usage(self):
+    # Preprocess the human usage dataset
+    def prep_usage(self) -> pd.DataFrame:
         usage = self.cstr[self.key_human_usage]
 
         # Temp
@@ -362,6 +404,7 @@ class Human(object):
 
         # Temp
         usage[self.col_pkg] = [val.zfill(5) for val in usage[self.col_pkg].values]
+
         return usage
 
     def prep_result(self, data: pd.DataFrame) -> pd.DataFrame:
@@ -373,16 +416,10 @@ class Human(object):
         return data
 
     def set_dmd_list_by_floor(self, data: pd.DataFrame) -> Dict[Hashable, pd.DataFrame]:
-        data['duration'] = data[self.col_end_time] - data[self.col_start_time]
+        data[self.col_duration] = data[self.col_end_time] - data[self.col_start_time]
 
         dmd_by_floor = {}
-        for floor, floor_df in data.groupby(by='floor'):
+        for floor, floor_df in data.groupby(by=self.col_floor):
             dmd_by_floor[floor] = floor_df
 
         return dmd_by_floor
-
-    def get_prod_start_time(self):
-        pass
-
-    def determine_prod_dmd(self):
-        pass

@@ -8,6 +8,9 @@ import datetime as dt
 
 
 class Save(object):
+    ############################################
+    # Columns configuration
+    ############################################
     # Demand
     col_date = 'yymmdd'
     col_plant = config.col_plant
@@ -19,8 +22,12 @@ class Save(object):
     col_res_capa = config.col_res_capa
     col_duration = config.col_duration
 
+    col_fp_version_id = 'fp_vrsn_id'
+    col_fp_version_seq = 'fp_vrsn_seq'
+
     def __init__(
             self,
+            data,
             io,
             query,
             plant: str,
@@ -31,6 +38,8 @@ class Save(object):
             res_grp_mst,
             res_to_res_grp
     ):
+        self.data = data
+
         # Class instance attribute
         self.io = io
         self.query = query
@@ -39,7 +48,9 @@ class Save(object):
         self.fp_seq = fp_seq
         self.fp_name = fp_name
         self.fp_version = fp_version
+        self.project_cd = config.project_cd
 
+        self.sec_of_half_day = 43200
         self.split_hour = dt.timedelta(hours=12)
 
         # Constraint instance attribute
@@ -47,23 +58,57 @@ class Save(object):
         self.res_to_res_grp = res_to_res_grp
         self.res_grp_mst = res_grp_mst
 
-    def to_csv(self, data: pd.DataFrame, path, name: str) -> None:
+    def to_csv(self, path, name: str) -> None:
         save_dir = os.path.join(path, 'opt', 'csv', self.fp_version)
         util.make_dir(path=save_dir)
 
         # Save the optimization result
-        data.to_csv(os.path.join(save_dir, name + '_' + self.fp_name + '.csv'),
-                    index=False, encoding='cp949')
+        self.data.to_csv(os.path.join(save_dir, name + '_' + self.fp_name + '.csv'), index=False, encoding='cp949')
 
-    def res_status(self, data, seq):
-        timeline_list = []
-        for res, res_df in data.groupby(self.col_res):
+    def res_status(self):
+        # Get resource timeline
+        timeline = self.get_res_timeline()
+
+        # Preprocess resource status dataset
+        res_status = self.prep_res_status(data=timeline)
+
+        # Divide demand / job change result
+        res_final = self.divide_dmd_jc_data(data=res_status)
+
+        # Set resource capacity
+        res_final = self.set_res_capacity(data=res_final)
+
+        # Split resource capacity to day and night
+        res_final = self.split_res_capa_day_night(data=res_final)
+
+        # Set the resource unavailable time
+        res_final = self.set_res_unavail_time(data=res_final)
+
+        # Resource available time
+        res_final['res_avail_val'] = res_final['res_capa_val'] - res_final['res_use_capa_val'] - res_final['res_jc_val']
+
+        # Add information
+        res_final = self.add_model_info(data=res_final)
+
+        # Delete previous result
+        kwargs = {'fp_version': self.fp_version, 'fp_seq': self.fp_seq, 'plant_cd': self.plant}
+        self.io.delete_from_db(sql=self.query.del_res_status_result(**kwargs))
+
+        # Save the result on DB
+        self.io.insert_to_db(df=res_final, tb_name='M4E_O402050')
+
+    def get_res_timeline(self):
+        timeline = []
+        for res, res_df in self.data.groupby(self.col_res):
             for kind, kind_df in res_df.groupby('kind'):
                 for start, end in zip(kind_df['start'], kind_df['end']):
-                    timeline_list.extend(self.calc_res_duration(res=res, kind=kind, start=start, end=end))
+                    timeline.extend(self.calc_res_duration(res=res, kind=kind, start=start, end=end))
 
+        return timeline
+
+    def prep_res_status(self, data):
         res_status = pd.DataFrame(
-            timeline_list,
+            data,
             columns=[self.col_res, 'kind', self.col_date, self.col_time_idx_type, self.col_duration]
         )
         res_status[self.col_date] = res_status[self.col_date].dt.strftime('%Y%m%d')
@@ -73,63 +118,79 @@ class Save(object):
             .sum() \
             .reset_index()
 
-        res_status_dmd = res_status[res_status['kind'] == 'demand'].copy()
-        res_status_dmd = res_status_dmd.rename(columns={self.col_duration: 'res_use_capa_val'})
-        res_status_dmd = res_status_dmd.drop(columns=['kind'])
-        res_status_jc = res_status[res_status['kind'] == 'job_change'].copy()
-        res_status_jc = res_status_jc.rename(columns={self.col_duration: 'res_jc_val'})
-        res_status_jc = res_status_jc.drop(columns=['kind'])
+        return res_status
 
-        res_final = pd.merge(res_status_dmd, res_status_jc, how='left',
-                             on=[self.col_res, self.col_date, self.col_time_idx_type]).fillna(0)
+    def divide_dmd_jc_data(self, data):
+        # Demand
+        dmd = data[data['kind'] == 'demand'].copy()
+        dmd = dmd.rename(columns={self.col_duration: 'res_use_capa_val'})
+        dmd = dmd.drop(columns=['kind'])
 
+        # Job change
+        jc = data[data['kind'] == 'job_change'].copy()
+        jc = jc.rename(columns={self.col_duration: 'res_jc_val'})
+        jc = jc.drop(columns=['kind'])
+
+        result = pd.merge(dmd, jc, how='left', on=[self.col_res, self.col_date, self.col_time_idx_type]).fillna(0)
+
+        return result
+
+    def set_res_capacity(self, data):
         # Resource usage
-        res_final['day'] = [dt.datetime.strptime(day, '%Y%m%d').weekday() for day in res_final[self.col_date]]
+        data['day'] = [dt.datetime.strptime(day, '%Y%m%d').weekday() for day in data[self.col_date]]
         res_capa = []
-        for res, day in zip(res_final[self.col_res], res_final['day']):
+        for res, day in zip(data[self.col_res], data['day']):
             res_avail_time = self.res_avail_time[res]
-            # Todo : Temp
-            res_avail_time = [res_avail_time[0]] + [1440, 1440, 1440] + [res_avail_time[-1]]
+            # res_avail_time = [res_avail_time[0]] + [1440, 1440, 1440] + [res_avail_time[-1]]
             res_capa.append(res_avail_time[day] * 60)
-        res_final[self.col_res_capa] = res_capa
 
-        # Resource capacity time
+        data[self.col_res_capa] = res_capa
+
+        return data
+
+    def split_res_capa_day_night(self, data):
         res_capa_val = []
         for day, time_idx_type, capacity in zip(
-                res_final['day'], res_final[self.col_time_idx_type], res_final[self.col_res_capa]):
+                data['day'], data[self.col_time_idx_type], data[self.col_res_capa]):
             val = self.calc_day_night_res_capacity(day=day, time_idx_type=time_idx_type, capacity=capacity)
             res_capa_val.append(val)
-        res_final['res_capa_val'] = res_capa_val
+        data['res_capa_val'] = res_capa_val
 
-        # Resource unavailable time
+        return data
+
+    def set_res_unavail_time(self, data):
         res_unavail_val = []
-        for day, time_idx_type, capacity in zip(
-                res_final['day'], res_final[self.col_time_idx_type], res_final['res_capa_val']):
-            val = self.calc_res_unavail_time(day=day, time_idx_type=time_idx_type, capacity=capacity)
+        for day, capacity in zip(data['day'], data['res_capa_val']):
+            val = self.calc_res_unavail_time(day=day, capacity=capacity)
             res_unavail_val.append(val)
-        res_final['res_unavail_val'] = res_unavail_val
 
-        # Resource available time
-        res_final['res_avail_val'] = res_final['res_capa_val'] - res_final['res_use_capa_val'] - res_final['res_jc_val']
+        data['res_unavail_val'] = res_unavail_val
 
+        return data
+
+    def calc_res_unavail_time(self, day: int, capacity: int):
+        val = 0
+        if day in [0, 4]:
+            val = self.sec_of_half_day - capacity
+        elif day in [1, 2, 3]:
+            val = 0   # ToDo: temp
+            # val = self.sec_of_half_day * 2 - capacity    # ToDo: will be used
+
+        return val
+
+    def add_model_info(self, data):
         res_grp_mst = self.res_grp_mst[[self.col_res, 'res_type_cd']]
-        res_final = pd.merge(res_final, res_grp_mst, how='left', on=self.col_res).fillna('UNDEFINED')
-        res_final = res_final.rename(columns={'res_type_cd': 'capa_type_cd'})
+        data = pd.merge(data, res_grp_mst, how='left', on=self.col_res).fillna('UNDEFINED')
+        data = data.rename(columns={'res_type_cd': 'capa_type_cd'})
 
-        # Add information
-        res_final[self.col_plant] = self.plant
-        res_final[self.col_res_grp] = [self.res_to_res_grp.get(res_cd, 'UNDEFINED')
-                                       for res_cd in res_final[self.col_res]]
-        res_final = self.add_version_info(data=res_final, seq=seq)
+        data[self.col_plant] = self.plant
+        data[self.col_res_grp] = [self.res_to_res_grp.get(res_cd, 'UNDEFINED')
+                                  for res_cd in data[self.col_res]]
+        data = self.add_version_info(data=data)
 
-        res_final = res_final.drop(columns=[self.col_res_capa, 'day', 'res_capa_val'])
+        data = data.drop(columns=[self.col_res_capa, 'day', 'res_capa_val'])
 
-        # Delete previous result
-        kwargs = {'fp_version': self.fp_version, 'fp_seq': self.fp_seq, 'plant_cd': self.plant}
-        self.io.delete_from_db(sql=self.query.del_res_status_result(**kwargs))
-
-        # Save the result on DB
-        self.io.insert_to_db(df=res_final, tb_name='M4E_O402050')
+        return data
 
     def calc_res_duration(self, res, kind, start, end):
         timeline = []
@@ -223,11 +284,11 @@ class Save(object):
 
         return val
 
-    def add_version_info(self, data: pd.DataFrame, seq: str):
+    def add_version_info(self, data: pd.DataFrame):
         data['project_cd'] = self.project_cd
         data['create_user_cd'] = 'SYSTEM'
         data[self.col_fp_version_id] = self.fp_version
-        data[self.col_fp_version_seq] = seq
+        data[self.col_fp_version_seq] = self.fp_seq
 
         return data
 

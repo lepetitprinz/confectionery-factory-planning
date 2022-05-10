@@ -24,7 +24,7 @@ cstr_cfg = {
     'apply_res_available_time': True,
     'apply_job_change': True,
     'apply_prod_qty_multiple': True,
-    'apply_human_capacity': False,
+    'apply_human_capacity': True,
     'apply_sim_prod_cstr': False,    # Temp
 }
 

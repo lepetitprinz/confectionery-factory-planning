@@ -95,7 +95,7 @@ class Process(object):
         self.fp_seq = fp_seq
         self.fp_version = fp_version
         self.fp_name = fp_version + '_' + fp_seq + '_' + plant
-        self.project_cd = 'ENT001'
+        self.project_cd = config.project_cd
         self.act_mode_name_map = model_init['act_mode_name']
 
         # Plant instance attribute
@@ -134,8 +134,14 @@ class Process(object):
         # Calculate the average duration of producing item
         self.calc_item_res_avg_duration()
 
+        result = self.post_process_opt_result()
+
+        # Apply the constraint: Human capacity
+        if self.cstr_cfg['apply_human_capacity']:
+            result = self.apply_human_capa_const(data=result)
+
         # Best activity
-        self.post_process()
+        self.save(result=result)
 
     def set_res_to_res_grp(self) -> None:
         res_grp = self.res_grp.copy()
@@ -158,48 +164,62 @@ class Process(object):
 
         self.item_avg_duration = item_avg_duration
 
-    def post_process(self) -> None:
+    def post_process_opt_result(self):
         # Get the best sequence result
         activity = self.get_best_activity()
 
-        # Post process
         result = self.conv_to_df(data=activity, kind='activity')
+
+        # Fill nan values
         result = self.fill_na(data=result)
 
+        # Correct the job change error
         result = self.correct_job_change_error(data=result)
 
-        if self.cstr_cfg['apply_human_capacity']:
-            human_cstr = Human(
-                plant=self.plant,
-                plant_start_time=self.plant_start_time,
-                item=self.item_mst,
-                demand=self.demand,
-                cstr=self.cstr
-            )
-            print(f"Apply human capacity: Plant {self.plant}")
-            result = human_cstr.apply(data=result)
+        return result
 
-        result = self.change_timeline(data=result)
+    def apply_human_capa_const(self, data):
+        human_cstr = Human(
+            plant=self.plant,
+            plant_start_time=self.plant_start_time,
+            item=self.item_mst,
+            demand=self.demand,
+            cstr=self.cstr
+        )
+        # print(f"Apply human capacity: Plant {self.plant}")
+        result = human_cstr.apply(data=data)
 
+        return result
+
+    def save(self, result) -> None:
+        result = self.conv_num_to_datetime(data=result)
         prod_qty = self.calc_timeline_prod_qty(data=result)
 
         if self.exec_cfg['save_step_yn'] or self.exec_cfg['save_db_yn']:
             save = Save(
+                data=result,
+                io=self.io,
+                query=self.query,
+                plant=self.plant,
+                fp_seq=self.fp_seq,
+                fp_name=self.fp_name,
                 fp_version=self.fp_version,
-                fp_name=self.fp_name
+                res_avail_time=self.res_avail_time,
+                res_grp_mst=self.res_grp_mst,
+                res_to_res_grp=self.res_to_res_grp
             )
 
             if self.exec_cfg['save_step_yn']:
                 # Save the activity
-                save.to_csv(data=result, path=self.save_path, name='act')
+                save.to_csv(path=self.save_path, name='act')
 
                 # Save the result
-                save.to_csv(data=prod_qty, path=self.save_path, name='qty')
+                # save.to_csv(data=prod_qty, path=self.save_path, name='qty')
 
             if self.exec_cfg['save_db_yn']:
-                # seq = self.make_fp_seq()
                 # Resource status
-                self.save_res_status_on_db(data=result, seq=self.fp_seq)
+                save.res_status()
+                # self.save_res_status_on_db(data=result, seq=self.fp_seq)
 
                 # Demand (req quantity vs prod quantity)
                 self.save_req_prod_qty_on_db(data=result, seq=self.fp_seq)
@@ -469,7 +489,7 @@ class Process(object):
 
         return df
 
-    def change_timeline(self, data: pd.DataFrame):
+    def conv_num_to_datetime(self, data: pd.DataFrame):
         data['start'] = data[self.col_start_time].apply(
             lambda x: self.plant_start_time + dt.timedelta(seconds=x)
         )
@@ -666,7 +686,7 @@ class Process(object):
         # Save the result on DB
         self.io.insert_to_db(df=res_final, tb_name='M4E_O402050')
 
-    def calc_res_unavail_time(self, day: int, time_idx_type: str, capacity: int):
+    def calc_res_unavail_time(self, day: int, capacity: int):
         val = 0
         if day in [0, 4]:
             val = self.sec_of_half_day - capacity

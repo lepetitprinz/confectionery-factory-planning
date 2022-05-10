@@ -7,6 +7,9 @@ PORT = '1433'
 USER = 'matrix'            # User name
 PASSWORD = 'Diam0nd123!'   # User password
 
+
+project_cd = 'ENT001'
+
 ############################################
 # Data dictionary key configuration
 ############################################
@@ -69,6 +72,11 @@ col_job_change_to = 'to_res_cd'
 col_job_change_type = 'jc_type'
 col_job_change_time = 'jc_time'
 col_job_change_unit = 'jc_unit'
+
+# Column: Constraint
+col_m_val = 'm_val'
+col_w_val = 'w_val'
+col_floor = 'floor'
 
 # Constraint configuration
 prod_qty_multiple = 10
