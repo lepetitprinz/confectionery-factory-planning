@@ -211,19 +211,47 @@ class Preprocess(object):
 
         # Change data type
         data[self.col_res_grp] = data[self.col_res_grp].astype(str)
-        data[self.col_res + '1'] = data[self.col_res + '1'].astype(str)
-        data[self.col_res + '2'] = data[self.col_res + '2'].astype(str)
+        data[self.col_pkg + '1'] = data[self.col_pkg + '1'].astype(str)
+        data[self.col_pkg + '2'] = data[self.col_pkg + '2'].astype(str)
 
-        plant_sim_prod_cstr = {}
-        for plant, plant_df in data.groupby(by=self.col_plant):
-            res_grp_res = {}
-            for res_grp, res_grp_df in plant_df.groupby(by=self.col_res_grp):
-                res_grp_res[res_grp] = res_grp_df[[self.col_res + '1', self.col_res + '2']]\
-                    .set_index(self.col_res + '1')\
-                    .to_dict()[self.col_res + '2']
-            plant_sim_prod_cstr[plant] = res_grp_res
+        data_copy = data.copy()
+        pkg1 = data[self.col_pkg + '1'].copy()
+        pkg2 = data[self.col_pkg + '2'].copy()
+        data_copy[self.col_pkg + '1'] = pkg2
+        data_copy[self.col_pkg + '2'] = pkg1
+
+        data = pd.concat([data, data_copy], axis=0, ignore_index=True)
+
+        # Simultaneous type : necessary
+        necessary = data[data['sim_type'] == 'NEC']
+        nece_sim_prod_cstr = self.make_sim_prod_cstr_map(data=necessary)
+
+        # Simultaneous type : impossible
+        # impossible = data[data['is_simultaneous'] == 'IMP']
+        # impo_sim_prod_cstr = self.make_sim_prod_cstr_map(data=impossible)
+
+        plant_sim_prod_cstr = {
+            'necessary': nece_sim_prod_cstr,
+            # 'impossible': impo_sim_prod_cstr
+        }
 
         return plant_sim_prod_cstr
+
+    def make_sim_prod_cstr_map(self, data):
+        sim_prod_cstr = {}
+        for plant, plant_df in data.groupby(by=self.col_plant):
+            res_grp_brand = {}
+            for res_grp, res_grp_df in plant_df.groupby(by=self.col_res_grp):
+                brand_pkg = {}
+                for brand, brand_df in res_grp_df.groupby(by=self.col_brand):
+                    pkg1_pkg2 = []
+                    for pkg1, pkg2 in zip(brand_df[self.col_pkg + '1'], brand_df[self.col_pkg + '2']):
+                        pkg1_pkg2.append((pkg1, pkg2))
+                    brand_pkg[brand] = pkg1_pkg2
+                res_grp_brand[res_grp] = brand_pkg
+            sim_prod_cstr[plant] = res_grp_brand
+
+        return sim_prod_cstr
 
     def set_sku_type_map(self, data: pd.DataFrame) -> Dict[str, Tuple[str, str, str]]:
         sku_to_type = {item_cd: (brand, flavor, pkg) for item_cd, brand, flavor, pkg in

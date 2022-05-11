@@ -198,13 +198,14 @@ class Query(object):
         sql = f"""
             SELECT PLANT_CD
                  , RES_GRP_CD
-                 , ITEM_ATTR04_CD
+                 , ITEM_ATTR03_CD
                  , PKG_CTGRI_SUB_CD_1 AS PKG1
                  , PKG_CTGRI_SUB_CD_2 AS PKG2
-                 , IS_SIMULTANEOUS AS SIM_YN
+                 , IS_SIMULTANEOUS AS SIM_TYPE
               FROM M4E_I401280
              WHERE FP_VRSN_ID = '{kwargs['fp_vrsn_id']}'
                AND FP_VRSN_SEQ = '{kwargs['fp_vrsn_seq']}'
+               AND ITEM_ATTR01_CD = 'P1'
         """
         return sql
 

@@ -13,10 +13,11 @@ base_path = {
 
 # Step configuration
 step_cfg = {
-    'cls_load': False,
-    'cls_prep': False,
+    'cls_load': True,
+    'cls_cns': False,
+    'cls_prep': True,
     'cls_model': False,
-    'cls_pp': True,
+    'cls_pp': False,
 }
 
 # Constraint configuration
@@ -25,7 +26,7 @@ cstr_cfg = {
     'apply_job_change': True,
     'apply_prod_qty_multiple': True,
     'apply_human_capacity': True,
-    'apply_sim_prod_cstr': False,    # Temp
+    'apply_sim_prod_cstr': True,    # Temp
 }
 
 exec_cfg = {

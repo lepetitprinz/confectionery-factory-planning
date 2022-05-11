@@ -1,9 +1,9 @@
-import common.util as util
 import common.config as config
 from dao.DataIO import DataIO
 from common.sql import Query
 from init.init import Init
 from init.load import DataLoad
+from init.consistency import Consistency
 from init.preprocess import Preprocess
 from model.model import OptSeqModel
 from Post.process import Process
@@ -82,7 +82,19 @@ class Pipeline(object):
                 self.io.save_object(data=data, path=self.path['load_data'], data_type='binary')
 
         # =================================================================== #
-        # 3. Data preprocessing
+        # 3. Check the data consistency
+        # =================================================================== #
+        if self.step_cfg['cls_cns']:
+            print("Step: Check the data consistency")
+
+            if not self.step_cfg['cls_load']:
+                data = self.io.load_object(path=self.path['load_data'], data_type='binary')
+
+            cns = Consistency(data=data, path=self.base_path['root'])
+            cns.run()
+
+        # =================================================================== #
+        # 4. Data preprocessing
         # =================================================================== #
         prep_data = None
         if self.step_cfg['cls_prep']:

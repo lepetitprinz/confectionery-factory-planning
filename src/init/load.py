@@ -84,8 +84,7 @@ class DataLoad(object):
             # Human resource usage
             self.key_human_usage: self.io.load_from_db(sql=self.query.sql_res_human_usage(**self.fp_vrsn_dict)),
             # Simultaneous production constraint
-            self.key_sim_prod_cstr: self.io.load_object(    # ToDo: Temp dataset
-                path=os.path.join('..', '..', 'data', 'K130_simul_prod_cnst_sample.csv'), data_type='csv'),
+            self.key_sim_prod_cstr: self.io.load_from_db(sql=self.query.sql_sim_prod_cstr(**self.fp_vrsn_dict)),
         }
 
         return constraint
