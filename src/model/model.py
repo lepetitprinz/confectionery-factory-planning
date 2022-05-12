@@ -1,5 +1,6 @@
 import common.util as util
 import common.config as config
+from common.name import Key
 
 import os
 from itertools import permutations
@@ -8,23 +9,6 @@ from optimize.optseq import Model, Mode, Parameters, Activity, Resource
 
 
 class OptSeqModel(object):
-    ############################################
-    # Dictionary key configuration
-    ############################################
-    key_res = config.key_res
-    key_cstr = config.key_cstr
-
-    # Resource
-    key_res_grp = config.key_res_grp          # Resource group code
-    key_res_grp_nm = config.key_res_grp_nm    # Resource group name
-    key_item_res_duration = config.key_res_duration    # Resource duration
-
-    # Constraint
-    key_jc = config.key_jc
-    key_sku_type = config.key_sku_type
-    key_sim_prod_cstr = config.key_sim_prod_cstr
-    key_res_avail_time = config.key_res_avail_time
-
     # job change
     job_change_type = ['BRAND_CHANGE', 'FLAVOR_CHANGE', 'STANDARD_CHANGE']
 
@@ -36,27 +20,27 @@ class OptSeqModel(object):
 
     def __init__(
             self,
-            exec_cfg: dict,
-            cstr_cfg: dict,
-            except_cfg: dict,
+            cfg: dict,
             plant: str,
             plant_data: dict,
-            fp_seq: str,
-            fp_version: str,
+            version,
     ):
         # Execution instance attribute
-        self.exec_cfg = exec_cfg
-        self.cstr_cfg = cstr_cfg
-        self.except_cfg = except_cfg
+        self.exec_cfg = cfg['exec']
+        self.cstr_cfg = cfg['cstr']
+        self.except_cfg = cfg['except']
 
         self.plant = plant
-        self.fp_seq = fp_seq
-        self.fp_version = fp_version
-        self.fp_name = fp_version + '_' + fp_seq + '_' + plant
+        self.version = version
+        self.fp_version = version.fp_version
+        self.fp_name = version.fp_version + '_' + version.fp_seq + '_' + plant
+
+        # Name instance attribute
+        self.key = Key()
 
         # Resource instance attribute
         self.res_to_res_grp = {}
-        self.res_grp = plant_data[self.key_res][self.key_res_grp][plant]
+        self.res_grp = plant_data[self.key.res][self.key.res_grp][plant]
 
         # Resource capacity instance attribute
         self.work_days = 5
@@ -67,7 +51,7 @@ class OptSeqModel(object):
         # Resource Duration instance attribute
         self.time_unit = 'M'
         self.default_res_duration = 1
-        self.item_res_duration = plant_data[self.key_res][self.key_item_res_duration][plant]
+        self.item_res_duration = plant_data[self.key.res][self.key.res_duration][plant]
 
         # Path instance attribute
         self.save_path = os.path.join('..', '..', 'result')
@@ -76,16 +60,16 @@ class OptSeqModel(object):
         # Constraint
         # Resource available time instance attribute
         if self.cstr_cfg['apply_res_available_time']:
-            self.res_capa_days = plant_data[self.key_cstr][self.key_res_avail_time].get(plant, None)
+            self.res_capa_days = plant_data[self.key.cstr][self.key.res_avail_time].get(plant, None)
 
         # Job change instance attribute
         if self.cstr_cfg['apply_job_change']:
-            self.job_change = plant_data[self.key_cstr][self.key_jc].get(plant, None)
-            self.sku_to_type = plant_data[self.key_cstr][self.key_sku_type]
+            self.job_change = plant_data[self.key.cstr][self.key.jc].get(plant, None)
+            self.sku_to_type = plant_data[self.key.cstr][self.key.sku_type]
 
         # Simultaneous production
         if self.cstr_cfg['apply_sim_prod_cstr']:
-            self.sim_prod_cstr = plant_data[self.key_cstr][self.key_sim_prod_cstr].get(plant, None)
+            self.sim_prod_cstr = plant_data[self.key.cstr][self.key.sim_prod_cstr].get(plant, None)
 
     def init(self, plant: str, dmd_list: list, res_grp_dict: dict):
         # Step1. Instantiate the model

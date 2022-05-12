@@ -1,44 +1,43 @@
-from deployment.PipelineDev import Pipeline
+from deployment.pipelineDev import Pipeline
 
 import os
 import datetime
 
-
 fp_num = '01'
-fp_seq = '003'
-# 001 : Default (k130) (complete)
-# 002 : Resource capacity constraint (k130) (complete)
-# 003 : Resource capacity constraint (k120) (complete)
-# 004 : Job change constraint (k130)
+fp_seq = '1'
 
 base_path = {
     'root': os.path.join('..', '..'),
     'save': os.path.join('..', '..', 'result', 'pipeline')
 }
 
+# Step configuration
 step_cfg = {
     'cls_load': True,
+    'cls_cns': False,
     'cls_prep': True,
-    'cls_model': True,
-    'cls_pp': True,
+    'cls_model': False,
+    'cls_pp': False,
 }
 
 exec_cfg = {
-    'save_step_yn': True,
-    'save_db_yn': True,
-    'save_graph_yn': True,
+    'save_step_yn': False,
+    'save_db_yn': False,
+    'save_graph_yn': False,
     'verbose': False,
+}
+
+# Constraint configuration
+cstr_cfg = {
+    'apply_res_available_time': True,
+    'apply_job_change': True,
+    'apply_prod_qty_multiple': True,
+    'apply_human_capacity': True,
+    'apply_sim_prod_cstr': True,
 }
 
 except_cfg = {
     'miss_duration': 'remove'    # add / remove
-}
-
-cstr_cfg = {
-    'apply_res_available_time': True,
-    'apply_job_change': False,
-    'apply_prod_qty_multiple': False,
-    'apply_human_capacity': False,
 }
 
 # Check start time

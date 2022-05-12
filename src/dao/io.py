@@ -1,4 +1,4 @@
-from common.SqlSession import SqlSession
+from common.session import Session
 from common.sql import Query
 
 import json
@@ -9,7 +9,7 @@ import pandas as pd
 class DataIO(object):
     def __init__(self):
         self.sql_conf = Query()
-        self.session = SqlSession()
+        self.session = Session()
         self.session.init()
 
     # Read sql and converted to dataframe

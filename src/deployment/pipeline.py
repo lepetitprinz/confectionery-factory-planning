@@ -1,5 +1,5 @@
 import common.util as util
-from dao.DataIO import DataIO
+from dao.io import DataIO
 from common.sql import Query
 from init.init import Init
 from init.load import DataLoad

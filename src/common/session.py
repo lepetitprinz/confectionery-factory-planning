@@ -2,12 +2,12 @@ import common.config as config
 
 import pandas as pd
 from sqlalchemy import create_engine
-from sqlalchemy import Table, MetaData, insert
+from sqlalchemy import Table, MetaData
 from sqlalchemy.sql import text
 from sqlalchemy.exc import SQLAlchemyError
 
 
-class SqlSession(object):
+class Session(object):
     def __init__(self):
         # Create Engine Format(Microsoft SQL Server)
         # self.url = config.RDMS + '://' + config.USER + ':' + config.PASSWORD + \
@@ -99,11 +99,6 @@ class SqlSession(object):
                 print(f"Saving {tb_name} table is finished.\n")
 
     def delete(self, sql: str):
-        statement = text(sql)
-        with self.engine.connect() as conn:
-            conn.execute(statement)
-
-    def update(self, sql: str):
         statement = text(sql)
         with self.engine.connect() as conn:
             conn.execute(statement)
