@@ -1,6 +1,7 @@
 import common.config as config
 from common.name import Key, Demand, Item, Resource, Constraint
-from constraint.constraint import Human, SimultaneousProduct
+from constraint.capacity import Human
+from constraint.simultaneous import Necessary
 
 from Post.save import Save
 from Post.plot import Gantt
@@ -82,6 +83,7 @@ class Process(object):
         self.demand = data[self.key.dmd]
         self.res_mst = data[self.key.res][self.key.res_grp]
         self.item_mst = data[self.key.res][self.key.item]
+        self.cstr_mst = data[self.key.cstr]
 
         # Resource instance attribute
         self.res_to_res_grp = {}
@@ -161,8 +163,8 @@ class Process(object):
             plant=self.plant,
             plant_start_time=self.plant_start_time,
             item=self.item_mst,
+            cstr=self.cstr_mst,
             demand=self.demand,
-            cstr=self.cstr
         )
         # print(f"Apply human capacity: Plant {self.plant}")
         result = human_cstr.apply(data=data)
@@ -170,13 +172,12 @@ class Process(object):
         return result
 
     def apply_sim_prod_cstr(self, data):
-        sim_prod_cstr = SimultaneousProduct(
+        sim_prod_cstr = Necessary(
             plant=self.plant,
             plant_start_time=self.plant_start_time,
             demand=self.demand,
-            item_mst=self.item_mst,
             org_data=self.data,
-            cstr=self.sim_prod_cstr
+            sim_prod_cstr=self.sim_prod_cstr,
         )
         result = sim_prod_cstr.apply(data=data)
 

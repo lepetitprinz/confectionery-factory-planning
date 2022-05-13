@@ -168,7 +168,7 @@ class Query(object):
 
     @staticmethod
     def sql_res_human_usage(**kwargs):
-        sql = """
+        sql = f"""
             SELECT PLANT_CD
                  , RES_GRP_CD
                  , ITEM_ATTR04_CD
@@ -176,7 +176,10 @@ class Query(object):
                  , ATTR01_VAL AS FLOOR
                  , MP_M_VAL AS M_VAL
                  , MP_W_VAL AS W_VAL
-              FROM M4S_I402020
+             -- FROM M4S_I402020
+              FROM M4E_I401291
+             WHERE FP_VRSN_ID = '{kwargs['fp_vrsn_id']}'
+               AND FP_VRSN_SEQ = '{kwargs['fp_vrsn_seq']}'
         """
         return sql
 
