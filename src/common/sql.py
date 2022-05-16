@@ -176,24 +176,30 @@ class Query(object):
                  , ATTR01_VAL AS FLOOR
                  , MP_M_VAL AS M_VAL
                  , MP_W_VAL AS W_VAL
-             -- FROM M4S_I402020
               FROM M4E_I401291
              WHERE FP_VRSN_ID = '{kwargs['fp_vrsn_id']}'
                AND FP_VRSN_SEQ = '{kwargs['fp_vrsn_seq']}'
+               AND LEFT(YYMM, 4) = '{kwargs['yy']}'
+               AND WEEK = '{kwargs['week']}'
         """
         return sql
 
     @staticmethod
-    def sql_res_human_capacity():
-        sql = """
-            SELECT PLAN_YYMMDD
-                 , PLAN_WEEK
-                 , PLANT_CD
+    def sql_res_human_capacity(**kwargs):
+        sql = f"""
+            SELECT PLANT_CD
+                 , LEFT(PLAN_YYMM, 4) AS YY
+                 , PLAN_WEEK AS WEEK
                  , PLANT_F_VAL AS FLOOR
-                 , MP_M_VAL
-                 , MP_W_VAL
-              FROM M4S_I402023
+                 , MP_M_VAL AS M_VAL
+                 , MP_W_VAL AS W_VAL
+              FROM M4E_I401290
+             WHERE FP_VRSN_ID = '{kwargs['fp_vrsn_id']}'
+               AND FP_VRSN_SEQ = '{kwargs['fp_vrsn_seq']}'
+               AND LEFT(PLAN_YYMM, 4) = '{kwargs['yy']}'
+               AND PLAN_WEEK = '{kwargs['week']}'
         """
+
         return sql
 
     @staticmethod

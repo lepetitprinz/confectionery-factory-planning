@@ -29,8 +29,8 @@ cfg = {
         'apply_res_available_time': True,    # Resource capacity
         'apply_job_change': True,            # Job Change
         'apply_prod_qty_multiple': True,     #
-        'apply_human_capacity': False,       # Human capacity
-        'apply_sim_prod_cstr': True,         # Simultaneous production
+        'apply_human_capacity': True,       # Human capacity
+        'apply_sim_prod_cstr': False,         # Simultaneous production
     },
     'except': {
         'miss_duration': 'remove'    # add / remove

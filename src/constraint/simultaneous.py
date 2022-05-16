@@ -55,7 +55,9 @@ class Necessary(object):
         apply_dmd, non_apply_dmd = self.classify_sim_prod_possible_dmd(data=data)
 
         #
-        self.find_and_make_sim_product(apply_dmd_df=apply_dmd, all_dmd=data)
+        all_dmd = self.find_and_make_sim_product(apply_dmd_df=apply_dmd, all_dmd=data)
+
+        return all_dmd
 
     def preprocess(self, data: pd.DataFrame):
         res = self.prep_res()
@@ -179,6 +181,8 @@ class Necessary(object):
                 else:
                     all_dmd = self.arrange_sku_in_timeline(dmd=dmd, all_dmd=all_dmd, sku=sku)
 
+        return all_dmd
+
     def arrange_sku_in_timeline(self, dmd, all_dmd: pd.DataFrame, sku: str):
         # resource candidates (Resource list excluding apply demand resource)
         res_candidates = list(set(self.res_grp_to_res_map[dmd[self.res.res_grp]]) - {dmd[self.res.res]})
@@ -204,8 +208,7 @@ class Necessary(object):
             new_dmd = self.update_new_dmd(dmd=dmd, res=confirm_res, sku=sku)
 
             #
-            new_res_dmd = self.arrange_sku(new_dmd=new_dmd, all_dmd=all_dmd, confirm_res=confirm_res, flag=flag)
-            print("")
+            all_dmd = self.arrange_sku(new_dmd=new_dmd, all_dmd=all_dmd, confirm_res=confirm_res, flag=flag)
 
         return all_dmd
 
@@ -220,7 +223,7 @@ class Necessary(object):
 
     def arrange_sku(self, new_dmd, all_dmd, confirm_res, flag):
         if flag:
-            pass
+            all_dmd = all_dmd.append(new_dmd)
         else:
             # Split all of demand by confirmed resource
             res_dmd = all_dmd[all_dmd[self.res.res] == confirm_res]
@@ -236,18 +239,75 @@ class Necessary(object):
             time_gap = apply_end - move_dmd[self.dmd.start_time].min()
 
             # Move timeline
-            move_dmd[self.dmd.start_time] = move_dmd[self.dmd.start_time] + time_gap
-            move_dmd[self.dmd.end_time] = move_dmd[self.dmd.end_time] + time_gap
+            move_dmd = self.move_with_fixed_or_not(data=move_dmd, apply_end=apply_end)
+            # move_dmd[self.dmd.start_time] = move_dmd[self.dmd.start_time] + time_gap
+            # move_dmd[self.dmd.end_time] = move_dmd[self.dmd.end_time] + time_gap
 
             # Split
-            move_dmd = self.apply_res_capa_on_timeline(data=move_dmd)
+            move_dmd = self.apply_res_capa_on_timeline(data=move_dmd, res=confirm_res)
             # move_dmd = move_dmd.append(new_dmd).sort_values(by=self.dmd.start_time)
 
             res_dmd = pd.concat([non_move_dmd, move_dmd], axis=0, ignore_index=True).reset_index(drop=True)
             all_dmd = pd.concat([non_res_dmd, res_dmd], axis=0, ignore_index=True).reset_index(drop=True)
             all_dmd = all_dmd.append(new_dmd)
 
-            return all_dmd
+        return all_dmd
+
+    def move_with_fixed_or_not(self, data: pd.DataFrame,  apply_end):
+        data[self.dmd.duration] = data[self.dmd.end_time] - data[self.dmd.start_time]
+
+        applied_df = pd.DataFrame()
+        data = data.sort_values(by=self.dmd.start_time)
+        fixed_data = data[data['fixed'] == 1]
+        non_fixed_data = data[data['fixed'] == 0]
+        time_start = apply_end
+        impossible_period = []
+        applied_df = applied_df.append(fixed_data)
+        for impossible_start, impossible_end in zip(fixed_data[self.dmd.start_time], fixed_data[self.dmd.end_time]):
+            impossible_period.append([impossible_start, impossible_end])
+
+        if len(impossible_period) == 0:
+            applied_df = data.reset_index(drop=True)
+            return applied_df
+
+        for idx, start_time, end_time in zip(
+                non_fixed_data.index, non_fixed_data[self.dmd.start_time], non_fixed_data[self.dmd.end_time]
+        ):
+            dmd = non_fixed_data.loc[idx].copy()
+            for i, (fixed_start, fixed_end) in enumerate(impossible_period):
+                res_duration = end_time - start_time
+                if start_time < time_start:
+                    time_gap = time_start - start_time
+                    start_time = time_start
+                    end_time += time_gap
+
+                if end_time <= fixed_start:
+                    dmd[self.dmd.start_time] = start_time
+                    dmd[self.dmd.end_time] = end_time
+                    dmd[self.dmd.duration] = res_duration
+                    applied_df = applied_df.append(dmd)
+                    time_start = end_time
+                    break
+                else:
+                    if start_time <= fixed_start:
+                        dmd[self.dmd.start_time] = fixed_end
+                        dmd[self.dmd.end_time] = fixed_end + res_duration
+                        dmd[self.dmd.duration] = res_duration
+                        applied_df = applied_df.append(dmd)
+                        time_start = fixed_end + res_duration
+                        break
+
+                if i == len(impossible_period) - 1:
+                    dmd[self.dmd.start_time] = start_time
+                    dmd[self.dmd.end_time] = end_time
+                    dmd[self.dmd.duration] = end_time - start_time
+                    applied_df = applied_df.append(dmd)
+                    time_start = end_time
+
+        applied_df = applied_df.sort_values(by=self.dmd.start_time)
+        applied_df = applied_df.reset_index(drop=True)
+
+        return applied_df
 
     def decide_which_res_to_use(self, data: list) -> Tuple[pd.DataFrame, bool]:
         available_cnt = sum([flag for _, flag in data])
@@ -385,43 +445,77 @@ class Necessary(object):
 
         self.res_to_capa = res_to_capa
 
-    def apply_res_capa_on_timeline(self, data):
+    def apply_res_capa_on_timeline(self, data, res):
+        applied_data = pd.DataFrame()
+        data = data.sort_values(by=self.dmd.start_time)
+        res_capa_list = self.res_to_capa[res]
+        time_start = 0
+        for idx, start_time, end_time in zip(data.index, data[self.dmd.start_time], data[self.dmd.end_time]):
+            if time_start > start_time:
+                time_gap = time_start - start_time
+                start_time, end_time = time_start, end_time + time_gap
+            for capa_start, capa_end in res_capa_list:
+                dmd = data.loc[idx].copy()
+                if start_time < capa_end:
+                    if start_time < capa_start:
+                        gap = capa_start - start_time
+                        start_time, end_time = start_time + gap, end_time + gap
+
+                    running_time = end_time - start_time
+
+                    if running_time <= capa_end - start_time:
+                        dmd[self.dmd.start_time] = start_time
+                        dmd[self.dmd.end_time] = end_time
+                        dmd[self.dmd.duration] = end_time - start_time
+                        applied_data = applied_data.append(dmd)
+                        time_start = end_time
+                        break
+                    else:
+                        dmd[self.dmd.start_time] = start_time
+                        dmd[self.dmd.end_time] = capa_end
+                        dmd[self.dmd.duration] = capa_end - start_time
+                        applied_data = applied_data.append(dmd)
+                        start_time = capa_end
+
+        applied_data = applied_data.reset_index(drop=True)
+
+        return applied_data
+
+    def apply_res_capa_on_timeline_bak(self, data, res):
         applied_data = pd.DataFrame()
 
-        for res, grp in data.groupby(self.res.res):
-            grp = grp.sort_values(by=self.dmd.start_time)
-            temp = grp.copy()
-            res_capa_list = self.res_to_capa[res]
-            time_gap = 0
-            for idx, start_time, end_time in zip(grp.index, grp[self.dmd.start_time], grp[self.dmd.end_time]):
-                start_time += time_gap
-                end_time += time_gap
-                for i, (capa_start, capa_end) in enumerate(res_capa_list):
-                    if start_time < capa_start:
-                        temp[self.dmd.start_time] = temp[self.dmd.start_time] + capa_start - start_time
-                        temp[self.dmd.end_time] = temp[self.dmd.end_time] + capa_start - start_time
+        data = data.sort_values(by=self.dmd.start_time)
+        res_capa_list = self.res_to_capa[res]
+        time_gap = 0
+        for idx, start_time, end_time in zip(data.index, data[self.dmd.start_time], data[self.dmd.end_time]):
+            start_time += time_gap
+            end_time += time_gap
+            for i, (capa_start, capa_end) in enumerate(res_capa_list):
+                if start_time < capa_start:
+                    data[self.dmd.start_time] = data[self.dmd.start_time] + capa_start - start_time
+                    data[self.dmd.end_time] = data[self.dmd.end_time] + capa_start - start_time
+                else:
+                    if start_time > capa_end:
+                        continue
                     else:
-                        if start_time > capa_end:
-                            continue
+                        if end_time < capa_end:
+                            applied_data = applied_data.append(data.loc[idx])
+                            break
                         else:
-                            if end_time < capa_end:
-                                applied_data = applied_data.append(temp.loc[idx])
-                                break
-                            else:
-                                # demand (before)
-                                dmd_bf = temp.loc[idx].copy()
-                                time_gap = time_gap + dmd_bf[self.dmd.end_time] - capa_end
-                                dmd_bf[self.dmd.end_time] = capa_end
-                                dmd_bf[self.dmd.duration] = dmd_bf[self.dmd.end_time] - dmd_bf[self.dmd.start_time]
-                                applied_data = applied_data.append(dmd_bf)
+                            # demand (before)
+                            dmd_bf = data.loc[idx].copy()
+                            time_gap = time_gap + dmd_bf[self.dmd.end_time] - capa_end
+                            dmd_bf[self.dmd.end_time] = capa_end
+                            dmd_bf[self.dmd.duration] = dmd_bf[self.dmd.end_time] - dmd_bf[self.dmd.start_time]
+                            applied_data = applied_data.append(dmd_bf)
 
-                                # demand (after)
-                                dmd_af = temp.loc[idx].copy()
-                                dmd_af[self.dmd.start_time] = res_capa_list[i+1][0]
-                                dmd_af[self.dmd.end_time] = dmd_af[self.dmd.start_time] + int(time_gap)
-                                dmd_af[self.dmd.duration] = dmd_af[self.dmd.end_time] - dmd_af[self.dmd.start_time]
-                                applied_data = applied_data.append(dmd_af)
-                                break
+                            # demand (after)
+                            dmd_af = data.loc[idx].copy()
+                            dmd_af[self.dmd.start_time] = res_capa_list[i+1][0]
+                            dmd_af[self.dmd.end_time] = dmd_af[self.dmd.start_time] + int(time_gap)
+                            dmd_af[self.dmd.duration] = dmd_af[self.dmd.end_time] - dmd_af[self.dmd.start_time]
+                            applied_data = applied_data.append(dmd_af)
+                            break
 
         applied_data = applied_data.reset_index(drop=True)
 

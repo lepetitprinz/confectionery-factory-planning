@@ -42,7 +42,7 @@ class Human(object):
         self.work_day = 5          # Monday ~ Friday
         self.sec_of_day = 86400    # Seconds of 1 day
         self.time_multiple = 60    # Minute -> Seconds
-        self.schedule_weeks = 17
+        self.schedule_weeks = 100
         self.plant_start_hour = 0
 
     def apply(self, data):
@@ -54,12 +54,19 @@ class Human(object):
 
         result = pd.DataFrame()
         for floor, schedule_dmd in capa_apply_dmd.items():
+            print("---------------------------")
+            print(f"Applying Floor: {floor}")
+            print("---------------------------")
+
             # Initialization
             curr_capa = self.floor_capa[floor]
             confirmed_schedule = pd.DataFrame()    # confirmed schedule
             curr_prod_dmd = pd.DataFrame()     # Current producing demand
 
             while len(schedule_dmd) > 0:
+                # print(f'Remaining Schedule: {len(schedule_dmd)}')
+                # print(f'Current Capacity: {curr_capa}')
+
                 # Search demand candidate
                 candidate_dmd = self.search_candidate_dmd(data=schedule_dmd, curr_prod_dmd=curr_prod_dmd)
 
@@ -153,10 +160,46 @@ class Human(object):
         if len(time_moved_dmd) > 0:
             time_moved_dmd = self.apply_res_capa_on_timeline(data=time_moved_dmd)
 
+            # connect
+            time_moved_dmd = self.connect_continuous_dmd(data=time_moved_dmd)
+
         revised_dmd = pd.concat([time_moved_dmd, non_move_dmd], axis=0)
         revised_dmd = revised_dmd.reset_index(drop=True)
 
         return revised_dmd
+
+    def connect_continuous_dmd(self, data: pd.DataFrame):
+        revised_data = pd.DataFrame()
+
+        for dmd, dmd_df in data.groupby(by=self.dmd.dmd):
+            if len(dmd_df) > 1:
+                # Sort demand on start time
+                dmd_df = dmd_df.sort_values(by=self.dmd.start_time)
+                timeline_list = dmd_df[[self.dmd.start_time, self.dmd.end_time]].values.tolist()
+
+                # Connect the capacity if timeline is continuous
+                timeline_connected = self.connect_continuous_capa(data=timeline_list)
+
+                # Remake demand dataframe using connected timeline
+
+                for stime, etime in timeline_connected:
+                    dmd_copy = dmd_df.iloc[0].copy()
+                    dmd_series = self.update_connected_timeline(data=dmd_copy, start_time=stime, end_time=etime)
+                    revised_data = revised_data.append(dmd_series)
+            else:
+                revised_data = revised_data.append(dmd_df)
+
+        revised_data = revised_data.sort_values(by=self.dmd.dmd)
+        revised_data = revised_data.reset_index(drop=True)
+
+        return revised_data
+
+    def update_connected_timeline(self, data: pd.Series, start_time, end_time):
+        data[self.dmd.start_time] = start_time
+        data[self.dmd.end_time] = end_time
+        data[self.dmd.duration] = end_time - start_time
+
+        return data
 
     # Classify the demand if timeline will be moved or not
     def classify_dmd_move_or_not(self, data: pd.DataFrame, time: int) -> Tuple[pd.DataFrame, pd.DataFrame]:
@@ -178,6 +221,45 @@ class Human(object):
         return time_moved_dmd
 
     def apply_res_capa_on_timeline(self, data):
+        applied_data = pd.DataFrame()
+
+        # Dataset group by resource
+        for res, grp in data.groupby(self.res.res):
+            grp = grp.sort_values(by=self.dmd.start_time)
+            res_capa_list = self.res_to_capa[res]
+            time_start = 0
+            for idx, start_time, end_time in zip(grp.index, grp[self.dmd.start_time], grp[self.dmd.end_time]):
+                if time_start > start_time:
+                    time_gap = time_start - start_time
+                    start_time, end_time = time_start, end_time + time_gap
+                for capa_start, capa_end in res_capa_list:
+                    dmd = grp.loc[idx].copy()
+                    if start_time < capa_end:
+                        if start_time < capa_start:
+                            gap = capa_start - start_time
+                            start_time, end_time = start_time + gap, end_time + gap
+
+                        running_time = end_time - start_time
+
+                        if running_time <= capa_end - start_time:
+                            dmd[self.dmd.start_time] = start_time
+                            dmd[self.dmd.end_time] = end_time
+                            dmd[self.dmd.duration] = end_time - start_time
+                            applied_data = applied_data.append(dmd)
+                            time_start = end_time
+                            break
+                        else:
+                            dmd[self.dmd.start_time] = start_time
+                            dmd[self.dmd.end_time] = capa_end
+                            dmd[self.dmd.duration] = capa_end - start_time
+                            applied_data = applied_data.append(dmd)
+                            start_time = capa_end
+
+        applied_data = applied_data.reset_index(drop=True)
+
+        return applied_data
+
+    def apply_res_capa_on_timeline_bak(self, data):
         applied_data = pd.DataFrame()
 
         for res, grp in data.groupby(self.res.res):
@@ -231,6 +313,7 @@ class Human(object):
 
         # Drop the demand that is finished
         curr_prod_dmd = curr_prod_dmd.drop(labels=latest_finish_dmd.index)
+        curr_prod_dmd = curr_prod_dmd.reset_index(drop=True)
 
         return curr_capa, curr_time, curr_prod_dmd
 
@@ -250,6 +333,7 @@ class Human(object):
 
         # Update current production demand
         curr_prod_dmd = curr_prod_dmd.append(candidate_dmd)
+        curr_prod_dmd = curr_prod_dmd.reset_index(drop=True)
 
         return curr_capa, schedule_dmd, confirmed_schedule, curr_prod_dmd
 

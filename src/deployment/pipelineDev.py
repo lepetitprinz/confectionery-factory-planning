@@ -172,6 +172,7 @@ class Pipeline(object):
 
             # Post Process after optimization
             for plant in prep_data[self.key.dmd][self.key.dmd_list_by_plant]:
+                print("")
                 print(f"Post process: plant {plant}")
                 if len(plant_model[plant]['model'].act) > 0:
                     pp = Process(

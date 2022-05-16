@@ -37,6 +37,12 @@ class DataLoad(object):
         self.query = query
         self.version = version
         self.fp_vrsn_dict = {'fp_vrsn_id': version.fp_version, 'fp_vrsn_seq': version.fp_seq}
+        self.fp_vrsn_date = {
+            'fp_vrsn_id': version.fp_version,
+            'fp_vrsn_seq': version.fp_seq,
+            'yy': version.fp_version[3:7],
+            'week': version.fp_version[7:10]
+        }
 
     def load_data(self) -> Dict[str, Dict[str, pd.DataFrame]]:
         demand = self.load_demand()        # Load the demand dataset
@@ -82,12 +88,10 @@ class DataLoad(object):
             self.key_res_avail_time: self.io.load_from_db(sql=self.query.sql_res_avail_time(**self.fp_vrsn_dict)),
 
             # Human resource usage
-            self.key_human_usage: self.io.load_from_db(sql=self.query.sql_res_human_usage(**self.fp_vrsn_dict)),
+            self.key_human_usage: self.io.load_from_db(sql=self.query.sql_res_human_usage(**self.fp_vrsn_date)),
 
             # Human resource capacity
-            # self.key_human_capa: self.io.load_from_db(sql=self.query.sql_res_human_capacity(**self.fp_vrsn_dict)),
-            self.key_human_capa: self.io.load_object(  # ToDo: Temp dataset
-                path=os.path.join('..', '..', 'data', 'human', 'human_capacity_temp.csv'), data_type='csv'),
+            self.key_human_capa: self.io.load_from_db(sql=self.query.sql_res_human_capacity(**self.fp_vrsn_date)),
 
             # Simultaneous production constraint
             self.key_sim_prod_cstr: self.io.load_from_db(sql=self.query.sql_sim_prod_cstr(**self.fp_vrsn_dict)),

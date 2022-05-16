@@ -97,7 +97,8 @@ class Process(object):
         self.inf_val = 10 ** 7 - 1
         self.split_hour = dt.timedelta(hours=12)
         self.res_avail_time = prep_data[self.key.cstr][self.key.res_avail_time][plant]
-        self.sim_prod_cstr = prep_data[self.key.cstr][self.key.sim_prod_cstr]['necessary'].get(plant, None)
+        if self.cfg['cstr']['apply_sim_prod_cstr']:
+            self.sim_prod_cstr = prep_data[self.key.cstr][self.key.sim_prod_cstr]['necessary'].get(plant, None)
 
         # Path instance attribute
         self.save_path = os.path.join('..', '..', 'result')
