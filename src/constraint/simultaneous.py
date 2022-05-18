@@ -171,13 +171,9 @@ class Necessary(object):
 
             # Search SKU if it is in other demand
             if sku is not None:
-                sku_in_other_dmd = self.search_sku_in_other_dmd(
-                    data=apply_dmd_df,
-                    res_grp=dmd[self.res.res_grp],
-                    sku=sku
-                )
+                sku_in_other_dmd = self.search_sku_in_other_dmd(sku=sku, dmd=dmd, apply_dmd=apply_dmd_df)
                 if len(sku_in_other_dmd) > 0:
-                    self.rearrange_sku_in_timeline(dmd=dmd, all_dmd=all_dmd, sku=sku)
+                    self.rearrange_sku_in_timeline(dmd=dmd, all_dmd=all_dmd, sku=sku, cand_dmd=sku_in_other_dmd)
                 else:
                     all_dmd = self.arrange_sku_in_timeline(dmd=dmd, all_dmd=all_dmd, sku=sku)
 
@@ -236,12 +232,8 @@ class Necessary(object):
             move_dmd = res_dmd[res_dmd[self.dmd.end_time] > apply_start]
             non_move_dmd = res_dmd[res_dmd[self.dmd.end_time] <= apply_start]
 
-            time_gap = apply_end - move_dmd[self.dmd.start_time].min()
-
             # Move timeline
             move_dmd = self.move_with_fixed_or_not(data=move_dmd, apply_end=apply_end)
-            # move_dmd[self.dmd.start_time] = move_dmd[self.dmd.start_time] + time_gap
-            # move_dmd[self.dmd.end_time] = move_dmd[self.dmd.end_time] + time_gap
 
             # Split
             move_dmd = self.apply_res_capa_on_timeline(data=move_dmd, res=confirm_res)
@@ -388,13 +380,44 @@ class Necessary(object):
         # Todo: need to revise
         return sku_list[0]
 
-    def search_sku_in_other_dmd(self, data, res_grp, sku):
-        exist_df = data[(data[self.res.res_grp] == res_grp) & (data[self.item.sku] == sku)]
+    def search_sku_in_other_dmd(self, sku: str, dmd, apply_dmd):
+        # resource candidates (Resource list excluding apply demand resource)
+        res_candidates = list(set(self.res_grp_to_res_map[dmd[self.res.res_grp]]) - {dmd[self.res.res]})
+
+        # Filter resources that can move timeline
+        cand_dmd = apply_dmd[apply_dmd[self.res.res].isin(res_candidates)].copy()
+
+        exist_df = cand_dmd[cand_dmd[self.item.sku] == sku]
 
         return exist_df
 
-    def rearrange_sku_in_timeline(self, dmd, all_dmd, sku):
-        pass
+    def rearrange_sku_in_timeline(self, dmd, all_dmd, sku, cand_dmd):
+        confirm_res = self.decide_rearrange_resource(data=cand_dmd)
+
+        cand_dmd = cand_dmd[cand_dmd[self.res.res] == confirm_res].copy()
+
+        flag = self.check_sku_is_movable(dmd=dmd, cand_dmd=cand_dmd)
+
+    def check_sku_is_movable(self, dmd: pd.Series, cand_dmd: pd.DataFrame):
+        dmd_start_time, dmd_end_time = dmd[self.dmd.start_time], dmd[self.dmd.end_time]
+
+        # Sort candidate demands bu demand start time
+        cand_dmd = cand_dmd.sort_values(by=self.dmd.start_time)
+
+    def decide_rearrange_resource(self, data: pd.DataFrame):
+        res_list = list(data[self.res.res].unique())
+
+        if len(res_list) == 1:
+            confirm_res = res_list[0]
+        else:
+            res_end_time_list = []
+            for res, res_df in data.groupby(by=self.res.res):
+                res_end_time = res_df[self.dmd.end_time].max()
+                res_end_time_list.append((res, res_end_time))
+
+            confirm_res = sorted(res_end_time_list, key=lambda x: x[1])[0][0]
+
+        return confirm_res
 
     @staticmethod
     def connect_continuous_capa(data: list):
@@ -476,46 +499,6 @@ class Necessary(object):
                         dmd[self.dmd.duration] = capa_end - start_time
                         applied_data = applied_data.append(dmd)
                         start_time = capa_end
-
-        applied_data = applied_data.reset_index(drop=True)
-
-        return applied_data
-
-    def apply_res_capa_on_timeline_bak(self, data, res):
-        applied_data = pd.DataFrame()
-
-        data = data.sort_values(by=self.dmd.start_time)
-        res_capa_list = self.res_to_capa[res]
-        time_gap = 0
-        for idx, start_time, end_time in zip(data.index, data[self.dmd.start_time], data[self.dmd.end_time]):
-            start_time += time_gap
-            end_time += time_gap
-            for i, (capa_start, capa_end) in enumerate(res_capa_list):
-                if start_time < capa_start:
-                    data[self.dmd.start_time] = data[self.dmd.start_time] + capa_start - start_time
-                    data[self.dmd.end_time] = data[self.dmd.end_time] + capa_start - start_time
-                else:
-                    if start_time > capa_end:
-                        continue
-                    else:
-                        if end_time < capa_end:
-                            applied_data = applied_data.append(data.loc[idx])
-                            break
-                        else:
-                            # demand (before)
-                            dmd_bf = data.loc[idx].copy()
-                            time_gap = time_gap + dmd_bf[self.dmd.end_time] - capa_end
-                            dmd_bf[self.dmd.end_time] = capa_end
-                            dmd_bf[self.dmd.duration] = dmd_bf[self.dmd.end_time] - dmd_bf[self.dmd.start_time]
-                            applied_data = applied_data.append(dmd_bf)
-
-                            # demand (after)
-                            dmd_af = data.loc[idx].copy()
-                            dmd_af[self.dmd.start_time] = res_capa_list[i+1][0]
-                            dmd_af[self.dmd.end_time] = dmd_af[self.dmd.start_time] + int(time_gap)
-                            dmd_af[self.dmd.duration] = dmd_af[self.dmd.end_time] - dmd_af[self.dmd.start_time]
-                            applied_data = applied_data.append(dmd_af)
-                            break
 
         applied_data = applied_data.reset_index(drop=True)
 

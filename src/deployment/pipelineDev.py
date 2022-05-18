@@ -76,7 +76,7 @@ class Pipeline(object):
             if not self.cfg['step']['cls_load']:
                 data = self.io.load_object(path=self.path['load_data'], data_type='binary')
 
-            cns = Consistency(data=data, path=self.base_path['root'])
+            cns = Consistency(data=data, version=self.version, path=self.base_path['root'])
             cns.run()
 
         # =================================================================== #
@@ -142,7 +142,9 @@ class Pipeline(object):
                 model = opt_seq.check_fix_model_init_set(model=model)
 
                 # Optimization
+                print('\n============================================')
                 print(f" - Optimize the OtpSeq model: {plant}")
+                print('============================================')
                 opt_seq.optimize(model=model)
 
                 # Save original result
@@ -173,8 +175,7 @@ class Pipeline(object):
 
             # Post Process after optimization
             for plant in prep_data[self.key.dmd][self.key.dmd_list_by_plant]:
-                print("")
-                print(f"Post process: plant {plant}")
+                print(f"\nPost process: plant {plant}")
                 if len(plant_model[plant]['model'].act) > 0:
                     pp = Process(
                         io=self.io,

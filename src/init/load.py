@@ -31,12 +31,11 @@ class DataLoad(object):
         """
         :param io: Pipeline step configuration
         :param query: SQL configuration
-        :param fp_version: Factory planning version
+        :param version: Factory planning version & sequence
         """
         self.io = io
         self.query = query
         self.version = version
-        self.fp_vrsn_dict = {'fp_vrsn_id': version.fp_version, 'fp_vrsn_seq': version.fp_seq}
         self.fp_vrsn_date = {
             'fp_vrsn_id': version.fp_version,
             'fp_vrsn_seq': version.fp_seq,
@@ -58,43 +57,44 @@ class DataLoad(object):
         return data
 
     def load_demand(self) -> pd.DataFrame:
-        demand = self.io.load_from_db(sql=self.query.sql_demand(**self.fp_vrsn_dict))
+        # Demand dataset
+        demand = self.io.load_from_db(sql=self.query.sql_demand(**self.fp_vrsn_date))
 
         return demand
 
     def load_resource(self) -> Dict[str, pd.DataFrame]:
         resource = {
             # Item master
-            self.key_item: self.io.load_from_db(sql=self.query.sql_item_master(**self.fp_vrsn_dict)),
+            self.key_item: self.io.load_from_db(sql=self.query.sql_item_master(**self.fp_vrsn_date)),
 
-            # Resource group
-            self.key_res_grp: self.io.load_from_db(sql=self.query.sql_res_grp(**self.fp_vrsn_dict)),
+            # Resource group master
+            self.key_res_grp: self.io.load_from_db(sql=self.query.sql_res_grp(**self.fp_vrsn_date)),
 
-            # Resource group name
+            # Resource group name information
             self.key_res_grp_nm: self.io.load_from_db(sql=self.query.sql_res_grp_nm()),
 
             # Item - resource duration
-            self.key_item_res_duration: self.io.load_from_db(sql=self.query.sql_item_res_dur(**self.fp_vrsn_dict)),
+            self.key_item_res_duration: self.io.load_from_db(sql=self.query.sql_item_res_dur(**self.fp_vrsn_date)),
         }
 
         return resource
 
     def load_cstr(self) -> Dict[str, pd.DataFrame]:
         constraint = {
-            # Job change
-            self.key_jc: self.io.load_from_db(sql=self.query.sql_job_change(**self.fp_vrsn_dict)),
+            # Job change constraint
+            self.key_jc: self.io.load_from_db(sql=self.query.sql_job_change(**self.fp_vrsn_date)),
 
-            # Resource available time
-            self.key_res_avail_time: self.io.load_from_db(sql=self.query.sql_res_avail_time(**self.fp_vrsn_dict)),
+            # Resource available time constraint
+            self.key_res_avail_time: self.io.load_from_db(sql=self.query.sql_res_avail_time(**self.fp_vrsn_date)),
 
-            # Human resource usage
+            # Human resource usage constraint
             self.key_human_usage: self.io.load_from_db(sql=self.query.sql_res_human_usage(**self.fp_vrsn_date)),
 
-            # Human resource capacity
+            # Human resource capacity constraint
             self.key_human_capa: self.io.load_from_db(sql=self.query.sql_res_human_capacity(**self.fp_vrsn_date)),
 
             # Simultaneous production constraint
-            self.key_sim_prod_cstr: self.io.load_from_db(sql=self.query.sql_sim_prod_cstr(**self.fp_vrsn_dict)),
+            self.key_sim_prod_cstr: self.io.load_from_db(sql=self.query.sql_sim_prod_cstr(**self.fp_vrsn_date)),
         }
 
         return constraint

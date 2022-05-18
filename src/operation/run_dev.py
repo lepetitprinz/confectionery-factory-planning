@@ -16,21 +16,21 @@ cfg = {
         'save_step_yn': False,
         'save_db_yn': False,
         'save_graph_yn': False,
-        'verbose': False,
+        'verbose': True,
     },
     'step': {
-        'cls_load': True,
-        'cls_cns': True,
+        'cls_load': False,
+        'cls_cns': False,
         'cls_prep': False,
         'cls_model': False,
-        'cls_pp': False,
+        'cls_pp': True,
     },
     'cstr': {
         'apply_res_available_time': True,    # Resource capacity
         'apply_job_change': True,            # Job Change
         'apply_prod_qty_multiple': True,     #
         'apply_human_capacity': True,       # Human capacity
-        'apply_sim_prod_cstr': False,         # Simultaneous production
+        'apply_sim_prod_cstr': True,         # Simultaneous production
     },
     'except': {
         'miss_duration': 'remove'    # add / remove

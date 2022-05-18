@@ -147,10 +147,11 @@ class OptSeqModel(object):
                 res_grp_dict.pop(res_grp)
 
         if self.cstr_cfg['apply_sim_prod_cstr']:
-            model_res_grp = self.add_virtual_resource(
-                model=model,
-                model_res_grp=model_res_grp,
-            )
+            if self.sim_prod_cstr is not None:
+                model_res_grp = self.add_virtual_resource(
+                    model=model,
+                    model_res_grp=model_res_grp,
+                )
 
         return model_res_grp, res_grp_dict
 

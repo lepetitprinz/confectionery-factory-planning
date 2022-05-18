@@ -103,7 +103,7 @@ class Preprocess(object):
 
         return human_resource
 
-    def set_human_capacity(self, data: pd.DataFrame):
+    def set_human_capacity(self, data: pd.DataFrame) -> Dict[str, Dict[str, Tuple[int, int]]]:
         # Change data type
         data['yy'] = data['yy'].astype(str)
 
@@ -127,7 +127,7 @@ class Preprocess(object):
 
     def set_human_usage(self, data: pd.DataFrame):
         # Temp
-        data.columns = [col.lower() for col in data.columns]
+        # data.columns = [col.lower() for col in data.columns]
 
         # Change data type
         data[self.res.res_grp] = data[self.res.res_grp].astype(str)
@@ -152,7 +152,7 @@ class Preprocess(object):
 
         return human_usage
 
-    def set_sim_prod_cstr(self, data: pd.DataFrame):
+    def set_sim_prod_cstr(self, data: pd.DataFrame) -> Dict[str, Dict[str, Any]]:
         # Get plant list of demand list
         data = data[data[self.res.plant].isin(self.plant_list_in_dmd)].copy()
 
@@ -273,7 +273,7 @@ class Preprocess(object):
 
         return res_prep
 
-    def filter_na_time(self, res_grp: pd.DataFrame, res_avail_time: pd.DataFrame):
+    def filter_na_time(self, res_grp: pd.DataFrame, res_avail_time: pd.DataFrame) -> pd.DataFrame:
         compare_col = [self.res.plant, self.res.res]
         res_avail_time = res_avail_time[compare_col].copy()
         res_avail_time = res_avail_time.drop_duplicates()
@@ -282,7 +282,7 @@ class Preprocess(object):
 
         return res_grp
 
-    def filter_duplicate_capacity(self, data: pd.DataFrame):
+    def filter_duplicate_capacity(self, data: pd.DataFrame) -> pd.DataFrame:
         data = data.drop_duplicates()
         data_filtered = pd.DataFrame()
         for res_grp, res_grp_df in data.groupby(by=self.res.res_grp):

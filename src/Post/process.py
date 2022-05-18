@@ -122,7 +122,7 @@ class Process(object):
                 result = self.apply_sim_prod_cstr(data=result)
 
         # Best activity
-        # self.save(result=result)
+        self.save(result=result)
 
     def set_res_to_res_grp(self) -> None:
         res_grp = self.res_grp.copy()

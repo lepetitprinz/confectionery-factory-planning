@@ -99,6 +99,8 @@ class Human(object):
                         )
             result = pd.concat([result, confirmed_schedule])
 
+        result = pd.concat([result, non_apply_dmd])
+
         return result
 
     def set_res_capacity(self, data: pd.DataFrame):
