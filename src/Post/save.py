@@ -1,5 +1,6 @@
 import common.util as util
 import common.config as config
+from common.name import Key, Demand, Item, Resource, Constraint
 
 import os
 import numpy as np
@@ -50,6 +51,13 @@ class Save(object):
         self.fp_version = fp_version
         self.project_cd = config.project_cd
 
+        # Name instance attribute
+        self.key = Key()
+        self.dmd = Demand()
+        self.res = Resource()
+        self.item = Item()
+        self.cstr = Constraint()
+
         self.sec_of_half_day = 43200
         self.split_hour = dt.timedelta(hours=12)
 
@@ -65,6 +73,9 @@ class Save(object):
         # Save the optimization result
         self.data.to_csv(os.path.join(save_dir, name + '_' + self.fp_name + '.csv'), index=False, encoding='cp949')
 
+    ##################
+    # Resource Status
+    ##################
     def res_status(self):
         # Get resource timeline
         timeline = self.get_res_timeline()
@@ -293,9 +304,6 @@ class Save(object):
         return data
 
     def req_prod_qty(self):
-        pass
-
-    def gantt(self):
         pass
 
     def res_qty(self):

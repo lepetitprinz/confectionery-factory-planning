@@ -71,3 +71,21 @@ def calc_daily_avail_time(day: int, time, start_time, end_time):
         end_time = end_time + sec_of_day
 
     return start_time, end_time
+
+
+def save_log(log: list, path, version, name):
+    # Set save directory
+    save_dir = os.path.join(path, version)
+
+    # make the directory if not exist
+    make_dir(path=save_dir)
+
+    # Sort log list
+    log = sorted(log)
+
+    # Save the log
+    file = open(os.path.join(save_dir, 'log_' + name + '.txt'), 'w')
+    for line in log:
+        file.write(line + '\n')
+
+    file.close()

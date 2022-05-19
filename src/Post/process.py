@@ -1,4 +1,5 @@
 import common.config as config
+import common.util as util
 from common.name import Key, Demand, Item, Resource, Constraint
 from constraint.capacity import Human
 from constraint.simultaneous import Necessary
@@ -104,6 +105,8 @@ class Process(object):
         self.save_path = os.path.join('..', '..', 'result')
         self.optseq_output_path = os.path.join('..', 'operation', 'optseq_output.txt')
 
+        self.log = []
+
     def run(self):
         # Set resource to resource group
         self.set_res_to_res_grp()
@@ -115,11 +118,20 @@ class Process(object):
 
         # Apply the constraint: Human capacity
         if self.cfg['cstr']['apply_human_capacity']:
-            result = self.apply_human_capa_const(data=result)
+            result, log = self.apply_human_capa_const(data=result)
+            self.log.extend(log)
 
         if self.cfg['cstr']['apply_sim_prod_cstr']:
             if self.sim_prod_cstr is not None:
-                result = self.apply_sim_prod_cstr(data=result)
+                result, log = self.apply_sim_prod_cstr(data=result)
+                self.log.extend(log)
+
+        util.save_log(
+            log=self.log,
+            path=os.path.join(self.save_path, 'constraint'),
+            version=self.fp_version,
+            name=self.fp_name
+        )
 
         # Best activity
         self.save(result=result)
@@ -168,9 +180,9 @@ class Process(object):
             demand=self.demand,
         )
         # print(f"Apply human capacity: Plant {self.plant}")
-        result = human_cstr.apply(data=data)
+        result, log = human_cstr.apply(data=data)
 
-        return result
+        return result, log
 
     def apply_sim_prod_cstr(self, data):
         sim_prod_cstr = Necessary(
@@ -180,9 +192,9 @@ class Process(object):
             org_data=self.data,
             sim_prod_cstr=self.sim_prod_cstr,
         )
-        result = sim_prod_cstr.apply(data=data)
+        result, log = sim_prod_cstr.apply(data=data)
 
-        return result
+        return result, log
 
     def save(self, result) -> None:
         result = self.conv_num_to_datetime(data=result)
@@ -206,13 +218,11 @@ class Process(object):
                 # Save the activity
                 save.to_csv(path=self.save_path, name='act')
 
-                # Save the result
-                # save.to_csv(data=prod_qty, path=self.save_path, name='qty')
-
             if self.cfg['exec']['save_db_yn']:
                 # Resource status
-                save.res_status()
-                # self.save_res_status_on_db(data=result, seq=self.fp_seq)
+                # save.res_status()
+
+                self.save_res_status_on_db(data=result, seq=self.fp_seq)
 
                 # Demand (req quantity vs prod quantity)
                 self.save_req_prod_qty_on_db(data=result, seq=self.fp_seq)
@@ -527,7 +537,7 @@ class Process(object):
         demand = self.demand[[self.dmd.dmd, self.item.sku, 'qty']].rename(
             columns={self.dmd.dmd: self.col_fp_key, 'qty': 'req_fp_qty'}
         )
-        merged = pd.merge(demand, merged, how='left', on=self.col_fp_key)
+        merged = pd.merge(demand, merged, how='inner', on=self.col_fp_key)
         merged[self.dmd.prod_qty] = merged[self.dmd.prod_qty].fillna(0)
         merged[self.dmd.end_time] = merged[self.dmd.end_time].fillna('99991231')
 
@@ -537,7 +547,11 @@ class Process(object):
             self.item.sku: 'eng_item_cd', self.dmd.end_time: self.col_date, self.dmd.prod_qty: 'fp_qty'})
 
         # Delete previous result
-        kwargs = {'fp_version': self.fp_version, 'fp_seq': self.fp_seq}
+        kwargs = {
+            'fp_version': self.fp_version,
+            'fp_seq': self.fp_seq,
+            'fp_key': tuple(merged[self.col_fp_key].tolist())
+        }
         self.io.delete_from_db(sql=self.query.del_dmd_result(**kwargs))
 
         # Save the result on DB
@@ -636,8 +650,6 @@ class Process(object):
         res_capa = []
         for res, day in zip(res_final[self.res.res], res_final['day']):
             res_avail_time = self.res_avail_time[res]
-            # Todo : Temp
-            res_avail_time = [res_avail_time[0]] + [1440, 1440, 1440] + [res_avail_time[-1]]
             res_capa.append(res_avail_time[day] * 60)
         res_final[self.res.res_capa] = res_capa
 

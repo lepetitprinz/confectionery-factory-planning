@@ -228,6 +228,7 @@ class Query(object):
               FROM M4E_O402010
              WHERE FP_VRSN_ID = '{kwargs['fp_version']}'
                AND FP_VRSN_SEQ = '{kwargs['fp_seq']}'
+               AND FP_KEY IN {kwargs['fp_key']}
         """
         return sql
 

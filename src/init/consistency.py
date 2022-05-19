@@ -6,7 +6,7 @@ import os
 
 
 class Consistency(object):
-    def __init__(self, data: dict, version: dict, path: str, verbose=False):
+    def __init__(self, data: dict, version, path: str, verbose=False):
         self.log = []
         self.fp_version = version.fp_version
         self.fp_name = version.fp_version + '_' + version.fp_seq
@@ -45,16 +45,8 @@ class Consistency(object):
         # Check that resource duration exist
         self.check_res_duration_existence()
 
-        self.save_log()
-
-    def save_log(self):
-        save_dir = os.path.join(self.path, self.fp_version)
-        util.make_dir(path=save_dir)
-
-        file = open(os.path.join(save_dir, 'log_' + self.fp_name + '.txt'), 'w')
-        for line in self.log:
-            file.write(line + '\n')
-        file.close()
+        # Save the result of consistency check
+        util.save_log(log=self.log, path=self.path, version=self.fp_version, name=self.fp_name)
 
     # Check if resource exists on each plant
     def check_plant_res_existence(self) -> None:

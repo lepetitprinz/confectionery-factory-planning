@@ -45,6 +45,9 @@ class Human(object):
         self.schedule_weeks = 100
         self.plant_start_hour = 0
 
+        # save the timeline change log
+        self.log = []
+
     def apply(self, data):
         # preprocess demand
         capa_apply_dmd, non_apply_dmd = self.preprocess(data=data)
@@ -101,7 +104,10 @@ class Human(object):
 
         result = pd.concat([result, non_apply_dmd])
 
-        return result
+        # log
+        log = sorted(list(set(self.log)))
+
+        return result, log
 
     def set_res_capacity(self, data: pd.DataFrame):
         # Choose current plant
@@ -160,9 +166,13 @@ class Human(object):
         time_moved_dmd = self.move_timeline(data=move_dmd, time=curr_time)
 
         if len(time_moved_dmd) > 0:
+            # Write timeline changing log
+            self.write_timeline_chg_log(data=time_moved_dmd)
+
+            #
             time_moved_dmd = self.apply_res_capa_on_timeline(data=time_moved_dmd)
 
-            # connect
+            # Connect continuous timeline of each demand
             time_moved_dmd = self.connect_continuous_dmd(data=time_moved_dmd)
 
         revised_dmd = pd.concat([time_moved_dmd, non_move_dmd], axis=0)
@@ -492,3 +502,12 @@ class Human(object):
             dmd_by_floor[floor] = floor_df
 
         return dmd_by_floor
+
+    def write_timeline_chg_log(self, data: pd.DataFrame):
+        for dmd, floor, res_grp, res, sku in zip(
+                data[self.dmd.dmd], data[self.cstr.floor], data[self.res.res_grp],
+                data[self.res.res], data[self.item.sku]
+        ):
+            log = f'Demand[{dmd}] - Plant[{self.plant}] - Floor[{floor}] - Resource Group[{res_grp}] - ' \
+                  f'Resource[{res}] - SKU[{sku}]: Constraint of human capacity is applied.'
+            self.log.append(log)

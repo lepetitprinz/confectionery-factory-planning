@@ -44,7 +44,9 @@ class Necessary(object):
         self.schedule_weeks = 17
         self.plant_start_hour = 0
 
-    def apply(self, data: pd.DataFrame):
+        self.log = []
+
+    def apply(self, data: pd.DataFrame) -> Tuple[pd.DataFrame, list]:
         # Data Preprocessing
         data = self.preprocess(data=data)
 
@@ -54,12 +56,15 @@ class Necessary(object):
         # Classify demand if possible to product demand simultaneously
         apply_dmd, non_apply_dmd = self.classify_sim_prod_possible_dmd(data=data)
 
-        #
+        # Find and make simultaneously producible product
         all_dmd = self.find_and_make_sim_product(apply_dmd_df=apply_dmd, all_dmd=data)
 
-        return all_dmd
+        # log
+        log = sorted(list(set(self.log)))
 
-    def preprocess(self, data: pd.DataFrame):
+        return all_dmd, log
+
+    def preprocess(self, data: pd.DataFrame) -> pd.DataFrame:
         res = self.prep_res()
         item = self.prep_item()
         data = self.add_item_information(data=data, item=item)
@@ -72,7 +77,7 @@ class Necessary(object):
 
         return data
 
-    def prep_res(self):
+    def prep_res(self) -> pd.DataFrame:
         # Resource master
         res_mst = self.org_data[self.key.res][self.key.res_grp]
         res_mst[self.res.res] = res_mst[self.res.res]
@@ -139,7 +144,6 @@ class Necessary(object):
 
     def classify_sim_prod_possible_dmd(self, data: pd.DataFrame):
         apply_idx = []
-
         for idx, res_grp, brand, pkg in zip(
                 data.index, data[self.res.res_grp], data[self.item.brand], data[self.item.pkg]
         ):
@@ -158,10 +162,6 @@ class Necessary(object):
 
     def find_and_make_sim_product(self, apply_dmd_df: pd.DataFrame, all_dmd: pd.DataFrame):
         # Search on each demand
-        # for idx, res_grp, res, brand, pkg in zip(
-        #         dmd.index, dmd[self.res.res_grp], dmd[self.res.res],
-        #         dmd[self.item.brand], dmd[self.item.pkg]
-        # ):
         for idx, dmd in apply_dmd_df.iterrows():
             # Available package of simultaneously making
             sim_pkg = self.sim_prod_cstr[dmd[self.res.res_grp]][dmd[self.item.brand]][dmd[self.item.pkg]]
@@ -202,6 +202,9 @@ class Necessary(object):
             # Update
             confirm_res = res_dmd[self.res.res].unique()[0]
             new_dmd = self.update_new_dmd(dmd=dmd, res=confirm_res, sku=sku)
+
+            # Write log
+            self.write_new_dmd_log(data=new_dmd)
 
             #
             all_dmd = self.arrange_sku(new_dmd=new_dmd, all_dmd=all_dmd, confirm_res=confirm_res, flag=flag)
@@ -503,3 +506,9 @@ class Necessary(object):
         applied_data = applied_data.reset_index(drop=True)
 
         return applied_data
+
+    def write_new_dmd_log(self, data: pd.Series):
+        log = f'Plant[{self.plant}] - Demand[{data[self.dmd.dmd]}] - Resource Group[{data[self.res.res_grp]}] -' \
+              f'Resource[{data[self.res.res]}] - SKU[{data[self.item.sku]}] : Simultaneous production is added.'
+
+        self.log.append(log)
