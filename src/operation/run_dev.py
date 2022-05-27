@@ -4,7 +4,7 @@ import os
 import datetime
 
 fp_num = '01'
-fp_seq = '2'
+fp_seq = '1'
 
 base_path = {
     'root': os.path.join('..', '..'),
@@ -13,8 +13,8 @@ base_path = {
 
 cfg = {
     'exec': {
-        'save_step_yn': False,
-        'save_db_yn': False,
+        'save_step_yn': True,
+        'save_db_yn': True,
         'save_graph_yn': False,
         'verbose': True,
     },
@@ -26,11 +26,11 @@ cfg = {
         'cls_pp': True,
     },
     'cstr': {
-        'apply_res_available_time': True,    # Resource capacity
+        'apply_res_available_time': True,    # Resource Capacity
         'apply_job_change': True,            # Job Change
-        'apply_prod_qty_multiple': True,     #
-        'apply_human_capacity': True,        # Human capacity
-        'apply_sim_prod_cstr': True,         # Simultaneous production
+        'apply_prod_qty_multiple': True,     # Product Quantity Multiple
+        'apply_human_capacity': True,        # Human Capacity
+        'apply_sim_prod_cstr': True,         # Simultaneous Production Constraint
     },
     'except': {
         'miss_duration': 'remove'    # add / remove

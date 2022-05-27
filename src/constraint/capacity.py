@@ -142,19 +142,20 @@ class Human(object):
         result = []
         idx = 0
         add_idx = 1
-        curr_capa = []
-        while idx + add_idx < len(data):
+        while idx + add_idx < len(data) + 1:
             curr_capa = data[idx]
-            next_capa = data[idx + add_idx]
-            if curr_capa[1] == next_capa[0]:
-                curr_capa[1] = next_capa[1]
-                add_idx += 1
+            if idx + add_idx < len(data):
+                next_capa = data[idx + add_idx]
+                if curr_capa[1] == next_capa[0]:
+                    curr_capa[1] = next_capa[1]
+                    add_idx += 1
+                else:
+                    result.append(curr_capa)
+                    idx += add_idx
+                    add_idx = 1
             else:
                 result.append(curr_capa)
-                idx += add_idx
-                add_idx = 1
-
-        result.append(curr_capa)
+                break
 
         return result
 

@@ -220,9 +220,9 @@ class Process(object):
 
             if self.cfg['exec']['save_db_yn']:
                 # Resource status
-                # save.res_status()
+                save.res_status()
 
-                self.save_res_status_on_db(data=result, seq=self.fp_seq)
+                # self.save_res_status_on_db(data=result, seq=self.fp_seq)
 
                 # Demand (req quantity vs prod quantity)
                 self.save_req_prod_qty_on_db(data=result, seq=self.fp_seq)

@@ -40,7 +40,7 @@ class Init(object):
         today_df = self.calendar[self.calendar['yymmdd'] == today]
         year = today_df['yy'].values[0]
         week = today_df['week'].values[0]
-        # fp_version = 'FP_2022W19.01'
+        # fp_version = 'FP_2022W21.01'
         fp_version = util.make_fp_version_name(year=year, week=week, seq=self.fp_num)
 
         self.version.set_version(fp_version=fp_version, fp_seq=self.fp_seq)

@@ -190,7 +190,8 @@ class Save(object):
         return val
 
     def add_model_info(self, data):
-        res_grp_mst = self.res_grp_mst[[self.col_res, 'res_type_cd']]
+        res_grp_mst = self.res_grp_mst[self.res_grp_mst[self.res.plant] == self.plant].copy()
+        res_grp_mst = res_grp_mst[[self.col_res, 'res_type_cd']]
         data = pd.merge(data, res_grp_mst, how='left', on=self.col_res).fillna('UNDEFINED')
         data = data.rename(columns={'res_type_cd': 'capa_type_cd'})
 

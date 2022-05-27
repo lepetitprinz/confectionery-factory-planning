@@ -126,9 +126,6 @@ class Preprocess(object):
         return human_capacity
 
     def set_human_usage(self, data: pd.DataFrame):
-        # Temp
-        # data.columns = [col.lower() for col in data.columns]
-
         # Change data type
         data[self.res.res_grp] = data[self.res.res_grp].astype(str)
         data[self.item.pkg] = data[self.item.pkg].astype(str)
@@ -166,12 +163,14 @@ class Preprocess(object):
         nece_sim_prod_cstr = self.make_sim_prod_cstr_map(data=necessary)
 
         # Simultaneous type : impossible
-        # impossible = data[data['is_simultaneous'] == 'IMP']
-        # impo_sim_prod_cstr = self.make_sim_prod_cstr_map(data=impossible)
+        impo_sim_prod_cstr = None
+        impossible = data[data['sim_type'] == 'IMP']
+        if len(impossible) > 0:
+            impo_sim_prod_cstr = self.make_sim_prod_cstr_map(data=impossible)
 
         plant_sim_prod_cstr = {
             'necessary': nece_sim_prod_cstr,
-            # 'impossible': impo_sim_prod_cstr
+            'impossible': impo_sim_prod_cstr
         }
 
         return plant_sim_prod_cstr

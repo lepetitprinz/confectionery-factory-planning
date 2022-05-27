@@ -87,7 +87,7 @@ class OptSeqModel(object):
         )
 
         # Step4. Set the job change activity (Optional)
-        if self.cstr_cfg['apply_job_change']:
+        if (self.cstr_cfg['apply_job_change']) and (self.job_change is not None):
             self.set_res_to_res_grp()
 
             model = self.set_job_change_activity(

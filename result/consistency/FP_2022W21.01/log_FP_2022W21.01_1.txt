@@ -1,0 +1,84 @@
+Warning: Plant[K110] - Resource Group[1209] doesn't have resource data.
+Warning: Plant[K110] - Resource Group[1210] doesn't have resource data.
+Warning: Plant[K110] - SKU[5106426] doesn't have any resource duration data.
+Warning: Plant[K110] - SKU[5106426] doesn't have any resource duration data.
+Warning: Plant[K110] - SKU[5106426] doesn't have any resource duration data.
+Warning: Plant[K110] - SKU[5106426] doesn't have any resource duration data.
+Warning: Plant[K110] - SKU[5109178] - Resource Group[X103] doesn't have any resource duration data.
+Warning: Plant[K110] - SKU[5124008] doesn't have any resource duration data.
+Warning: Plant[K110] - SKU[5124009] doesn't have any resource duration data.
+Warning: Plant[K110] - SKU[5125669] doesn't have any resource duration data.
+Warning: Plant[K110] - SKU[5127057] doesn't have any resource duration data.
+Warning: Plant[K110] - SKU[5127058] doesn't have any resource duration data.
+Warning: Plant[K110] - SKU[5127059] doesn't have any resource duration data.
+Warning: Plant[K110] - SKU[5129148] - Resource Group[X103] doesn't have any resource duration data.
+Warning: Plant[K110] - SKU[5139945] doesn't have any resource duration data.
+Warning: Plant[K110] - SKU[5141730] doesn't have any resource duration data.
+Warning: Plant[K110] - SKU[5142417] doesn't have any resource duration data.
+Warning: Plant[K110] - SKU[5142613] doesn't have any resource duration data.
+Warning: Plant[K110] - SKU[5142631] doesn't have any resource duration data.
+Warning: Plant[K110] - SKU[5142742] doesn't have any resource duration data.
+Warning: Plant[K110] - SKU[5142793] doesn't have any resource duration data.
+Warning: Plant[K110] - SKU[5142848] doesn't have any resource duration data.
+Warning: Plant[K110] - SKU[5142884] doesn't have any resource duration data.
+Warning: Plant[K110] - SKU[5142988] doesn't have any resource duration data.
+Warning: Plant[K110] - SKU[5143004] doesn't have any resource duration data.
+Warning: Plant[K110] - SKU[5143180] doesn't have any resource duration data.
+Warning: Plant[K110] - SKU[5143238] doesn't have any resource duration data.
+Warning: Plant[K110] - SKU[5143242] doesn't have any resource duration data.
+Warning: Plant[K110] - SKU[5143248] doesn't have any resource duration data.
+Warning: Plant[K120] - SKU[5124796] doesn't have any resource duration data.
+Warning: Plant[K120] - SKU[5128905] doesn't have any resource duration data.
+Warning: Plant[K120] - SKU[5129338] doesn't have any resource duration data.
+Warning: Plant[K120] - SKU[5129339] doesn't have any resource duration data.
+Warning: Plant[K120] - SKU[5139990] doesn't have any resource duration data.
+Warning: Plant[K120] - SKU[5141814] doesn't have any resource duration data.
+Warning: Plant[K120] - SKU[5141847] doesn't have any resource duration data.
+Warning: Plant[K120] - SKU[5142388] doesn't have any resource duration data.
+Warning: Plant[K120] - SKU[5142521] doesn't have any resource duration data.
+Warning: Plant[K120] - SKU[5142560] doesn't have any resource duration data.
+Warning: Plant[K120] - SKU[5142646] doesn't have any resource duration data.
+Warning: Plant[K120] - SKU[5142704] doesn't have any resource duration data.
+Warning: Plant[K130] - SKU[5124677] doesn't have any resource duration data.
+Warning: Plant[K130] - SKU[5129566] doesn't have any resource duration data.
+Warning: Plant[K130] - SKU[5129566] doesn't have any resource duration data.
+Warning: Plant[K130] - SKU[5129630] doesn't have any resource duration data.
+Warning: Plant[K130] - SKU[5129630] doesn't have any resource duration data.
+Warning: Plant[K130] - SKU[5129694] doesn't have any resource duration data.
+Warning: Plant[K130] - SKU[5129694] doesn't have any resource duration data.
+Warning: Plant[K130] - SKU[5141719] doesn't have any resource duration data.
+Warning: Plant[K130] - SKU[5141726] doesn't have any resource duration data.
+Warning: Plant[K130] - SKU[5141726] doesn't have any resource duration data.
+Warning: Plant[K130] - SKU[5141727] doesn't have any resource duration data.
+Warning: Plant[K130] - SKU[5141727] doesn't have any resource duration data.
+Warning: Plant[K130] - SKU[5141728] doesn't have any resource duration data.
+Warning: Plant[K130] - SKU[5141728] doesn't have any resource duration data.
+Warning: Plant[K130] - SKU[5142956] doesn't have any resource duration data.
+Warning: Plant[K130] - SKU[5143154] doesn't have any resource duration data.
+Warning: Plant[K130] - SKU[5143254] doesn't have any resource duration data.
+Warning: Plant[K130] - SKU[5143329] doesn't have any resource duration data.
+Warning: Plant[K130] - SKU[5143329] doesn't have any resource duration data.
+Warning: Plant[K130] - SKU[5143329] doesn't have any resource duration data.
+Warning: Plant[K130] - SKU[5143329] doesn't have any resource duration data.
+Warning: Plant[K130] - SKU[5143329] doesn't have any resource duration data.
+Warning: Plant[K140] - Resource Group[4104] doesn't have resource data.
+Warning: Plant[K140] - SKU[5139985] - Resource Group[4107] doesn't have any resource duration data.
+Warning: Plant[K140] - SKU[5141684] doesn't have any resource duration data.
+Warning: Plant[K140] - SKU[5141684] doesn't have any resource duration data.
+Warning: Plant[K140] - SKU[5142667] - Resource Group[4101] doesn't have any resource duration data.
+Warning: Plant[K140] - SKU[5142667] - Resource Group[4102] doesn't have any resource duration data.
+Warning: Plant[K140] - SKU[5142667] - Resource Group[4104] doesn't have any resource duration data.
+Warning: Plant[K140] - SKU[5142667] - Resource Group[4105] doesn't have any resource duration data.
+Warning: Plant[K140] - SKU[5142667] - Resource Group[4106] doesn't have any resource duration data.
+Warning: Plant[K140] - SKU[5142667] - Resource Group[4107] doesn't have any resource duration data.
+Warning: Plant[K140] - SKU[5142667] - Resource Group[4112] doesn't have any resource duration data.
+Warning: Plant[K140] - SKU[5142818] doesn't have any resource duration data.
+Warning: Plant[K140] - SKU[5142818] doesn't have any resource duration data.
+Warning: Plant[K140] - SKU[5143330] doesn't have any resource duration data.
+Warning: Plant[K140] - SKU[5143330] doesn't have any resource duration data.
+Warning: Plant[K140] - SKU[5143330] doesn't have any resource duration data.
+Warning: Plant[K140] - SKU[5143330] doesn't have any resource duration data.
+Warning: Plant[K140] - SKU[5143330] doesn't have any resource duration data.
+Warning: Plant[K140] - SKU[5143330] doesn't have any resource duration data.
+Warning: Plant[K170] - Resource Group[X218] doesn't have resource data.
+Warning: Plant[K170] - SKU[5141502] doesn't have any resource duration data.
