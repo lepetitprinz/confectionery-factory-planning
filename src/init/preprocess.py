@@ -1,5 +1,5 @@
 import common.util as util
-from common.name import Key, Demand, Item, Resource, Constraint
+from common.name import Key, Demand, Item, Route, Resource, Constraint
 
 import numpy as np
 import pandas as pd
@@ -9,6 +9,12 @@ from itertools import permutations
 
 class Preprocess(object):
     # Time configuration
+    time_multiple = {
+        'DAY': 86400,
+        'HOUR': 3600,
+        'MIN': 60,
+    }
+
     time_uom = 'sec'    # min / sec
     work_day = 5
 
@@ -21,6 +27,7 @@ class Preprocess(object):
         self.dmd = Demand()
         self.res = Resource()
         self.item = Item()
+        self.route = Route()
         self.cstr = Constraint()
 
         # Column usage
@@ -37,8 +44,8 @@ class Preprocess(object):
         self.item_list_by_plant = {}
         self.res_grp_list_by_plant = []
 
-        # Job change  instance attribute
-        self.job_change_time_unit = 'MIN'
+        # Time UOM instance attribute
+        self.jc_time_uom = 'MIN'
 
     def preprocess(self, data):
         ######################################
@@ -53,6 +60,12 @@ class Preprocess(object):
 
         dmd_prep = self.set_dmd_info(data=demand)
         res_prep = self.set_res_info(resource=resource, constraint=constraint)
+
+        ######################################
+        # Route
+        ######################################
+        route = data[self.key.route]
+        route_prep = self.set_route_info(data=route[self.key.route])
 
         ######################################
         # Constraint (Option)
@@ -94,6 +107,14 @@ class Preprocess(object):
         }
 
         return prep_data
+
+    def set_route_info(self, data):
+        data[self.route.lead_time] = [int(lt * self.time_multiple[uom]) for lt, uom in zip(
+            data[self.route.lead_time], data[self.route.time_uom])]
+
+        data = data.drop(columns=[self.route.time_uom])
+
+        return data
 
     def set_human_cstr(self, capacity: pd.DataFrame, usage: pd.DataFrame) -> Dict[str, Any]:
         human_resource = {
@@ -417,7 +438,7 @@ class Preprocess(object):
 
     def match_job_change_time(self, candidate: dict, job_change_master: pd.DataFrame) -> Dict[str, Dict[Hashable, Any]]:
         # Change time unit
-        if self.job_change_time_unit == 'MIN':
+        if self.jc_time_uom == 'MIN':
             job_change_master[self.cstr.jc_time] = job_change_master[self.cstr.jc_time] * 60
 
         job_change_by_plant = {}

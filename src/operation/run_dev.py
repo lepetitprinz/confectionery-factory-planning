@@ -13,17 +13,17 @@ base_path = {
 
 cfg = {
     'exec': {
-        'save_step_yn': True,
-        'save_db_yn': True,
+        'save_step_yn': False,
+        'save_db_yn': False,
         'save_graph_yn': False,
         'verbose': True,
     },
     'step': {
-        'cls_load': False,
+        'cls_load': True,
         'cls_cns': False,
-        'cls_prep': False,
+        'cls_prep': True,
         'cls_model': False,
-        'cls_pp': True,
+        'cls_pp': False,
     },
     'cstr': {
         'apply_res_available_time': True,    # Resource Capacity

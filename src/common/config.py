@@ -45,7 +45,12 @@ key_human_res = 'human_resource'
 key_human_capa = 'human_capacity'
 key_human_usage = 'human_usage'
 
+# Route
+key_bom_route = 'bom_route'
+
+########################
 # Column Configuration
+########################
 # Column: Demand
 col_dmd = 'dmd_id'
 col_qty = 'qty'
@@ -73,7 +78,15 @@ col_sku_nm = 'item_nm'
 col_pkg = 'pkg'
 col_flavor = 'flavor'
 
+# Columns: Route
+col_lead_time = 'lead_time'
+col_half_item = 'item_halb_cd'
+col_qty_rate = 'qty_rate'
+col_time_uom = 'time_uom'
+
+#####################
 # Column: Constraint
+#####################
 # Job change
 col_job_change_from = 'from_res_cd'
 col_job_change_to = 'to_res_cd'

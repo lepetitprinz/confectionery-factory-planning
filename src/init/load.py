@@ -1,32 +1,11 @@
-import common.config as config
+from common.name import Key, Demand, Item, Resource, Constraint
 
-import os
+
 import pandas as pd
 from typing import Dict
 
 
 class DataLoad(object):
-    ############################################
-    # Dictionary key configuration
-    ############################################
-    # Main
-    key_dmd = config.key_dmd      # Demand
-    key_res = config.key_res      # Resource
-    key_cstr = config.key_cstr    # Constraint
-    key_item = config.key_item    # Item
-
-    # Resource
-    key_res_grp = config.key_res_grp
-    key_res_grp_nm = config.key_res_grp_nm
-    key_item_res_duration = config.key_res_duration
-
-    # Constraint
-    key_jc = config.key_jc
-    key_human_capa = config.key_human_capa
-    key_human_usage = config.key_human_usage
-    key_sim_prod_cstr = config.key_sim_prod_cstr
-    key_res_avail_time = config.key_res_avail_time
-
     def __init__(self, io, query, version):
         """
         :param io: Pipeline step configuration
@@ -43,15 +22,24 @@ class DataLoad(object):
             'week': version.fp_version[7:10]
         }
 
+        # Name instance attribute
+        self.key = Key()
+        self.dmd = Demand()
+        self.res = Resource()
+        self.item = Item()
+        self.cstr = Constraint()
+
     def load_data(self) -> Dict[str, Dict[str, pd.DataFrame]]:
         demand = self.load_demand()        # Load the demand dataset
         resource = self.load_resource()    # Load the master dataset
         constraint = self.load_cstr()      # Load the constraint dataset
+        route = self.load_route()          # Load the BOm route
 
         data = {
-            self.key_dmd: demand,
-            self.key_res: resource,
-            self.key_cstr: constraint
+            self.key.dmd: demand,
+            self.key.res: resource,
+            self.key.cstr: constraint,
+            self.key.route: route
         }
 
         return data
@@ -65,36 +53,44 @@ class DataLoad(object):
     def load_resource(self) -> Dict[str, pd.DataFrame]:
         resource = {
             # Item master
-            self.key_item: self.io.load_from_db(sql=self.query.sql_item_master(**self.fp_vrsn_date)),
+            self.key.item: self.io.load_from_db(sql=self.query.sql_item_master(**self.fp_vrsn_date)),
 
             # Resource group master
-            self.key_res_grp: self.io.load_from_db(sql=self.query.sql_res_grp(**self.fp_vrsn_date)),
+            self.key.res_grp: self.io.load_from_db(sql=self.query.sql_res_grp(**self.fp_vrsn_date)),
 
             # Resource group name information
-            self.key_res_grp_nm: self.io.load_from_db(sql=self.query.sql_res_grp_nm()),
+            self.key.res_grp_nm: self.io.load_from_db(sql=self.query.sql_res_grp_nm()),
 
             # Item - resource duration
-            self.key_item_res_duration: self.io.load_from_db(sql=self.query.sql_item_res_dur(**self.fp_vrsn_date)),
+            self.key.res_duration: self.io.load_from_db(sql=self.query.sql_item_res_dur(**self.fp_vrsn_date)),
         }
 
         return resource
 
+    def load_route(self):
+        route = {
+            # BOM route
+            self.key.route: self.io.load_from_db(sql=self.query.sql_bom_route(**self.fp_vrsn_date))
+        }
+
+        return route
+
     def load_cstr(self) -> Dict[str, pd.DataFrame]:
         constraint = {
             # Job change constraint
-            self.key_jc: self.io.load_from_db(sql=self.query.sql_job_change(**self.fp_vrsn_date)),
+            self.key.jc: self.io.load_from_db(sql=self.query.sql_job_change(**self.fp_vrsn_date)),
 
             # Resource available time constraint
-            self.key_res_avail_time: self.io.load_from_db(sql=self.query.sql_res_avail_time(**self.fp_vrsn_date)),
+            self.key.res_avail_time: self.io.load_from_db(sql=self.query.sql_res_avail_time(**self.fp_vrsn_date)),
 
             # Human resource usage constraint
-            self.key_human_usage: self.io.load_from_db(sql=self.query.sql_res_human_usage(**self.fp_vrsn_date)),
+            self.key.human_usage: self.io.load_from_db(sql=self.query.sql_res_human_usage(**self.fp_vrsn_date)),
 
             # Human resource capacity constraint
-            self.key_human_capa: self.io.load_from_db(sql=self.query.sql_res_human_capacity(**self.fp_vrsn_date)),
+            self.key.human_capa: self.io.load_from_db(sql=self.query.sql_res_human_capacity(**self.fp_vrsn_date)),
 
             # Simultaneous production constraint
-            self.key_sim_prod_cstr: self.io.load_from_db(sql=self.query.sql_sim_prod_cstr(**self.fp_vrsn_date)),
+            self.key.sim_prod_cstr: self.io.load_from_db(sql=self.query.sql_sim_prod_cstr(**self.fp_vrsn_date)),
         }
 
         return constraint

@@ -29,6 +29,9 @@ class Key(object):
         self.human_capa = config.key_human_capa
         self.human_usage = config.key_human_usage
 
+        # Route
+        self.route = config.key_bom_route    # BOM Route
+
 
 class Demand(object):
     def __init__(self):
@@ -61,6 +64,14 @@ class Item(object):
         self.sku_nm = config.col_sku_nm
         self.pkg = config.col_pkg
         self.flavor = config.col_flavor
+
+
+class Route(object):
+    def __init__(self):
+        self.qty_rate = config.col_qty_rate
+        self.time_uom = config.col_time_uom
+        self.half_item = config.col_half_item
+        self.lead_time = config.col_lead_time
 
 
 class Constraint(object):

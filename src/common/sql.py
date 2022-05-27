@@ -21,6 +21,21 @@ class Query(object):
         return sql
 
     @staticmethod
+    def sql_bom_route(**kwargs):
+        sql = f"""
+            SELECT PLANT_CD
+                 , ITEM_CD
+                 , ITEM_HALB_CD
+                 , IN_RATE / OUT_RATE AS QTY_RATE
+                 , MFG_LT AS LEAD_TIME
+                 , MFG_LT_UOM AS TIME_UOM
+              FROM M4E_I401300
+             WHERE FP_VRSN_ID = '{kwargs['fp_vrsn_id']}'
+               AND FP_VRSN_SEQ = '{kwargs['fp_vrsn_seq']}'
+        """
+        return sql
+
+    @staticmethod
     def sql_res_grp_nm():
         sql = """
             SELECT PLANT_CD
@@ -28,7 +43,6 @@ class Query(object):
                  , RES_GRP_NM
               FROM M4S_I305100
              WHERE USE_YN = 'Y'
-            -- AND PLANT_CD NOT IN ('K170')
         """
         return sql
 
@@ -69,7 +83,6 @@ class Query(object):
                      WHERE FP_VRSN_ID = '{kwargs['fp_vrsn_id']}'
                        AND FP_VRSN_SEQ = '{kwargs['fp_vrsn_seq']}'
                        AND REQ_FP_QTY > 0
-                    -- AND PLANT_CD NOT IN ('K170')
                    ) DMD
              INNER JOIN (
                          SELECT ITEM_CD
@@ -98,7 +111,6 @@ class Query(object):
               FROM M4E_I401100
              WHERE FP_VRSN_ID = '{kwargs['fp_vrsn_id']}'
                AND FP_VRSN_SEQ = '{kwargs['fp_vrsn_seq']}'
-            -- AND PLANT_CD NOT IN ('K170')
         """
         return sql
 
@@ -114,7 +126,6 @@ class Query(object):
                AND FP_VRSN_ID = '{kwargs['fp_vrsn_id']}'
                AND FP_VRSN_SEQ = '{kwargs['fp_vrsn_seq']}'
                AND CAPA_USE_RATE > 0
-            -- AND PLANT_CD NOT IN ('K170')
         """
         return sql
 
@@ -145,7 +156,6 @@ class Query(object):
               FROM M4E_I401140
              WHERE FP_VRSN_ID = '{kwargs['fp_vrsn_id']}'
                AND FP_VRSN_SEQ = '{kwargs['fp_vrsn_seq']}'
-            -- AND PLANT_CD NOT IN ('K170')
         """
         return sql
 

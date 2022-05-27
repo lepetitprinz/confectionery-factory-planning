@@ -2,7 +2,7 @@ import os
 import sys
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 
-from deployment.pipeline import Pipeline
+from deployment.pipelineDev import Pipeline
 
 fp_seq = '01'
 # 001 : Default (k130) (complete)
