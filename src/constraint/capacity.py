@@ -15,6 +15,7 @@ class Human(object):
             cstr: dict,
             item: pd.DataFrame,
             demand: pd.DataFrame,
+            res_to_res_grp: dict
             ):
         self.plant = plant
         self.plant_start_time = plant_start_time
@@ -36,6 +37,8 @@ class Human(object):
 
         self.floor_capa = {}
         self.res_to_capa = {}
+        self.res_grp_to_floor = {}
+        self.res_to_res_grp = res_to_res_grp
         self.prod_time_comp_standard = 'min'
 
         # Time instance attribute
@@ -51,6 +54,7 @@ class Human(object):
     def apply(self, data):
         # preprocess demand
         capa_apply_dmd, non_apply_dmd = self.preprocess(data=data)
+        # capa_apply_dmd, non_apply_dmd = self.preprocess(data=data)
 
         # Resource to capacity map
         self.set_res_capacity(data=self.cstr_mst[self.key.res_avail_time])
@@ -272,48 +276,6 @@ class Human(object):
 
         return applied_data
 
-    def apply_res_capa_on_timeline_bak(self, data):
-        applied_data = pd.DataFrame()
-
-        for res, grp in data.groupby(self.res.res):
-            grp = grp.sort_values(by=self.dmd.start_time)
-            temp = grp.copy()
-            res_capa_list = self.res_to_capa[res]
-            time_gap = 0
-            for idx, start_time, end_time in zip(grp.index, grp[self.dmd.start_time], grp[self.dmd.end_time]):
-                start_time += time_gap
-                end_time += time_gap
-                for i, (capa_start, capa_end) in enumerate(res_capa_list):
-                    if start_time < capa_start:
-                        temp[self.dmd.start_time] = temp[self.dmd.start_time] + capa_start - start_time
-                        temp[self.dmd.end_time] = temp[self.dmd.end_time] + capa_start - start_time
-                    else:
-                        if start_time > capa_end:
-                            continue
-                        else:
-                            if end_time < capa_end:
-                                applied_data = applied_data.append(temp.loc[idx])
-                                break
-                            else:
-                                # demand (before)
-                                dmd_bf = temp.loc[idx].copy()
-                                time_gap = time_gap + dmd_bf[self.dmd.end_time] - capa_end
-                                dmd_bf[self.dmd.end_time] = capa_end
-                                dmd_bf[self.dmd.duration] = dmd_bf[self.dmd.end_time] - dmd_bf[self.dmd.start_time]
-                                applied_data = applied_data.append(dmd_bf)
-
-                                # demand (after)
-                                dmd_af = temp.loc[idx].copy()
-                                dmd_af[self.dmd.start_time] = res_capa_list[i+1][0]
-                                dmd_af[self.dmd.end_time] = dmd_af[self.dmd.start_time] + int(time_gap)
-                                dmd_af[self.dmd.duration] = dmd_af[self.dmd.end_time] - dmd_af[self.dmd.start_time]
-                                applied_data = applied_data.append(dmd_af)
-                                break
-
-        applied_data = applied_data.reset_index(drop=True)
-
-        return applied_data
-
     def finish_latest_dmd(self, curr_capa, curr_prod_dmd: pd.DataFrame):
         latest_finish_dmd = curr_prod_dmd[curr_prod_dmd[self.dmd.end_time] == curr_prod_dmd[self.dmd.end_time].min()]
 
@@ -416,6 +378,42 @@ class Human(object):
         data = self.prep_result(data=data)
         self.prep_capacity()
 
+        apply_dmd, non_apply_dmd = self.add_item_capa_info(
+            data=data, item=item, usage=usage
+        )
+
+        apply_dmd = self.set_dmd_list_by_floor(data=apply_dmd)
+
+        return apply_dmd, non_apply_dmd
+
+    def add_item_capa_info(self, data, item, usage):
+        # classify the demand
+        non_apply_dmd = data[~data[self.res.res_grp].isin(list(self.res_grp_to_floor.keys()))].copy()
+        apply_dmd = data[data[self.res.res_grp].isin(list(self.res_grp_to_floor.keys()))].copy()
+
+        # add item information (item / pkg)
+        apply_dmd = pd.merge(apply_dmd, item, on=self.item.sku, how='left')
+
+        # add human usage information
+        usage = usage.drop_duplicates()    # Exception
+        apply_dmd = pd.merge(apply_dmd, usage, how='left', on=[self.res.res_grp, self.item.item, self.item.pkg])
+
+        apply_dmd[self.res.plant] = self.plant
+        apply_dmd[self.cstr.m_capa] = apply_dmd[self.cstr.m_capa].fillna(0)
+        apply_dmd[self.cstr.w_capa] = apply_dmd[self.cstr.w_capa].fillna(0)
+        apply_dmd[self.item.pkg] = apply_dmd[self.item.pkg].fillna('99999')
+        apply_dmd[self.cstr.floor] = [self.res_grp_to_floor[self.res_to_res_grp[res]] for res
+                                      in apply_dmd[self.res.res]]
+
+        return apply_dmd, non_apply_dmd
+
+    def preprocess_bak(self, data: pd.DataFrame):
+        # Preprocess the dataset
+        item = self.prep_item()
+        usage = self.prep_usage()
+        data = self.prep_result(data=data)
+        self.prep_capacity()
+
         capa_apply_dmd, non_apply_dmd = self.separate_dmd_on_capa_existence(
             item=item,
             usage=usage,
@@ -428,13 +426,14 @@ class Human(object):
 
     def separate_dmd_on_capa_existence(self, item: pd.DataFrame, usage: pd.DataFrame, result: pd.DataFrame):
         # add item information (item / pkg)
-        dmd = pd.merge(result, item, on=self.item.sku)
+        dmd = pd.merge(result, item, on=self.item.sku, how='left')
 
         # separate demands based on item trait
         apply_dmd = dmd[~dmd[self.item.pkg].isnull()]
         non_apply_dmd = dmd[dmd[self.item.pkg].isnull()]
 
         # add human usage information
+        usage = usage.drop_duplicates()
         apply_dmd = pd.merge(apply_dmd, usage, how='left', on=[self.res.res_grp, self.item.item, self.item.pkg])
 
         # separate demands based on resource (internal/external)
@@ -484,6 +483,12 @@ class Human(object):
 
         # Temp
         usage[self.item.pkg] = [val.zfill(5) for val in usage[self.item.pkg].values]
+
+        res_grp_floor = usage[[self.res.res_grp, self.cstr.floor]].drop_duplicates()
+
+        self.res_grp_to_floor = {
+            res_grp: floor for res_grp, floor in zip(res_grp_floor[self.res.res_grp], res_grp_floor[self.cstr.floor])
+        }
 
         return usage
 

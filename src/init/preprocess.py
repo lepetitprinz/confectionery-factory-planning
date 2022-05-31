@@ -65,7 +65,7 @@ class Preprocess(object):
         # Route
         ######################################
         route = data[self.key.route]
-        route_prep = self.set_route_info(data=route[self.key.route])
+        route_prep = self.set_route_info(data=route[self.key.route], res_dur=resource[self.key.res_duration])
 
         ######################################
         # Constraint (Option)
@@ -97,6 +97,7 @@ class Preprocess(object):
         prep_data = {
             self.key.dmd: dmd_prep,
             self.key.res: res_prep,
+            self.key.route: route_prep,
             self.key.cstr: {
                 self.key.jc: job_change,
                 self.key.sku_type: sku_type,
@@ -108,13 +109,45 @@ class Preprocess(object):
 
         return prep_data
 
-    def set_route_info(self, data):
+    def set_route_info(self, data, res_dur) -> Dict:
+        # Preprocess the bom route & resource duration
         data[self.route.lead_time] = [int(lt * self.time_multiple[uom]) for lt, uom in zip(
             data[self.route.lead_time], data[self.route.time_uom])]
-
         data = data.drop(columns=[self.route.time_uom])
 
-        return data
+        res_dur = res_dur[res_dur[self.item.sku].isin(data['item_halb_cd'].unique())].copy()
+
+        # Route item & rate
+        route_item = {}
+        route_rate = {}
+        for plant, plant_df in data.groupby(by=self.res.plant):
+            item_to_half_item = {}
+            item_to_half_item_rate = {}
+            for item, item_df in plant_df.groupby(by=self.item.sku):
+                item_to_half_item[item] = [half_item for half_item in item_df['item_halb_cd']]
+                item_to_half_item_rate[item] = {half: (rate, lt) for half, rate, lt in zip(
+                    item_df['item_halb_cd'], item_df['qty_rate'], item_df['lead_time']
+                )}
+            route_item[plant] = item_to_half_item
+            route_rate[plant] = item_to_half_item_rate
+
+        # Route resource
+        route_res = {}
+        for plant, plant_df in res_dur.groupby(by=self.res.plant):
+            item_to_res_dur = {}
+            for item, item_df in plant_df.groupby(by=self.item.sku):
+                item_to_res_dur[item] = [(res, dur) for res, dur in zip(
+                    item_df[self.res.res], item_df[self.dmd.duration]
+                )]
+            route_res[plant] = item_to_res_dur
+
+        route = {
+            self.key.route_res: route_res,
+            self.key.route_item: route_item,
+            self.key.route_rate: route_rate
+        }
+
+        return route
 
     def set_human_cstr(self, capacity: pd.DataFrame, usage: pd.DataFrame) -> Dict[str, Any]:
         human_resource = {
@@ -399,7 +432,7 @@ class Preprocess(object):
             res_duration = data[data[self.res.plant] == plant].copy()
 
             # Filter items of each plant involved in demand
-            res_duration = res_duration[res_duration[self.item.sku].isin(self.item_list_by_plant[plant])]
+            # res_duration = res_duration[res_duration[self.item.sku].isin(self.item_list_by_plant[plant])]
 
             # item -> resource -> duration mapping
             res_grp_duration_map = {}

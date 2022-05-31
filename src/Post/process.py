@@ -72,6 +72,14 @@ class Process(object):
         self.res_schd_cols = [self.res.res, self.dmd.start_time, self.dmd.end_time, self.res.res_capa]
         self.act_cols = [self.dmd.dmd, self.item.sku, self.res.res_grp, self.res.res,
                          self.dmd.start_time, self.dmd.end_time, 'kind']
+        self.prod_qty_cols = [
+            self.res.res_grp, self.res.res_grp_nm, self.res.res, self.res.res_nm, self.item.sku, self.item.sku_nm,
+            self.col_date, self.col_time_idx_type, self.dmd.prod_qty
+        ]
+        self.prod_dmd_qty_cols = [
+            self.dmd.dmd, self.res.res_grp, self.res.res_grp_nm, self.res.res, self.res.res_nm, self.item.sku,
+            self.item.sku_nm, self.col_date, self.col_time_idx_type, self.dmd.prod_qty
+        ]
 
         # Plant instance attribute
         self.plant = plant
@@ -136,6 +144,65 @@ class Process(object):
         # Best activity
         self.save(result=result)
 
+    def save(self, result) -> None:
+        result = self.conv_num_to_datetime(data=result)
+        prod_qty = self.calc_timeline_prod_qty(data=result)
+        prod_dmd_qty = self.calc_timeline_dmd_prod_qty(data=result)
+
+        if self.cfg['exec']['save_step_yn'] or self.cfg['exec']['save_db_yn']:
+            save = Save(
+                data=result,
+                io=self.io,
+                query=self.query,
+                plant=self.plant,
+                fp_seq=self.fp_seq,
+                fp_name=self.fp_name,
+                fp_version=self.fp_version,
+                res_avail_time=self.res_avail_time,
+                res_grp_mst=self.res_mst,
+                res_to_res_grp=self.res_to_res_grp
+            )
+
+            if self.cfg['exec']['save_step_yn']:
+                # Save the activity
+                save.to_csv(path=self.save_path, name='act')
+
+            if self.cfg['exec']['save_db_yn']:
+                # Resource status
+                save.res_status()
+
+                # Demand (req quantity vs prod quantity)
+                self.save_req_prod_qty_on_db(data=result, seq=self.fp_seq)
+
+                # Resource
+                self.save_gantt_on_db(data=result, seq=self.fp_seq)
+
+                # Production quantity on day & night
+                self.save_res_day_night_qty_on_db(data=prod_qty, seq=self.fp_seq)
+                self.save_res_day_night_dmd_qty_in_db(data=prod_dmd_qty, seq=self.fp_seq)
+
+        if self.cfg['exec']['save_graph_yn']:
+            gantt = Gantt(
+                fp_version=self.fp_version,
+                fp_seq=self.fp_seq,
+                plant=self.plant,
+                path=self.save_path
+            )
+            # Draw demand
+            gantt.draw(
+                data=result[result['kind'] == 'demand'],
+                y=self.dmd.dmd,
+                color=self.res.res,
+                name='act_demand'
+            )
+
+            gantt.draw(
+                data=result,
+                y=self.res.res,
+                color=self.dmd.dmd,
+                name='act_resource'
+            )
+
     def set_res_to_res_grp(self) -> None:
         res_grp = self.res_grp.copy()
         res_to_res_grp = {}
@@ -178,6 +245,7 @@ class Process(object):
             item=self.item_mst,
             cstr=self.cstr_mst,
             demand=self.demand,
+            res_to_res_grp=self.res_to_res_grp
         )
         # print(f"Apply human capacity: Plant {self.plant}")
         result, log = human_cstr.apply(data=data)
@@ -195,65 +263,6 @@ class Process(object):
         result, log = sim_prod_cstr.apply(data=data)
 
         return result, log
-
-    def save(self, result) -> None:
-        result = self.conv_num_to_datetime(data=result)
-        prod_qty = self.calc_timeline_prod_qty(data=result)
-
-        if self.cfg['exec']['save_step_yn'] or self.cfg['exec']['save_db_yn']:
-            save = Save(
-                data=result,
-                io=self.io,
-                query=self.query,
-                plant=self.plant,
-                fp_seq=self.fp_seq,
-                fp_name=self.fp_name,
-                fp_version=self.fp_version,
-                res_avail_time=self.res_avail_time,
-                res_grp_mst=self.res_mst,
-                res_to_res_grp=self.res_to_res_grp
-            )
-
-            if self.cfg['exec']['save_step_yn']:
-                # Save the activity
-                save.to_csv(path=self.save_path, name='act')
-
-            if self.cfg['exec']['save_db_yn']:
-                # Resource status
-                save.res_status()
-
-                # self.save_res_status_on_db(data=result, seq=self.fp_seq)
-
-                # Demand (req quantity vs prod quantity)
-                self.save_req_prod_qty_on_db(data=result, seq=self.fp_seq)
-
-                # Resource
-                self.save_gantt_on_db(data=result, seq=self.fp_seq)
-
-                # Production quantity on day & night
-                self.save_res_day_night_qty_on_db(data=prod_qty, seq=self.fp_seq)
-
-        if self.cfg['exec']['save_graph_yn']:
-            gantt = Gantt(
-                fp_version=self.fp_version,
-                fp_seq=self.fp_seq,
-                plant=self.plant,
-                path=self.save_path
-            )
-            # Draw demand
-            gantt.draw(
-                data=result[result['kind'] == 'demand'],
-                y=self.dmd.dmd,
-                color=self.res.res,
-                name='act_demand'
-            )
-
-            gantt.draw(
-                data=result,
-                y=self.res.res,
-                color=self.dmd.dmd,
-                name='act_resource'
-            )
 
     def get_best_activity(self) -> list:
         result_dir = os.path.join(self.save_path, 'opt', 'org', self.fp_version)
@@ -310,18 +319,34 @@ class Process(object):
 
             act_kind = activity[:activity.index('[')]
             if act_kind == 'Act':
-                dmd_id, item_cd, res_grp = activity.split(self.split_symbol)
-                dmd_id = dmd_id[dmd_id.index('[') + 1:]
-                res_grp = res_grp[:res_grp.index(']')]
+                if len(activity.split(self.split_symbol)) == 3:
+                    dmd_id, item_cd, res_grp = activity.split(self.split_symbol)
+                    dmd_id = dmd_id[dmd_id.index('[') + 1:]
+                    res_grp = res_grp[:res_grp.index(']')]
 
-                # preprocess the mode
-                res = mode.split(self.split_symbol)[-1]
-                res = res[:res.index(']')]
+                    # preprocess the mode
+                    res = mode.split(self.split_symbol)[-1]
+                    res = res[:res.index(']')]
+
+                elif len(activity.split(self.split_symbol)) == 2:
+                    dmd_id, item_cd = activity.split(self.split_symbol)
+                    dmd_id = dmd_id[dmd_id.index('[') + 1:]
+                    item_cd = item_cd[:item_cd.index(']')]
+                    res = mode.split(self.split_symbol)[-1]
+                    res = res[:res.index(']')]
+                    res_grp = self.res_to_res_grp[res]
+
                 kind = 'demand'
 
             elif act_kind == 'Setup':
-                _, item_cd, res_grp, res = activity.split(self.split_symbol)
-                res = res[:res.index(']')]
+                if len(activity.split(self.split_symbol)) == 4:
+                    _, item_cd, res_grp, res = activity.split(self.split_symbol)
+                    res = res[:res.index(']')]
+
+                else:
+                    _, item_cd, res = activity.split(self.split_symbol)
+                    res = res[:res.index(']')]
+                    res_grp = self.res_to_res_grp[res]
 
                 from_dmd, to_dmd, mode = mode.split('|')
                 from_dmd = from_dmd.split(self.split_symbol)
@@ -342,6 +367,42 @@ class Process(object):
                 result.append([dmd_id, item_cd, res_grp, res, duration_start, duration_end, kind])
 
             return result
+
+    def calc_timeline_dmd_prod_qty(self, data: pd.DataFrame):
+        timeline_list = []
+        for dmd_id, dmd_df in data.groupby(self.dmd.dmd):
+            for res_cd, res_df in dmd_df.groupby(self.res.res):
+                for item_cd, item_df in res_df.groupby(self.item.sku):
+                    for start, end in zip(item_df['start'], item_df['end']):
+                        duration = self.calc_duration(res_cd, item_cd, start, end)
+                        temp = [[dmd_id] + dur for dur in duration]
+                        timeline_list.extend(temp)
+
+        qty_df = pd.DataFrame(
+            timeline_list,
+            columns=[self.dmd.dmd, self.res.res, self.item.sku, self.col_date, self.col_time_idx_type,
+                     self.dmd.duration]
+        )
+        qty_df = self.set_item_res_capa_rate(data=qty_df)
+        qty_df[self.dmd.duration] = qty_df[self.dmd.duration] / np.timedelta64(1, 's')
+        qty_df[self.dmd.prod_qty] = np.round(qty_df[self.dmd.duration] / qty_df['capa_rate'], 2)
+
+        qty_df[self.dmd.prod_qty] = qty_df[self.dmd.prod_qty].fillna(0)
+        qty_df[self.dmd.prod_qty] = np.nan_to_num(
+            qty_df[self.dmd.prod_qty].values,
+            posinf=self.inf_val,
+            neginf=self.inf_val
+        )
+
+        # Data processing
+        qty_df = qty_df.drop(columns=[self.dmd.duration])
+        qty_df = qty_df.groupby(by=[self.dmd.dmd, self.res.res, self.item.sku, self.col_date, self.col_time_idx_type, 'capa_rate']) \
+            .sum() \
+            .reset_index()
+
+        qty_df = self.add_name_info(data=qty_df, cols=self.prod_dmd_qty_cols)
+
+        return qty_df
 
     def calc_timeline_prod_qty(self, data: pd.DataFrame):
         timeline_list = []
@@ -372,11 +433,11 @@ class Process(object):
             .sum() \
             .reset_index()
 
-        qty_df = self.add_name_info(data=qty_df)
+        qty_df = self.add_name_info(data=qty_df,  cols=self.prod_qty_cols)
 
         return qty_df
 
-    def add_name_info(self, data: pd.DataFrame):
+    def add_name_info(self, data: pd.DataFrame, cols: list):
         # Add item naming
         item_mst = self.item_mst[[self.item.sku, self.item.sku_nm]].drop_duplicates().copy()
         data = pd.merge(data, item_mst, how='left', on=self.item.sku)
@@ -387,8 +448,7 @@ class Process(object):
                                      for res_grp_cd in data[self.res.res_grp]]
         data[self.res.res_nm] = [self.res_nm_map.get(res_cd, 'UNDEFINED') for res_cd in data[self.res.res]]
 
-        data = data[[self.res.res_grp, self.res.res_grp_nm, self.res.res, self.res.res_nm, self.item.sku,
-                     self.item.sku_nm, self.col_date, self.col_time_idx_type, self.dmd.prod_qty]]
+        data = data[cols]
 
         return data
 
@@ -562,11 +622,43 @@ class Process(object):
         data[self.res.plant] = self.plant
         data[self.col_date] = data[self.col_date].dt.strftime('%Y%m%d')
 
+        # Add item type code
+        data = pd.merge(
+            data,
+            self.item_mst[[self.item.sku, 'item_type_cd']].drop_duplicates(),
+            how='left',
+            on=self.item.sku
+        )
+        data['item_type_cd'] = data['item_type_cd'].fillna('-')
+        data[self.item.sku_nm] = data[self.item.sku_nm].fillna('-')
+
         kwargs = {'fp_version': self.fp_version, 'fp_seq': self.fp_seq, 'plant_cd': self.plant}
         self.io.delete_from_db(sql=self.query.del_res_day_night_qty(**kwargs))
 
         # Save the result on DB
         self.io.insert_to_db(df=data, tb_name='M4E_O402130')
+
+    def save_res_day_night_dmd_qty_in_db(self, data: pd.DataFrame, seq: str):
+        data = self.add_version_info(data=data, seq=seq)
+        data[self.res.plant] = self.plant
+        data[self.col_date] = data[self.col_date].dt.strftime('%Y%m%d')
+
+        # Add item type code
+        data = pd.merge(
+            data,
+            self.item_mst[[self.item.sku, 'item_type_cd']].drop_duplicates(),
+            how='left',
+            on=self.item.sku
+        )
+        data['item_type_cd'] = data['item_type_cd'].fillna('-')
+        data[self.item.sku_nm] = data[self.item.sku_nm].fillna('-')
+        data = data.rename(columns={self.dmd.dmd: self.col_fp_key})
+
+        kwargs = {'fp_version': self.fp_version, 'fp_seq': self.fp_seq, 'plant_cd': self.plant}
+        self.io.delete_from_db(sql=self.query.del_res_day_night_dmd_qty(**kwargs))
+
+        # Save the result on DB
+        self.io.insert_to_db(df=data, tb_name='M4E_O402131')
 
     def calc_prod_qty(self, data: pd.DataFrame):
         data = self.set_item_res_capa_rate(data=data)
@@ -682,7 +774,7 @@ class Process(object):
                                        for res_cd in res_final[self.res.res]]
         res_final = self.add_version_info(data=res_final, seq=seq)
 
-        res_final = res_final.drop(columns=[self.res.res_capa, 'day', 'res_capa_val'])
+        res_final = res_final.drop(columns=[self.res.res_capa, 'day'])
 
         # Delete previous result
         kwargs = {'fp_version': self.fp_version, 'fp_seq': self.fp_seq, 'plant_cd': self.plant}

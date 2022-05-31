@@ -47,7 +47,9 @@ key_human_usage = 'human_usage'
 
 # Route
 key_bom_route = 'bom_route'
-
+key_route_res = 'route_res'
+key_route_item = 'route_item'
+key_route_rate = 'route_rate'
 ########################
 # Column Configuration
 ########################
@@ -105,7 +107,7 @@ prod_qty_multiple = 10
 # OptSeq Model configuration
 time_limit = 60 * 1  # 60*60*6
 make_span = True
-optput_flag = True
+optput_flag = False
 max_iteration = 10**20
 report_interval = 10**20
 back_truck = 1000

@@ -31,6 +31,9 @@ class Key(object):
 
         # Route
         self.route = config.key_bom_route    # BOM Route
+        self.route_res = config.key_route_res
+        self.route_item = config.key_route_item
+        self.route_rate = config.key_route_rate
 
 
 class Demand(object):

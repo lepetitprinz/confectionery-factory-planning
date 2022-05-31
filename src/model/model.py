@@ -8,7 +8,7 @@ from typing import Dict, Tuple, List
 from optimize.optseq import Model, Mode, Parameters, Activity, Resource
 
 
-class OptSeqModel(object):
+class OptSeq(object):
     # job change
     job_change_type = ['BRAND_CHANGE', 'FLAVOR_CHANGE', 'STANDARD_CHANGE']
 

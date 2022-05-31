@@ -1,0 +1,2 @@
+Plant[K140] - Demand[SP_0000412] - Resource Group[4101] -Resource[4101_01] - SKU[5142595] : Simultaneous production is added.
+Plant[K140] - Demand[SP_0000413] - Resource Group[4101] -Resource[4101_01] - SKU[5142595] : Simultaneous production is added.

@@ -10,10 +10,12 @@ class Query(object):
                  , ITEM_NM
                  , ITEM_ATTR03_CD
                  , ITEM_ATTR04_CD
+                 , ITEM_TYPE_CD
                  , ITEM_ATTR29_CD AS FLAVOR
                  , PKG_CTGRI_SUB_CD AS PKG
               FROM M4E_I401080
-             WHERE ITEM_TYPE_CD IN ('FERT', 'HAWA')
+             WHERE 1=1
+            -- AND ITEM_TYPE_CD IN ('FERT', 'HAWA')
                AND FP_VRSN_ID = '{kwargs['fp_vrsn_id']}'
                AND FP_VRSN_SEQ = '{kwargs['fp_vrsn_seq']}'
 
@@ -189,7 +191,7 @@ class Query(object):
               FROM M4E_I401291
              WHERE FP_VRSN_ID = '{kwargs['fp_vrsn_id']}'
                AND FP_VRSN_SEQ = '{kwargs['fp_vrsn_seq']}'
-               AND LEFT(YYMM, 4) = '{kwargs['yy']}'
+               AND LEFT(YYMMDD, 4) = '{kwargs['yy']}'
                AND WEEK = '{kwargs['week']}'
         """
         return sql
@@ -247,6 +249,17 @@ class Query(object):
         sql = f"""
             DELETE 
               FROM M4E_O402130
+             WHERE FP_VRSN_ID = '{kwargs['fp_version']}'
+               AND FP_VRSN_SEQ = '{kwargs['fp_seq']}'
+               AND PLANT_CD = '{kwargs['plant_cd']}'
+        """
+        return sql
+
+    @staticmethod
+    def del_res_day_night_dmd_qty(**kwargs):
+        sql = f"""
+            Delete
+              FROM M4E_O402131
              WHERE FP_VRSN_ID = '{kwargs['fp_version']}'
                AND FP_VRSN_SEQ = '{kwargs['fp_seq']}'
                AND PLANT_CD = '{kwargs['plant_cd']}'

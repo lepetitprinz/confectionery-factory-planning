@@ -58,6 +58,8 @@ class Save(object):
         self.item = Item()
         self.cstr = Constraint()
 
+        self.schedule_range = []
+        self.schedule_period = 27
         self.sec_of_half_day = 43200
         self.split_hour = dt.timedelta(hours=12)
 
@@ -65,6 +67,9 @@ class Save(object):
         self.res_avail_time = res_avail_time
         self.res_to_res_grp = res_to_res_grp
         self.res_grp_mst = res_grp_mst
+
+        self.daily_capa_info = {}
+        self.res_day_avail_time = {}
 
     def to_csv(self, path, name: str) -> None:
         save_dir = os.path.join(path, 'opt', 'csv', self.fp_version)
@@ -77,6 +82,8 @@ class Save(object):
     # Resource Status
     ##################
     def res_status(self):
+        self.prep_res_info()
+
         # Get resource timeline
         timeline = self.get_res_timeline()
 
@@ -98,6 +105,9 @@ class Save(object):
         # Resource available time
         res_final['res_avail_val'] = res_final['res_capa_val'] - res_final['res_use_capa_val'] - res_final['res_jc_val']
 
+        # Fill unused timeline
+        # res_final = self.fill_unused_capa_info(data=res_final)
+
         # Add information
         res_final = self.add_model_info(data=res_final)
 
@@ -107,6 +117,45 @@ class Save(object):
 
         # Save the result on DB
         self.io.insert_to_db(df=res_final, tb_name='M4E_O402050')
+
+    def fill_unused_capa_info(self, data):
+        add_df = pd.DataFrame()
+
+        for res, res_df in data.groupby(by=self.res.res):
+            for yymmdd in self.schedule_range:
+                for time_type in ['D', 'N']:
+                    if len(res_df[(res_df[self.col_date] == dt.datetime.strftime(yymmdd, '%Y%m%d'))
+                                  & (res_df['time_index_type'] == time_type)]) == 0:
+                        series = self.res_day_avail_time[res][yymmdd.day_of_week][time_type]
+
+    def prep_res_info(self):
+        start_day = dt.datetime.strptime(self.fp_version[3:7] + '-' + self.fp_version[7:10] + '-1', "%Y-W%W-%w")
+        end_day = start_day + dt.timedelta(days=self.schedule_period)
+        schedule_range = pd.date_range(start=start_day, end=end_day, freq='D').tolist()
+        self.schedule_range = [date for date in schedule_range if date.day_of_week not in [5, 6]]
+
+        res_day_avail_time = {}
+        for res, avail_time_list in self.res_avail_time.items():
+            day_to_avail_time = {}
+            for i, avail_time in enumerate(avail_time_list):
+                day_time = self.calc_day_night_res_capacity(day=i, time_idx_type='D', capacity=avail_time * 60)
+                night_time = self.calc_day_night_res_capacity(day=i, time_idx_type='N', capacity=avail_time * 60)
+                idx_col = [self.res.res, 'day', 'res_capa_val', 'res_use_capa_val', 'res_avail_val',
+                           'res_unavail_val', 'res_jc_val']
+                avail_time_day_night = {
+                    'D': pd.Series(
+                        [res, i, day_time, 0, day_time, self.sec_of_half_day - day_time, 0],
+                        index=idx_col
+                    ),
+                    'N': pd.Series(
+                        [res, i, night_time, 0, night_time, self.sec_of_half_day - night_time, 0],
+                        index=idx_col
+                    )
+                }
+                day_to_avail_time[i] = avail_time_day_night
+            res_day_avail_time[res] = day_to_avail_time
+
+        self.res_day_avail_time = res_day_avail_time
 
     def get_res_timeline(self):
         timeline = []
@@ -152,7 +201,6 @@ class Save(object):
         res_capa = []
         for res, day in zip(data[self.col_res], data['day']):
             res_avail_time = self.res_avail_time[res]
-            # res_avail_time = [res_avail_time[0]] + [1440, 1440, 1440] + [res_avail_time[-1]]
             res_capa.append(res_avail_time[day] * 60)
 
         data[self.col_res_capa] = res_capa
@@ -200,7 +248,7 @@ class Save(object):
                                   for res_cd in data[self.col_res]]
         data = self.add_version_info(data=data)
 
-        data = data.drop(columns=[self.col_res_capa, 'day', 'res_capa_val'])
+        data = data.drop(columns=[self.col_res_capa, 'day'])
 
         return data
 

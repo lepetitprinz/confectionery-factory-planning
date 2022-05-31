@@ -5,7 +5,7 @@ from init.init import Init
 from init.load import DataLoad
 from init.consistency import Consistency
 from init.preprocess import Preprocess
-from model.model import OptSeqModel
+from model.model import OptSeq
 from Post.process import Process
 
 
@@ -116,7 +116,7 @@ class Pipeline(object):
                 print(f" - Set the OtpSeq model: {plant}")
 
                 # Instantiate OptSeq class
-                opt_seq = OptSeqModel(
+                opt_seq = OptSeq(
                     cfg=self.cfg,
                     plant=plant,
                     plant_data=prep_data,
