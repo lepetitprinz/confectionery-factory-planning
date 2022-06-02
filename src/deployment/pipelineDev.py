@@ -189,4 +189,7 @@ class Pipeline(object):
                     )
                     pp.run()
 
+            # Close DB session
+            self.io.session.close()
+
             print("Post Process is finished.")

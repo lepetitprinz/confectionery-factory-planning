@@ -126,7 +126,8 @@ class Process(object):
 
         # Apply the constraint: Human capacity
         if self.cfg['cstr']['apply_human_capacity']:
-            result, log = self.apply_human_capa_const(data=result)
+            result, log, capa_profile = self.apply_human_capa_const(data=result)
+            capa_profile = self.add_version_info(data=capa_profile, seq=self.fp_seq)
             self.log.extend(log)
 
         if self.cfg['cstr']['apply_sim_prod_cstr']:
@@ -248,9 +249,9 @@ class Process(object):
             res_to_res_grp=self.res_to_res_grp
         )
         # print(f"Apply human capacity: Plant {self.plant}")
-        result, log = human_cstr.apply(data=data)
+        result, log, capa_profile = human_cstr.apply(data=data)
 
-        return result, log
+        return result, log, capa_profile
 
     def apply_sim_prod_cstr(self, data):
         sim_prod_cstr = Necessary(
@@ -396,7 +397,8 @@ class Process(object):
 
         # Data processing
         qty_df = qty_df.drop(columns=[self.dmd.duration])
-        qty_df = qty_df.groupby(by=[self.dmd.dmd, self.res.res, self.item.sku, self.col_date, self.col_time_idx_type, 'capa_rate']) \
+        qty_df = qty_df.groupby(by=[self.dmd.dmd, self.res.res, self.item.sku,
+                                    self.col_date, self.col_time_idx_type, 'capa_rate']) \
             .sum() \
             .reset_index()
 

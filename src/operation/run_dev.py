@@ -16,7 +16,7 @@ cfg = {
         'save_step_yn': False,
         'save_db_yn': False,
         'save_graph_yn': False,
-        'verbose': True,
+        'verbose': False,
     },
     'step': {
         'cls_load': False,
@@ -31,7 +31,7 @@ cfg = {
         'apply_job_change': True,            # Job Change
         'apply_prod_qty_multiple': True,     # Product Quantity Multiple
         'apply_human_capacity': True,       # Human Capacity
-        'apply_sim_prod_cstr': True,        # Simultaneous Production Constraint
+        'apply_sim_prod_cstr': False,        # Simultaneous Production Constraint
     },
     'except': {
         'miss_duration': 'remove'    # add / remove

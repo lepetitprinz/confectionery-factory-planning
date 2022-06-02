@@ -4,7 +4,7 @@ from common.name import Key, Demand, Item, Resource, Constraint
 import numpy as np
 import pandas as pd
 import datetime as dt
-from typing import Hashable, Dict, Union, Tuple
+from typing import Hashable, Dict, Union, Tuple, List
 
 
 class Human(object):
@@ -50,6 +50,7 @@ class Human(object):
 
         # save the timeline change log
         self.log = []
+        self.capa_profile = []
 
     def apply(self, data):
         # preprocess demand
@@ -60,19 +61,22 @@ class Human(object):
         self.set_res_capacity(data=self.cstr_mst[self.key.res_avail_time])
 
         result = pd.DataFrame()
+        capa_timeline = []
         for floor, schedule_dmd in capa_apply_dmd.items():
             print("---------------------------")
             print(f"Applying Floor: {floor}")
             print("---------------------------")
 
             # Initialization
-            curr_capa = self.floor_capa[floor]
+            curr_time = 0    # Start time
+            curr_capa = self.floor_capa[floor]    # Floor
+            # self.capa_profile.append([floor, curr_time] + list(curr_capa))    # Update capacity profile
             confirmed_schedule = pd.DataFrame()    # confirmed schedule
-            curr_prod_dmd = pd.DataFrame()     # Current producing demand
+            curr_prod_dmd = pd.DataFrame()    # Current producing demand
 
             while len(schedule_dmd) > 0:
                 # print(f'Remaining Schedule: {len(schedule_dmd)}')
-                # print(f'Current Capacity: {curr_capa}')
+                print(f'Current Capacity: {curr_capa}')
 
                 # Search demand candidate
                 candidate_dmd = self.search_candidate_dmd(data=schedule_dmd, curr_prod_dmd=curr_prod_dmd)
@@ -96,7 +100,9 @@ class Human(object):
                     # Finish the latest demand
                     if len(curr_prod_dmd) > 0:
                         curr_capa, curr_time, curr_prod_dmd = self.finish_latest_dmd(
+                            floor=floor,
                             curr_capa=curr_capa,
+                            curr_time=curr_time,
                             curr_prod_dmd=curr_prod_dmd,
                         )
                         # Update timeline of remaining demands
@@ -108,10 +114,35 @@ class Human(object):
 
         result = pd.concat([result, non_apply_dmd])
 
-        # log
+        # log & capacity profile
         log = sorted(list(set(self.log)))
+        capa_profile = self.set_capa_profile()
 
-        return result, log
+        return result, log, capa_profile
+
+    def set_capa_profile(self):
+        capa_profile = []
+        floor, from_time, prev_m_capa, prev_w_capa = self.capa_profile[0]
+        for floor, time, m_capa, w_capa in self.capa_profile[1:]:
+            if (m_capa == prev_m_capa) and (w_capa == prev_w_capa):
+                continue
+            else:
+                capa_profile.append([floor, from_time, time, prev_m_capa, prev_w_capa])
+                prev_m_capa = m_capa
+                prev_w_capa = w_capa
+                from_time = time
+
+        profile = pd.DataFrame(
+            capa_profile,
+            columns=[self.cstr.floor, 'from_time', 'to_time', self.cstr.m_capa, self.cstr.w_capa])
+        profile[self.res.plant] = self.plant
+        profile['from_time'] = [self.plant_start_time + dt.timedelta(seconds=time) for time in profile['from_time']]
+        profile['to_time'] = [self.plant_start_time + dt.timedelta(seconds=time) for time in profile['to_time']]
+
+        profile[self.cstr.m_capa] = profile[self.cstr.m_capa].astype(int)
+        profile[self.cstr.w_capa] = profile[self.cstr.w_capa].astype(int)
+
+        return profile
 
     def set_res_capacity(self, data: pd.DataFrame):
         # Choose current plant
@@ -174,7 +205,7 @@ class Human(object):
             # Write timeline changing log
             self.write_timeline_chg_log(data=time_moved_dmd)
 
-            #
+            # apply resource capacity on timeline
             time_moved_dmd = self.apply_res_capa_on_timeline(data=time_moved_dmd)
 
             # Connect continuous timeline of each demand
@@ -186,6 +217,42 @@ class Human(object):
         return revised_dmd
 
     def connect_continuous_dmd(self, data: pd.DataFrame):
+        revised_data = pd.DataFrame()
+
+        for dmd, dmd_df in data.groupby(by=self.dmd.dmd):
+            for item, item_df in dmd_df.groupby(by=self.item.sku):
+                for res_grp, res_grp_df in item_df.groupby(by=self.res.res_grp):
+                    for res, res_df in res_grp_df.groupby(by=self.res.res):
+                        if len(res_df) > 1:
+                            # Sort demand on start time
+                            res_df = res_df.sort_values(by=self.dmd.start_time)
+                            timeline_list = res_df[[self.dmd.start_time, self.dmd.end_time]].values.tolist()
+
+                            # Connect the capacity if timeline is continuous
+                            timeline_connected = self.connect_continuous_capa(data=timeline_list)
+
+                            # Remake demand dataframe using connected timeline
+                            for stime, etime in timeline_connected:
+                                common = res_df.iloc[0].copy()
+                                dmd_series = self.update_connected_timeline(
+                                    common=common,
+                                    dmd=dmd,
+                                    item=item,
+                                    res_grp=res_grp,
+                                    res=res,
+                                    start_time=stime,
+                                    end_time=etime
+                                )
+                                revised_data = revised_data.append(dmd_series)
+                        else:
+                            revised_data = revised_data.append(res_df)
+
+        revised_data = revised_data.sort_values(by=self.dmd.dmd)
+        revised_data = revised_data.reset_index(drop=True)
+
+        return revised_data
+
+    def connect_continuous_dmd_bak(self, data: pd.DataFrame):
         revised_data = pd.DataFrame()
 
         for dmd, dmd_df in data.groupby(by=self.dmd.dmd):
@@ -201,7 +268,7 @@ class Human(object):
 
                 for stime, etime in timeline_connected:
                     dmd_copy = dmd_df.iloc[0].copy()
-                    dmd_series = self.update_connected_timeline(data=dmd_copy, start_time=stime, end_time=etime)
+                    dmd_series = self.update_connected_timeline_bak(data=dmd_copy, start_time=stime, end_time=etime)
                     revised_data = revised_data.append(dmd_series)
             else:
                 revised_data = revised_data.append(dmd_df)
@@ -211,12 +278,23 @@ class Human(object):
 
         return revised_data
 
-    def update_connected_timeline(self, data: pd.Series, start_time, end_time):
+    def update_connected_timeline_bak(self, data: pd.Series, start_time, end_time):
         data[self.dmd.start_time] = start_time
         data[self.dmd.end_time] = end_time
         data[self.dmd.duration] = end_time - start_time
 
         return data
+
+    def update_connected_timeline(self, common: pd.Series, dmd, item, res_grp, res, start_time, end_time):
+        common[self.dmd.dmd] = dmd
+        common[self.item.sku] = item
+        common[self.res.res_grp] = res_grp
+        common[self.res.res] = res
+        common[self.dmd.start_time] = start_time
+        common[self.dmd.end_time] = end_time
+        common[self.dmd.duration] = end_time - start_time
+
+        return common
 
     # Classify the demand if timeline will be moved or not
     def classify_dmd_move_or_not(self, data: pd.DataFrame, time: int) -> Tuple[pd.DataFrame, pd.DataFrame]:
@@ -276,8 +354,11 @@ class Human(object):
 
         return applied_data
 
-    def finish_latest_dmd(self, curr_capa, curr_prod_dmd: pd.DataFrame):
+    def finish_latest_dmd(self, floor: Hashable, curr_capa: Tuple[int, int], curr_time, curr_prod_dmd: pd.DataFrame):
         latest_finish_dmd = curr_prod_dmd[curr_prod_dmd[self.dmd.end_time] == curr_prod_dmd[self.dmd.end_time].min()]
+
+        # Update capacity profile
+        self.capa_profile.append([floor, curr_time] + list(curr_capa))
 
         # Update current time    # Todo: need to check the logic
         curr_time = latest_finish_dmd[self.dmd.end_time].values[0]
@@ -292,15 +373,18 @@ class Human(object):
 
         return curr_capa, curr_time, curr_prod_dmd
 
-    def confirm_dmd_prod(self, curr_capa, candidate_dmd: pd.Series, schedule_dmd: pd.DataFrame,
-                         confirmed_schedule: pd.DataFrame, curr_prod_dmd: pd.DataFrame):
+    def confirm_dmd_prod(self, curr_capa, candidate_dmd: pd.Series,
+                         schedule_dmd: pd.DataFrame, confirmed_schedule: pd.DataFrame, curr_prod_dmd: pd.DataFrame):
         # Get demand usage
         dmd_usage = [candidate_dmd[self.cstr.m_capa], candidate_dmd[self.cstr.w_capa]]
 
-        # update current capacity
+        # Update current capacity
         curr_capa = curr_capa - dmd_usage
 
-        # add production information
+        # Update capacity profile
+        # self.capa_profile.append([floor, curr_time] + list(curr_capa))
+
+        # Add production information
         confirmed_schedule = confirmed_schedule.append(candidate_dmd)
 
         # Remove confirmed demand from candidates
