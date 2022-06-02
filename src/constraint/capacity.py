@@ -4,6 +4,7 @@ from common.name import Key, Demand, Item, Resource, Constraint
 import numpy as np
 import pandas as pd
 import datetime as dt
+from copy import deepcopy
 from typing import Hashable, Dict, Union, Tuple, List
 
 
@@ -69,8 +70,7 @@ class Human(object):
 
             # Initialization
             curr_time = 0    # Start time
-            curr_capa = self.floor_capa[floor]    # Floor
-            # self.capa_profile.append([floor, curr_time] + list(curr_capa))    # Update capacity profile
+            curr_capa = deepcopy(self.floor_capa[floor])    # Floor
             confirmed_schedule = pd.DataFrame()    # confirmed schedule
             curr_prod_dmd = pd.DataFrame()    # Current producing demand
 
@@ -117,30 +117,37 @@ class Human(object):
         # log & capacity profile
         log = sorted(list(set(self.log)))
         capa_profile = self.set_capa_profile()
+        capa_profile_dn = self.make_capa_profile_day_night(data=capa_profile)
 
         return result, log, capa_profile
+
+    def make_capa_profile_day_night(self):
+        date_range = pd.date_range(start='', end='')
 
     def set_capa_profile(self):
         capa_profile = []
         floor, from_time, prev_m_capa, prev_w_capa = self.capa_profile[0]
         for floor, time, m_capa, w_capa in self.capa_profile[1:]:
+            tot_m_capa, tot_w_capa = self.floor_capa[floor]
             if (m_capa == prev_m_capa) and (w_capa == prev_w_capa):
                 continue
             else:
-                capa_profile.append([floor, from_time, time, prev_m_capa, prev_w_capa])
+                capa_profile.append([floor, from_time, time, tot_m_capa, tot_w_capa,
+                                     tot_m_capa - prev_m_capa, tot_w_capa - prev_w_capa])
                 prev_m_capa = m_capa
                 prev_w_capa = w_capa
                 from_time = time
 
         profile = pd.DataFrame(
             capa_profile,
-            columns=[self.cstr.floor, 'from_time', 'to_time', self.cstr.m_capa, self.cstr.w_capa])
+            columns=[self.cstr.floor, 'from_time', 'to_time', 'tot_m_capa', 'tot_w_capa',
+                     'use_m_capa', 'use_w_capa'])
         profile[self.res.plant] = self.plant
         profile['from_time'] = [self.plant_start_time + dt.timedelta(seconds=time) for time in profile['from_time']]
         profile['to_time'] = [self.plant_start_time + dt.timedelta(seconds=time) for time in profile['to_time']]
 
-        profile[self.cstr.m_capa] = profile[self.cstr.m_capa].astype(int)
-        profile[self.cstr.w_capa] = profile[self.cstr.w_capa].astype(int)
+        profile['use_m_capa'] = profile['use_m_capa'].astype(int)
+        profile['use_w_capa'] = profile['use_w_capa'].astype(int)
 
         return profile
 

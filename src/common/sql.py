@@ -122,7 +122,7 @@ class Query(object):
             SELECT PLANT_CD
                  , RES_CD
                  , ROUTE_CD AS ITEM_CD
-                 , ROUND(60 * CAPA_USE_RATE, 0) AS DURATION
+                 , CEILING(60 * CAPA_USE_RATE) AS DURATION
               FROM M4E_I401120
              WHERE CAPA_USE_RATE IS NOT NULL
                AND FP_VRSN_ID = '{kwargs['fp_vrsn_id']}'
