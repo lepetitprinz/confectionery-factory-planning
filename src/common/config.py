@@ -7,18 +7,18 @@ PORT = '1433'
 USER = 'matrix'            # User name
 PASSWORD = 'Diam0nd123!'   # User password
 
-############################################
+#################################
 # Factory Planning configuration
-############################################
+#################################
 project_cd = 'ENT001'
 apply_plant = ['K110', 'K120', 'K130', 'K140', 'K170']
 
 time_uom = 'sec'
 work_day = 5
 
-############################################
+####################################
 # Data dictionary key configuration
-############################################
+####################################
 # Dataset
 key_dmd = 'demand'         # Demand
 key_res = 'resource'       # Resource
@@ -79,6 +79,7 @@ col_sku = 'item_cd'
 col_sku_nm = 'item_nm'
 col_pkg = 'pkg'
 col_flavor = 'flavor'
+col_item_type = 'item_type_cd'
 
 # Columns: Route
 col_lead_time = 'lead_time'
@@ -97,9 +98,41 @@ col_job_change_time = 'jc_time'
 col_job_change_unit = 'jc_unit'
 
 # Human capacity
-col_floor = 'floor'
+col_floor = 'floor_cd'
 col_man_capa = 'm_val'
 col_woman_capa = 'w_val'
+
+#######################
+# Column: Post process
+#######################
+# Planning version
+fp_seq = 'fp_seq'
+fp_key = 'fp_key'
+fp_version = 'fp_version'
+
+# Item
+col_eng_item = 'eng_item_cd'
+
+# User & time
+col_to_time = 'to_time'
+col_from_time = 'from_time'
+col_to_yymmdd = 'to_yymmdd'
+col_from_yymmdd = 'from_yymmdd'
+col_create_user = 'create_user_cd'
+col_time_index_type = 'time_index_type'
+
+# Resource capacity
+col_res_jc_capa = 'res_jc_val'
+col_res_unavail_capa = 'res_unavail_val'
+
+# Human capacity
+col_tot_m_capa = 'man_capa'
+col_tot_w_capa = 'woman_capa'
+col_use_m_capa = 'used_man_capa'
+col_use_w_capa = 'used_woman_capa'
+col_avail_m_capa = 'avail_man_capa'
+col_avail_w_capa = 'avail_woman_capa'
+col_res_use_capa = 'res_used_capa_val'
 
 # Constraint configuration
 prod_qty_multiple = 10

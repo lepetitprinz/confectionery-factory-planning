@@ -1,6 +1,6 @@
 import common.config as config
 import common.util as util
-from common.name import Key, Demand, Item, Resource, Constraint
+from common.name import Key, Demand, Item, Resource, Constraint, Post
 from constraint.capacity import Human
 from constraint.simultaneous import Necessary
 
@@ -32,8 +32,6 @@ class Process(object):
     col_date = 'yymmdd'
     col_start_time = 'starttime'
     col_end_time = 'endtime'
-    col_fp_key = 'fp_key'
-    col_time_idx_type = 'time_index_type'
     col_fp_version_id = 'fp_vrsn_id'
     col_fp_version_seq = 'fp_vrsn_seq'
 
@@ -67,6 +65,7 @@ class Process(object):
         self.res = Resource()
         self.item = Item()
         self.cstr = Constraint()
+        self.post = Post()
 
         # Columns usage instance attribute
         self.res_schd_cols = [self.res.res, self.dmd.start_time, self.dmd.end_time, self.res.res_capa]
@@ -74,11 +73,11 @@ class Process(object):
                          self.dmd.start_time, self.dmd.end_time, 'kind']
         self.prod_qty_cols = [
             self.res.res_grp, self.res.res_grp_nm, self.res.res, self.res.res_nm, self.item.sku, self.item.sku_nm,
-            self.col_date, self.col_time_idx_type, self.dmd.prod_qty
+            self.col_date, self.post.time_idx, self.dmd.prod_qty
         ]
         self.prod_dmd_qty_cols = [
             self.dmd.dmd, self.res.res_grp, self.res.res_grp_nm, self.res.res, self.res.res_nm, self.item.sku,
-            self.item.sku_nm, self.col_date, self.col_time_idx_type, self.dmd.prod_qty
+            self.item.sku_nm, self.col_date, self.post.time_idx, self.dmd.prod_qty
         ]
 
         # Plant instance attribute
@@ -88,7 +87,6 @@ class Process(object):
 
         # Data instance attribute
         self.data = data
-        self.cstr = data[self.key.cstr]
         self.demand = data[self.key.dmd]
         self.res_mst = data[self.key.res][self.key.res_grp]
         self.item_mst = data[self.key.res][self.key.item]
@@ -126,8 +124,14 @@ class Process(object):
 
         # Apply the constraint: Human capacity
         if self.cfg['cstr']['apply_human_capacity']:
-            result, log, capa_profile = self.apply_human_capa_const(data=result)
-            capa_profile = self.add_version_info(data=capa_profile, seq=self.fp_seq)
+            result, log, capa_profile, capa_profile_dtl = self.apply_human_capa_const(data=result)
+            # if self.cfg['exec']['save_db_yn']:
+            if len(capa_profile) > 0:
+                self.save_capa_profile(data=capa_profile)
+            if len(capa_profile_dtl) > 0:
+                self.save_capa_profile_dtl(data=capa_profile_dtl)
+
+            # log information
             self.log.extend(log)
 
         if self.cfg['cstr']['apply_sim_prod_cstr']:
@@ -143,7 +147,7 @@ class Process(object):
         )
 
         # Best activity
-        self.save(result=result)
+        # self.save(result=result)
 
     def save(self, result) -> None:
         result = self.conv_num_to_datetime(data=result)
@@ -249,9 +253,9 @@ class Process(object):
             res_to_res_grp=self.res_to_res_grp
         )
         # print(f"Apply human capacity: Plant {self.plant}")
-        result, log, capa_profile = human_cstr.apply(data=data)
+        result, log, capa_profile, capa_profile_dtl = human_cstr.apply(data=data)
 
-        return result, log, capa_profile
+        return result, log, capa_profile, capa_profile_dtl
 
     def apply_sim_prod_cstr(self, data):
         sim_prod_cstr = Necessary(
@@ -381,7 +385,7 @@ class Process(object):
 
         qty_df = pd.DataFrame(
             timeline_list,
-            columns=[self.dmd.dmd, self.res.res, self.item.sku, self.col_date, self.col_time_idx_type,
+            columns=[self.dmd.dmd, self.res.res, self.item.sku, self.col_date, self.post.time_idx,
                      self.dmd.duration]
         )
         qty_df = self.set_item_res_capa_rate(data=qty_df)
@@ -398,7 +402,7 @@ class Process(object):
         # Data processing
         qty_df = qty_df.drop(columns=[self.dmd.duration])
         qty_df = qty_df.groupby(by=[self.dmd.dmd, self.res.res, self.item.sku,
-                                    self.col_date, self.col_time_idx_type, 'capa_rate']) \
+                                    self.col_date, self.post.time_idx, 'capa_rate']) \
             .sum() \
             .reset_index()
 
@@ -415,7 +419,7 @@ class Process(object):
 
         qty_df = pd.DataFrame(
             timeline_list,
-            columns=[self.res.res, self.item.sku, self.col_date, self.col_time_idx_type, self.dmd.duration]
+            columns=[self.res.res, self.item.sku, self.col_date, self.post.time_idx, self.dmd.duration]
         )
         qty_df = self.set_item_res_capa_rate(data=qty_df)
         qty_df[self.dmd.duration] = qty_df[self.dmd.duration] / np.timedelta64(1, 's')
@@ -431,7 +435,7 @@ class Process(object):
 
         # Data processing
         qty_df = qty_df.drop(columns=[self.dmd.duration])
-        qty_df = qty_df.groupby(by=[self.res.res, self.item.sku, self.col_date, self.col_time_idx_type, 'capa_rate']) \
+        qty_df = qty_df.groupby(by=[self.res.res, self.item.sku, self.col_date, self.post.time_idx, 'capa_rate']) \
             .sum() \
             .reset_index()
 
@@ -584,35 +588,35 @@ class Process(object):
 
     def save_req_prod_qty_on_db(self, data: pd.DataFrame, seq: str):
         data = data.rename(columns={
-            self.dmd.dmd: self.col_fp_key, 'start': self.dmd.start_time, 'end': self.dmd.end_time}
+            self.dmd.dmd: self.post.fp_key, 'start': self.dmd.start_time, 'end': self.dmd.end_time}
         )
 
         data = data[data['kind'] == 'demand'].copy()
         data = self.calc_prod_qty(data=data)
 
-        prod_qty = data.groupby(by=[self.col_fp_key]).sum()['prod_qty'].reset_index()
-        end_date = data.groupby(by=[self.col_fp_key]).max()[self.dmd.end_time].reset_index()
-        merged = pd.merge(prod_qty, end_date, on=self.col_fp_key)
+        prod_qty = data.groupby(by=[self.post.fp_key]).sum()[self.dmd.prod_qty].reset_index()
+        end_date = data.groupby(by=[self.post.fp_key]).max()[self.dmd.end_time].reset_index()
+        merged = pd.merge(prod_qty, end_date, on=self.post.fp_key)
         merged[self.dmd.end_time] = merged[self.dmd.end_time].dt.strftime('%Y%m%d')
 
         # Add demand information
         demand = self.demand[[self.dmd.dmd, self.item.sku, 'qty']].rename(
-            columns={self.dmd.dmd: self.col_fp_key, 'qty': 'req_fp_qty'}
+            columns={self.dmd.dmd: self.post.fp_key, 'qty': 'req_fp_qty'}
         )
-        merged = pd.merge(demand, merged, how='inner', on=self.col_fp_key)
+        merged = pd.merge(demand, merged, how='inner', on=self.post.fp_key)
         merged[self.dmd.prod_qty] = merged[self.dmd.prod_qty].fillna(0)
         merged[self.dmd.end_time] = merged[self.dmd.end_time].fillna('99991231')
 
         merged = self.add_version_info(data=merged, seq=seq)
 
         merged = merged.rename(columns={
-            self.item.sku: 'eng_item_cd', self.dmd.end_time: self.col_date, self.dmd.prod_qty: 'fp_qty'})
+            self.item.sku: self.post.eng_item, self.dmd.end_time: self.col_date, self.dmd.prod_qty: 'fp_qty'})
 
         # Delete previous result
         kwargs = {
-            'fp_version': self.fp_version,
-            'fp_seq': self.fp_seq,
-            'fp_key': tuple(merged[self.col_fp_key].tolist())
+            self.post.fp_version: self.fp_version,
+            self.post.fp_seq: self.fp_seq,
+            self.post.fp_key: tuple(merged[self.post.fp_key].tolist())
         }
         self.io.delete_from_db(sql=self.query.del_dmd_result(**kwargs))
 
@@ -627,14 +631,14 @@ class Process(object):
         # Add item type code
         data = pd.merge(
             data,
-            self.item_mst[[self.item.sku, 'item_type_cd']].drop_duplicates(),
+            self.item_mst[[self.item.sku, self.post.item_type]].drop_duplicates(),
             how='left',
             on=self.item.sku
         )
-        data['item_type_cd'] = data['item_type_cd'].fillna('-')
+        data[self.post.item_type] = data[self.post.item_type].fillna('-')
         data[self.item.sku_nm] = data[self.item.sku_nm].fillna('-')
 
-        kwargs = {'fp_version': self.fp_version, 'fp_seq': self.fp_seq, 'plant_cd': self.plant}
+        kwargs = {self.post.fp_version: self.fp_version, self.post.fp_seq: self.fp_seq, 'plant_cd': self.plant}
         self.io.delete_from_db(sql=self.query.del_res_day_night_qty(**kwargs))
 
         # Save the result on DB
@@ -648,15 +652,15 @@ class Process(object):
         # Add item type code
         data = pd.merge(
             data,
-            self.item_mst[[self.item.sku, 'item_type_cd']].drop_duplicates(),
+            self.item_mst[[self.item.sku, self.post.item_type]].drop_duplicates(),
             how='left',
             on=self.item.sku
         )
-        data['item_type_cd'] = data['item_type_cd'].fillna('-')
+        data[self.post.item_type] = data[self.post.item_type].fillna('-')
         data[self.item.sku_nm] = data[self.item.sku_nm].fillna('-')
-        data = data.rename(columns={self.dmd.dmd: self.col_fp_key})
+        data = data.rename(columns={self.dmd.dmd: self.post.fp_key})
 
-        kwargs = {'fp_version': self.fp_version, 'fp_seq': self.fp_seq, 'plant_cd': self.plant}
+        kwargs = {self.post.fp_version: self.fp_version, self.post.fp_seq: self.fp_seq, 'plant_cd': self.plant}
         self.io.delete_from_db(sql=self.query.del_res_day_night_dmd_qty(**kwargs))
 
         # Save the result on DB
@@ -664,15 +668,15 @@ class Process(object):
 
     def calc_prod_qty(self, data: pd.DataFrame):
         data = self.set_item_res_capa_rate(data=data)
-        data['res_used_capa_val'] = data[self.dmd.end_time] - data[self.dmd.start_time]
-        data['res_used_capa_val'] = data['res_used_capa_val'] / np.timedelta64(1, 's')
-        data[self.dmd.prod_qty] = np.round(data['res_used_capa_val'] / data['capa_rate'], 2)
+        data[self.post.res_use_capa] = data[self.dmd.end_time] - data[self.dmd.start_time]
+        data[self.post.res_use_capa] = data[self.post.res_use_capa] / np.timedelta64(1, 's')
+        data[self.dmd.prod_qty] = np.round(data[self.post.res_use_capa] / data['capa_rate'], 2)
 
         return data
 
     def save_gantt_on_db(self, data: pd.DataFrame, seq: str) -> None:
         data = data.rename(columns={
-            self.dmd.dmd: self.col_fp_key, 'start': self.dmd.start_time, 'end': self.dmd.end_time
+            self.dmd.dmd: self.post.fp_key, 'start': self.dmd.start_time, 'end': self.dmd.end_time
         })
 
         data = data[data['kind'] == 'demand'].copy()
@@ -720,24 +724,24 @@ class Process(object):
 
         res_status = pd.DataFrame(
             timeline_list,
-            columns=[self.res.res, 'kind', self.col_date, self.col_time_idx_type, self.dmd.duration]
+            columns=[self.res.res, 'kind', self.col_date, self.post.time_idx, self.dmd.duration]
         )
         res_status[self.col_date] = res_status[self.col_date].dt.strftime('%Y%m%d')
         res_status[self.dmd.duration] = res_status[self.dmd.duration] / np.timedelta64(1, 's')
 
-        res_status = res_status.groupby(by=[self.res.res, 'kind', self.col_date, self.col_time_idx_type]) \
+        res_status = res_status.groupby(by=[self.res.res, 'kind', self.col_date, self.post.time_idx]) \
             .sum() \
             .reset_index()
 
         res_status_dmd = res_status[res_status['kind'] == 'demand'].copy()
-        res_status_dmd = res_status_dmd.rename(columns={self.dmd.duration: 'res_use_capa_val'})
+        res_status_dmd = res_status_dmd.rename(columns={self.dmd.duration: self.post.res_use_capa})
         res_status_dmd = res_status_dmd.drop(columns=['kind'])
         res_status_jc = res_status[res_status['kind'] == 'job_change'].copy()
         res_status_jc = res_status_jc.rename(columns={self.dmd.duration: 'res_jc_val'})
         res_status_jc = res_status_jc.drop(columns=['kind'])
 
         res_final = pd.merge(res_status_dmd, res_status_jc, how='left',
-                             on=[self.res.res, self.col_date, self.col_time_idx_type]).fillna(0)
+                             on=[self.res.res, self.col_date, self.post.time_idx]).fillna(0)
 
         # Resource usage
         res_final['day'] = [dt.datetime.strptime(day, '%Y%m%d').weekday() for day in res_final[self.col_date]]
@@ -750,7 +754,7 @@ class Process(object):
         # Resource capacity time
         res_capa_val = []
         for day, time_idx_type, capacity in zip(
-                res_final['day'], res_final[self.col_time_idx_type], res_final[self.res.res_capa]):
+                res_final['day'], res_final[self.post.time_idx], res_final[self.res.res_capa]):
             val = self.calc_day_night_res_capacity(day=day, time_idx_type=time_idx_type, capacity=capacity)
             res_capa_val.append(val)
         res_final['res_capa_val'] = res_capa_val
@@ -758,7 +762,7 @@ class Process(object):
         # Resource unavailable time
         res_unavail_val = []
         for day, time_idx_type, capacity in zip(
-                res_final['day'], res_final[self.col_time_idx_type], res_final['res_capa_val']):
+                res_final['day'], res_final[self.post.time_idx], res_final['res_capa_val']):
             val = self.calc_res_unavail_time(day=day, capacity=capacity)
             res_unavail_val.append(val)
         res_final['res_unavail_val'] = res_unavail_val
@@ -873,3 +877,39 @@ class Process(object):
         data[self.col_fp_version_seq] = seq
 
         return data
+
+    def save_capa_profile(self, data: pd.DataFrame) -> None:
+        data[self.res.plant] = self.plant
+        data = self.add_version_info(data=data, seq=self.fp_seq)
+
+        # Delete previous result
+        kwargs = {'fp_version': self.fp_version, 'fp_seq': self.fp_seq, 'plant_cd': self.plant}
+        self.io.delete_from_db(sql=self.query.del_human_capa_profile(**kwargs))
+
+        # Save result
+        self.io.insert_to_db(df=data, tb_name='M4E_O402150')
+
+    def save_capa_profile_dtl(self, data: pd.DataFrame) -> None:
+        data[self.res.res_grp_nm] = [self.res_grp_nm.get(res_grp, '-') for res_grp in data[self.res.res_grp]]
+        data[self.res.res_nm] = [self.res_nm_map.get(res, '-') for res in data[self.res.res]]
+
+        data['capa_rate'] = [
+            self.res_duration[item][res] for item, res in zip(data[self.item.sku], data[self.res.res])
+        ]
+        data[self.dmd.prod_qty] = np.round((data[self.post.res_use_capa] / data['capa_rate']).values, 2)
+        data[self.post.res_use_capa] = np.round((data[self.post.res_use_capa] / 60).values, 2)
+
+        data = self.add_version_info(data=data, seq=self.fp_seq)
+
+        data = data[['project_cd', self.col_fp_version_id, self.col_fp_version_seq, self.res.plant,
+                     self.cstr.floor, self.res.res_grp, self.res.res_grp_nm, self.res.res, self.res.res_nm,
+                     self.item.sku, self.item.sku_nm, self.item.item_type, self.post.from_time, self.post.to_time,
+                     self.post.from_yymmdd, self.post.to_yymmdd, self.dmd.prod_qty, self.post.tot_m_capa,
+                     self.post.tot_w_capa, self.post.use_m_capa, self.post.use_w_capa, self.post.res_use_capa]]
+
+        # Delete previous result
+        kwargs = {'fp_version': self.fp_version, 'fp_seq': self.fp_seq, 'plant_cd': self.plant}
+        self.io.delete_from_db(sql=self.query.del_human_capa_profile_dtl(**kwargs))
+
+        # Save result
+        self.io.insert_to_db(df=data, tb_name='M4E_O402151')

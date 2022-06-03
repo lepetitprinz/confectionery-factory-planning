@@ -1,11 +1,11 @@
 import common.util as util
-from common.name import Key, Demand, Item, Resource, Constraint
+from common.name import Key, Demand, Item, Resource, Constraint, Post
 
 import numpy as np
 import pandas as pd
 import datetime as dt
 from copy import deepcopy
-from typing import Hashable, Dict, Union, Tuple, List
+from typing import Hashable, Dict, Union, Tuple
 
 
 class Human(object):
@@ -30,6 +30,7 @@ class Human(object):
         self.res = Resource()
         self.item = Item()
         self.cstr = Constraint()
+        self.post = Post()
 
         # Column usage
         self.col_item = [self.item.sku, self.item.item, self.item.pkg]
@@ -46,12 +47,13 @@ class Human(object):
         self.work_day = 5          # Monday ~ Friday
         self.sec_of_day = 86400    # Seconds of 1 day
         self.time_multiple = 60    # Minute -> Seconds
-        self.schedule_weeks = 100
+        self.schedule_weeks = 30
         self.plant_start_hour = 0
 
         # save the timeline change log
         self.log = []
-        self.capa_profile = []
+        self.capa_profile = {}
+        self.capa_profile_dtl = []
 
     def apply(self, data):
         # preprocess demand
@@ -76,7 +78,7 @@ class Human(object):
 
             while len(schedule_dmd) > 0:
                 # print(f'Remaining Schedule: {len(schedule_dmd)}')
-                print(f'Current Capacity: {curr_capa}')
+                # print(f'Current Capacity: {curr_capa}')
 
                 # Search demand candidate
                 candidate_dmd = self.search_candidate_dmd(data=schedule_dmd, curr_prod_dmd=curr_prod_dmd)
@@ -90,6 +92,7 @@ class Human(object):
                 if flag:
                     # Confirm demand production
                     curr_capa, schedule_dmd, confirmed_schedule, curr_prod_dmd = self.confirm_dmd_prod(
+                        floor=floor,
                         curr_capa=curr_capa,
                         candidate_dmd=candidate_dmd,
                         schedule_dmd=schedule_dmd,
@@ -114,40 +117,131 @@ class Human(object):
 
         result = pd.concat([result, non_apply_dmd])
 
-        # log & capacity profile
+        # log
         log = sorted(list(set(self.log)))
+
+        # Capacity profile
         capa_profile = self.set_capa_profile()
         capa_profile_dn = self.make_capa_profile_day_night(data=capa_profile)
+        capa_profile_dtl = self.set_capa_profile_dtl()    # Capa profile detail
 
-        return result, log, capa_profile
+        return result, log, capa_profile_dn, capa_profile_dtl
 
-    def make_capa_profile_day_night(self):
-        date_range = pd.date_range(start='', end='')
+    def set_capa_profile_dtl(self):
+        profile = pd.DataFrame(
+            self.capa_profile_dtl,
+            columns=[self.cstr.floor, self.res.res_grp, self.res.res, self.item.sku, self.post.from_time,
+                     self.post.to_time, self.post.use_m_capa, self.post.use_w_capa, self.post.res_use_capa
+                     ])
+        profile[self.res.plant] = self.plant
+        profile[self.post.from_time] = [
+            self.plant_start_time + dt.timedelta(seconds=time) for time in profile[self.post.from_time]
+        ]
+        profile[self.post.to_time] = [
+            self.plant_start_time + dt.timedelta(seconds=time) for time in profile[self.post.to_time]
+        ]
+        profile[self.post.from_yymmdd] = profile[self.post.from_time].dt.strftime('%Y%m%d')
+        profile[self.post.to_yymmdd] = profile[self.post.to_time].dt.strftime('%Y%m%d')
+        profile[self.post.from_time] = profile[self.post.from_time].dt.strftime('%Y%m%d %h%M%s')
+        profile[self.post.to_time] = profile[self.post.to_time].dt.strftime('%Y%m%d %h%M%s')
+        profile[self.post.from_time] = profile[self.post.from_time]\
+            .str.replace(' ', '').str.replace(':', '').str.replace('-', '')
+        profile[self.post.to_time] = profile[self.post.to_time]\
+            .str.replace(' ', '').str.replace(':', '').str.replace('-', '')
+
+        profile[self.post.tot_m_capa] = [self.floor_capa[floor][0] for floor in profile[self.cstr.floor]]
+        profile[self.post.tot_w_capa] = [self.floor_capa[floor][1] for floor in profile[self.cstr.floor]]
+
+        profile = pd.merge(
+            profile,
+            self.item_mst[[self.item.sku, self.item.sku_nm, self.item.item_type]].drop_duplicates(),
+            on=self.item.sku,
+            how='left'
+        )
+
+        return profile
+
+    def make_capa_profile_day_night(self, data: pd.DataFrame):
+        profile_list = []
+        for floor, stime, etime, tot_m_capa, tot_w_capa, use_m_capa, use_w_capa in zip(
+                data[self.cstr.floor], data[self.post.from_time], data[self.post.to_time], data[self.post.tot_m_capa],
+                data[self.post.tot_w_capa], data[self.post.use_m_capa], data[self.post.use_w_capa]
+        ):
+            # Date range
+            days = pd.date_range(stime, etime + dt.timedelta(days=1), freq='D')
+            days = [dt.datetime.strftime(time, '%Y%m%d') for time in days]
+            day_capa = [tot_m_capa, tot_w_capa, use_m_capa, use_w_capa]
+
+            # Classify the day and night
+            s_dn = self.classify_day_night(hour=stime.hour)    # Classify the time as day or night
+            e_dn = self.classify_day_night(hour=etime.hour)    # Classify the time as day or night
+
+            for i, day in enumerate(days):
+                if i == 0:
+                    if s_dn == 'D':
+                        profile_list.append([floor, day, 'D'] + day_capa)
+                        profile_list.append([floor, day, 'N'] + day_capa)
+                    else:
+                        profile_list.append([floor, day, 'N'] + day_capa)
+                elif i == len(day) - 1:
+                    if s_dn == 'D':
+                        profile_list.append([floor, day, 'D'] + day_capa)
+                    else:
+                        profile_list.append([floor, day, 'D'] + day_capa)
+                        profile_list.append([floor, day, 'N'] + day_capa)
+                else:
+                    profile_list.append([floor, day, 'D'] + day_capa)
+                    profile_list.append([floor, day, 'N'] + day_capa)
+
+        profile_df = pd.DataFrame(
+            profile_list,
+            columns=[self.cstr.floor, 'yymmdd', self.post.time_idx, self.post.tot_m_capa, self.post.tot_w_capa,
+                     self.post.use_m_capa, self.post.use_w_capa]
+        )
+
+        profile_max = profile_df.groupby(by=[self.cstr.floor, 'yymmdd', self.post.time_idx]).max().reset_index()
+        profile_max[self.post.avail_m_capa] = profile_max[self.post.tot_m_capa] - profile_max[self.post.use_m_capa]
+        profile_max[self.post.avail_w_capa] = profile_max[self.post.tot_w_capa] - profile_max[self.post.use_w_capa]
+
+        return profile_max
+
+    @staticmethod
+    def classify_day_night(hour):
+        if (hour >= 0) and (hour < 12):
+            day_night = 'D'
+        else:
+            day_night = 'N'
+
+        return day_night
 
     def set_capa_profile(self):
         capa_profile = []
-        floor, from_time, prev_m_capa, prev_w_capa = self.capa_profile[0]
-        for floor, time, m_capa, w_capa in self.capa_profile[1:]:
-            tot_m_capa, tot_w_capa = self.floor_capa[floor]
-            if (m_capa == prev_m_capa) and (w_capa == prev_w_capa):
-                continue
-            else:
-                capa_profile.append([floor, from_time, time, tot_m_capa, tot_w_capa,
-                                     tot_m_capa - prev_m_capa, tot_w_capa - prev_w_capa])
-                prev_m_capa = m_capa
-                prev_w_capa = w_capa
-                from_time = time
+        for floor, floor_capa_profile in self.capa_profile.items():
+            from_time, prev_m_capa, prev_w_capa = floor_capa_profile[0]
+            for time, m_capa, w_capa in floor_capa_profile[1:]:
+                tot_m_capa, tot_w_capa = self.floor_capa[floor]
+                if (m_capa == prev_m_capa) and (w_capa == prev_w_capa):
+                    continue
+                else:
+                    capa_profile.append([floor, from_time, time, tot_m_capa, tot_w_capa,
+                                         tot_m_capa - prev_m_capa, tot_w_capa - prev_w_capa])
+                    prev_m_capa = m_capa
+                    prev_w_capa = w_capa
+                    from_time = time
 
         profile = pd.DataFrame(
             capa_profile,
-            columns=[self.cstr.floor, 'from_time', 'to_time', 'tot_m_capa', 'tot_w_capa',
-                     'use_m_capa', 'use_w_capa'])
+            columns=[self.cstr.floor, self.post.from_time, self.post.to_time, self.post.tot_m_capa,
+                     self.post.tot_w_capa, self.post.use_m_capa, self.post.use_w_capa])
         profile[self.res.plant] = self.plant
-        profile['from_time'] = [self.plant_start_time + dt.timedelta(seconds=time) for time in profile['from_time']]
-        profile['to_time'] = [self.plant_start_time + dt.timedelta(seconds=time) for time in profile['to_time']]
-
-        profile['use_m_capa'] = profile['use_m_capa'].astype(int)
-        profile['use_w_capa'] = profile['use_w_capa'].astype(int)
+        profile[self.post.from_time] = [
+            self.plant_start_time + dt.timedelta(seconds=time) for time in profile[self.post.from_time]
+        ]
+        profile[self.post.to_time] = [
+            self.plant_start_time + dt.timedelta(seconds=time) for time in profile[self.post.to_time]
+        ]
+        profile[self.post.use_m_capa] = profile[self.post.use_m_capa].astype(int)
+        profile[self.post.use_w_capa] = profile[self.post.use_w_capa].astype(int)
 
         return profile
 
@@ -365,7 +459,10 @@ class Human(object):
         latest_finish_dmd = curr_prod_dmd[curr_prod_dmd[self.dmd.end_time] == curr_prod_dmd[self.dmd.end_time].min()]
 
         # Update capacity profile
-        self.capa_profile.append([floor, curr_time] + list(curr_capa))
+        if floor in self.capa_profile:
+            self.capa_profile[floor].append([curr_time] + list(curr_capa))
+        else:
+            self.capa_profile[floor] = [[curr_time] + list(curr_capa)]
 
         # Update current time    # Todo: need to check the logic
         curr_time = latest_finish_dmd[self.dmd.end_time].values[0]
@@ -380,7 +477,7 @@ class Human(object):
 
         return curr_capa, curr_time, curr_prod_dmd
 
-    def confirm_dmd_prod(self, curr_capa, candidate_dmd: pd.Series,
+    def confirm_dmd_prod(self, floor, curr_capa, candidate_dmd: pd.Series,
                          schedule_dmd: pd.DataFrame, confirmed_schedule: pd.DataFrame, curr_prod_dmd: pd.DataFrame):
         # Get demand usage
         dmd_usage = [candidate_dmd[self.cstr.m_capa], candidate_dmd[self.cstr.w_capa]]
@@ -389,7 +486,10 @@ class Human(object):
         curr_capa = curr_capa - dmd_usage
 
         # Update capacity profile
-        # self.capa_profile.append([floor, curr_time] + list(curr_capa))
+        profile = [floor, candidate_dmd[self.res.res_grp], candidate_dmd[self.res.res], candidate_dmd[self.item.sku],
+                   candidate_dmd['starttime'], candidate_dmd['endtime'], candidate_dmd[self.cstr.m_capa],
+                   candidate_dmd[self.cstr.w_capa], candidate_dmd[self.dmd.duration]]
+        self.capa_profile_dtl.append(profile)
 
         # Add production information
         confirmed_schedule = confirmed_schedule.append(candidate_dmd)

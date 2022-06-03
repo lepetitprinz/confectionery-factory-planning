@@ -67,6 +67,7 @@ class Item(object):
         self.sku_nm = config.col_sku_nm
         self.pkg = config.col_pkg
         self.flavor = config.col_flavor
+        self.item_type = config.col_item_type
 
 
 class Route(object):
@@ -91,4 +92,34 @@ class Constraint(object):
         self.m_capa = config.col_man_capa
         self.w_capa = config.col_woman_capa
 
-        # Simultaneous Production
+
+class Post(object):
+    def __init__(self):
+        # Version
+        self.fp_seq = config.fp_seq
+        self.fp_key = config.fp_key
+        self.fp_version = config.fp_version
+
+        self.eng_item = config.col_eng_item
+        self.item_type = config.col_item_type
+
+        # Capacity
+        # Resource capacity
+        self.res_jc_capa = config.col_res_jc_capa
+        self.res_use_capa = config.col_res_use_capa
+        self.res_unavail_capa = config.col_res_unavail_capa
+
+        # Human capacity
+        self.tot_m_capa = config.col_tot_m_capa
+        self.tot_w_capa = config.col_tot_w_capa
+        self.use_m_capa = config.col_use_m_capa
+        self.use_w_capa = config.col_use_w_capa
+        self.avail_m_capa = config.col_avail_m_capa
+        self.avail_w_capa = config.col_avail_w_capa
+
+        # Time
+        self.to_time = config.col_to_time
+        self.from_time = config.col_from_time
+        self.to_yymmdd = config.col_to_yymmdd
+        self.from_yymmdd = config.col_from_yymmdd
+        self.time_idx = config.col_time_index_type

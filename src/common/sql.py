@@ -185,7 +185,7 @@ class Query(object):
                  , RES_GRP_CD
                  , ITEM_ATTR04_CD
                  , PKG_CTGRI_SUB_CD AS PKG
-                 , ATTR01_VAL AS FLOOR
+                 , ATTR01_VAL AS FLOOR_CD
                  , MP_M_VAL AS M_VAL
                  , MP_W_VAL AS W_VAL
               FROM M4E_I401291
@@ -202,7 +202,7 @@ class Query(object):
             SELECT PLANT_CD
                  , LEFT(PLAN_YYMM, 4) AS YY
                  , PLAN_WEEK AS WEEK
-                 , PLANT_F_VAL AS FLOOR
+                 , PLANT_F_VAL AS FLOOR_CD
                  , MP_M_VAL AS M_VAL
                  , MP_W_VAL AS W_VAL
               FROM M4E_I401290
@@ -282,6 +282,28 @@ class Query(object):
         sql = f"""
             DELETE 
               FROM M4E_O402140
+             WHERE FP_VRSN_ID = '{kwargs['fp_version']}'
+               AND FP_VRSN_SEQ = '{kwargs['fp_seq']}'
+               AND PLANT_CD = '{kwargs['plant_cd']}'
+        """
+        return sql
+
+    @staticmethod
+    def del_human_capa_profile(**kwargs):
+        sql = f"""
+            DELETE
+              FROM M4E_O402150
+             WHERE FP_VRSN_ID = '{kwargs['fp_version']}'
+               AND FP_VRSN_SEQ = '{kwargs['fp_seq']}'
+               AND PLANT_CD = '{kwargs['plant_cd']}'
+        """
+        return sql
+
+    @staticmethod
+    def del_human_capa_profile_dtl(**kwargs):
+        sql = f"""
+            DELETE
+              FROM M4E_O402151
              WHERE FP_VRSN_ID = '{kwargs['fp_version']}'
                AND FP_VRSN_SEQ = '{kwargs['fp_seq']}'
                AND PLANT_CD = '{kwargs['plant_cd']}'
