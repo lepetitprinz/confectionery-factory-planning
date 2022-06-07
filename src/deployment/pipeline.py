@@ -6,7 +6,7 @@ from init.load import DataLoad
 from init.consistency import Consistency
 from init.preprocess import Preprocess
 from model.model import OptSeq
-from Post.process import Process
+from Post.processDev import Process
 
 
 class Pipeline(object):
@@ -95,7 +95,7 @@ class Pipeline(object):
             # Preprocess demand / resource / constraint data
             prep_data = prep.preprocess(data=data)
 
-            # Save the preprocessed demand
+            # Save the preprocessed demand`
             if self.cfg['exec']['save_step_yn']:
                 self.io.save_object(data=prep_data, path=self.path['prep_data'], data_type='binary')
 
@@ -114,13 +114,12 @@ class Pipeline(object):
             # Modeling by each plant
             for plant in prep_data[self.key.dmd][self.key.dmd_list_by_plant]:
                 print(f" - Set the OtpSeq model: {plant}")
-
                 # Instantiate OptSeq class
                 opt_seq = OptSeq(
                     cfg=self.cfg,
                     plant=plant,
                     plant_data=prep_data,
-                    version=self.version
+                    version=self.version,
                 )
 
                 # Initialize the each model of plant
@@ -190,4 +189,7 @@ class Pipeline(object):
                     )
                     pp.run()
 
-                # print("Post Process is finished.")
+            # Close DB session
+            self.io.session.close()
+
+            print("Post Process is finished.")

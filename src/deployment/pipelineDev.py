@@ -5,8 +5,8 @@ from init.init import Init
 from init.load import DataLoad
 from init.consistency import Consistency
 from init.preprocess import Preprocess
-from model.modelDev import OptSeq
-from Post.process import Process
+from model.model import OptSeq
+from Post.processDev import Process
 
 
 class Pipeline(object):
@@ -25,6 +25,9 @@ class Pipeline(object):
         self.fp_num = fp_num
         self.version = None
         self.fp_version = ''
+
+        # Time instance attribute
+        self.calendar = None
         self.plant_start_time = None
 
     def run(self):
@@ -44,9 +47,10 @@ class Pipeline(object):
 
         # Set initialized object
         self.path = init.pipeline_path
-        self.fp_version = init.fp_version
-        self.plant_start_time = init.plant_start_day
         self.version = init.version
+        self.fp_version = init.fp_version
+        self.calendar = init.calendar
+        self.plant_start_time = init.plant_start_day
         print("Initialization is finished.\n")
 
         # =================================================================== #
@@ -178,14 +182,15 @@ class Pipeline(object):
                 if len(plant_model[plant]['model'].act) > 0:
                     pp = Process(
                         io=self.io,
-                        query=self.query,
                         cfg=self.cfg,
+                        query=self.query,
                         version=self.version,
                         plant=plant,
                         plant_start_time=self.plant_start_time,
                         data=data,
                         prep_data=prep_data,
                         model_init=plant_model[plant],
+                        calendar=self.calendar
                     )
                     pp.run()
 
