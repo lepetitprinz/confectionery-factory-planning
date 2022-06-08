@@ -1,5 +1,7 @@
+#########################################################
 # Database Configuration (Operation)
-RDMS = 'mssql+pymssql'
+#########################################################
+RDMS = 'mssql+pymssql'     # Database
 HOST = '10.109.2.143'      # Ops Database IP address
 # HOST = '10.109.6.62'     # Dev Database IP address
 DATABASE = 'BISCM'         # Database name
@@ -7,18 +9,18 @@ PORT = '1433'
 USER = 'matrix'            # User name
 PASSWORD = 'Diam0nd123!'   # User password
 
-#################################
+#########################################################
 # Factory Planning configuration
-#################################
+#########################################################
 project_cd = 'ENT001'
 apply_plant = ['K110', 'K120', 'K130', 'K140', 'K170']
 
 time_uom = 'sec'
 work_day = 5
 
-####################################
+#########################################################
 # Data dictionary key configuration
-####################################
+#########################################################
 # Dataset
 key_dmd = 'demand'         # Demand
 key_res = 'resource'       # Resource
@@ -39,20 +41,31 @@ key_res_duration = 'res_duration'
 # Constraint
 key_jc = 'job_change'
 key_sku_type = 'sku_type'
-key_sim_prod_cstr = 'sim_prod_cstr'
-key_res_avail_time = 'res_avail_time'
-key_human_res = 'human_resource'
+key_mold_cstr = 'mold_capacity'
+key_human_cstr = 'human_resource'
 key_human_capa = 'human_capacity'
 key_human_usage = 'human_usage'
+key_sim_prod_cstr = 'sim_prod_cstr'
+key_res_avail_time = 'res_avail_time'
 
 # Route
 key_bom_route = 'bom_route'
 key_route_res = 'route_res'
 key_route_item = 'route_item'
 key_route_rate = 'route_rate'
-########################
+
+#########################################################
 # Column Configuration
-########################
+#########################################################
+# Column: Planning
+fp_seq = 'fp_seq'
+fp_key = 'fp_key'
+fp_version = 'fp_version'
+
+# Column: Date
+col_yy = 'yy'
+col_week = 'week'
+
 # Column: Demand
 col_dmd = 'dmd_id'
 col_qty = 'qty'
@@ -87,9 +100,9 @@ col_half_item = 'item_halb_cd'
 col_qty_rate = 'qty_rate'
 col_time_uom = 'time_uom'
 
-#####################
+#########################################################
 # Column: Constraint
-#####################
+#########################################################
 # Job change
 col_job_change_from = 'from_res_cd'
 col_job_change_to = 'to_res_cd'
@@ -102,14 +115,9 @@ col_floor = 'floor_cd'
 col_man_capa = 'm_val'
 col_woman_capa = 'w_val'
 
-#######################
+#########################################################
 # Column: Post process
-#######################
-# Planning version
-fp_seq = 'fp_seq'
-fp_key = 'fp_key'
-fp_version = 'fp_version'
-
+#########################################################
 # Item
 col_eng_item = 'eng_item_cd'
 
@@ -137,10 +145,10 @@ col_res_use_capa = 'res_used_capa_val'
 # Constraint configuration
 prod_qty_multiple = 10
 
-# OptSeq Model configuration
-time_limit = 60 * 1  # 60*60*6
+#########################################################
+# OptSeq Model
+#########################################################
+time_limit = 60 * 1    # 60 * 60 * 6
 make_span = True
 optput_flag = False
-max_iteration = 10**20
-report_interval = 10**20
-back_truck = 1000
+max_iteration = 10 ** 20

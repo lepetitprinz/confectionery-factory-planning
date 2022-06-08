@@ -1,7 +1,7 @@
 import common.config as config
 import common.util as util
 from common.name import Key, Demand, Item, Resource, Constraint, Post
-from constraint.capacity import Human
+from constraint.human import Human
 from constraint.simultaneous import Necessary
 
 from Post.save import Save
@@ -45,7 +45,8 @@ class Process(object):
             plant_start_time: dt.datetime,
             data: dict,
             prep_data: dict,
-            model_init: dict
+            model_init: dict,
+            calendar: pd.DataFrame
          ):
         # Class instance attribute
         self.io = io
@@ -87,6 +88,7 @@ class Process(object):
 
         # Data instance attribute
         self.data = data
+        self.calendar = calendar
         self.demand = data[self.key.dmd]
         self.res_mst = data[self.key.res][self.key.res_grp]
         self.item_mst = data[self.key.res][self.key.item]
@@ -250,7 +252,8 @@ class Process(object):
             item=self.item_mst,
             cstr=self.cstr_mst,
             demand=self.demand,
-            res_to_res_grp=self.res_to_res_grp
+            calendar=self.calendar,
+            res_to_res_grp=self.res_to_res_grp,
         )
         # print(f"Apply human capacity: Plant {self.plant}")
         result, log, capa_profile, capa_profile_dtl = human_cstr.apply(data=data)

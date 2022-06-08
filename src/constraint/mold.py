@@ -1,0 +1,3 @@
+
+class Mold(object):
+    pass

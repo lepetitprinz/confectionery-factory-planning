@@ -17,18 +17,15 @@ class Pipeline(object):
         self.cfg = cfg
 
         # Path instance attribute
-        self.path = {}
         self.base_path = base_path
+        self.path = {}
 
         # Plant information instance attribute
         self.fp_seq = fp_seq
         self.fp_num = fp_num
         self.version = None
         self.fp_version = ''
-
-        # Time instance attribute
-        self.calendar = None
-        self.plant_start_day = None
+        self.plant_start_time = None
 
     def run(self):
         # =================================================================== #
@@ -47,10 +44,9 @@ class Pipeline(object):
 
         # Set initialized object
         self.path = init.pipeline_path
-        self.version = init.version
-        self.calendar = init.calendar
         self.fp_version = init.fp_version
-        self.plant_start_day = init.plant_start_day
+        self.plant_start_time = init.plant_start_day
+        self.version = init.version
         print("Initialization is finished.\n")
 
         # =================================================================== #
@@ -115,7 +111,7 @@ class Pipeline(object):
             if not self.cfg['step']['cls_prep']:
                 prep_data = self.io.load_object(path=self.path['prep_data'], data_type='binary')
 
-            # Model optimization by each plant
+            # Modeling by each plant
             for plant in prep_data[self.key.dmd][self.key.dmd_list]:
                 print(f" - Set the OtpSeq model: {plant}")
                 # Instantiate OptSeq class
@@ -133,7 +129,6 @@ class Pipeline(object):
                     res_grp_dict=prep_data[self.key.res][self.key.res_grp][plant]
                 )
 
-                # Make activity to mode hash map
                 act_mode_name_map = opt_seq.make_act_mode_map(model=model)
 
                 plant_model[plant] = {
@@ -164,11 +159,16 @@ class Pipeline(object):
         # =================================================================== #
         if self.cfg['step']['cls_pp']:
             print("Step: Post Process\n")
-            # Load data / preprocessed data / model information
+
             if not self.cfg['step']['cls_load']:
                 data = self.io.load_object(path=self.path['load_data'], data_type='binary')
+
+                # if self.cstr_cfg['apply_prod_qty_multiple']:
+                #     data[self.key_dmd] = util.change_dmd_qty(data=data[self.key_dmd], method='multiple')
+
             if not self.cfg['step']['cls_prep']:
                 prep_data = self.io.load_object(path=self.path['prep_data'], data_type='binary')
+
             if not self.cfg['step']['cls_model']:
                 plant_model = self.io.load_object(path=self.path['model'], data_type='binary')
 
@@ -178,15 +178,14 @@ class Pipeline(object):
                 if len(plant_model[plant]['model'].act) > 0:
                     pp = Process(
                         io=self.io,
-                        cfg=self.cfg,
                         query=self.query,
+                        cfg=self.cfg,
                         version=self.version,
                         plant=plant,
-                        plant_start_time=self.plant_start_day,
+                        plant_start_time=self.plant_start_time,
                         data=data,
                         prep_data=prep_data,
                         model_init=plant_model[plant],
-                        calendar=self.calendar
                     )
                     pp.run()
 

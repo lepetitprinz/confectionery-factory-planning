@@ -238,9 +238,25 @@ class Query(object):
                  , PKG_CTGRI_SUB_CD_2 AS PKG2
                  , IS_SIMULTANEOUS AS SIM_TYPE
               FROM M4E_I401280
-             WHERE FP_VRSN_ID = '{kwargs['fp_vrsn_id']}'
+             WHERE ITEM_ATTR01_CD = 'P1'
+               AND FP_VRSN_ID = '{kwargs['fp_vrsn_id']}'
                AND FP_VRSN_SEQ = '{kwargs['fp_vrsn_seq']}'
+        """
+        return sql
+
+    @staticmethod
+    def sql_mold_capacity_temp(**kwargs):
+        sql = f"""
+            SELECT PLANT_CD
+                 , RES_GRP_CD
+                 , ITEM_ATTR03_CD
+                 , PKG_CTGRI_SUB_CD AS PKG
+                 , CAPA AS CAPACITY
+              FROM M4E_I402150_TEMP
+             WHERE MOLD_YN = 'Y'
                AND ITEM_ATTR01_CD = 'P1'
+               AND FP_VRSN_ID = '{kwargs['fp_vrsn_id']}'
+               AND FP_VRSN_SEQ = '{kwargs['fp_vrsn_seq']}'
         """
         return sql
 

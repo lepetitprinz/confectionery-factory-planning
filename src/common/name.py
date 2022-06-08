@@ -10,9 +10,9 @@ class Key(object):
         self.cstr = config.key_cstr
 
         # Demand
-        self.dmd_list_by_plant = config.key_dmd_list_by_plant
-        self.dmd_item_list_by_plant = config.key_dmd_item_list_by_plant
-        self.dmd_res_grp_list_by_plant = config.key_dmd_res_grp_list_by_plant
+        self.dmd_list = config.key_dmd_list_by_plant
+        self.dmd_item_list = config.key_dmd_item_list_by_plant
+        self.dmd_res_grp_list = config.key_dmd_res_grp_list_by_plant
 
         # Resource
         self.res_nm = config.key_res_nm
@@ -23,14 +23,15 @@ class Key(object):
         # Constraint
         self.jc = config.key_jc
         self.sku_type = config.key_sku_type
-        self.sim_prod_cstr = config.key_sim_prod_cstr
-        self.res_avail_time = config.key_res_avail_time
-        self.human_res = config.key_human_res
+        self.mold_cstr = config.key_mold_cstr
+        self.human_cstr = config.key_human_cstr
         self.human_capa = config.key_human_capa
         self.human_usage = config.key_human_usage
+        self.sim_prod_cstr = config.key_sim_prod_cstr
+        self.res_avail_time = config.key_res_avail_time
 
         # Route
-        self.route = config.key_bom_route    # BOM Route
+        self.route = config.key_bom_route
         self.route_res = config.key_route_res
         self.route_item = config.key_route_item
         self.route_rate = config.key_route_rate
@@ -81,8 +82,8 @@ class Route(object):
 class Constraint(object):
     def __init__(self):
         # Job change
-        self.jc_from = config.col_job_change_from
         self.jc_to = config.col_job_change_to
+        self.jc_from = config.col_job_change_from
         self.jc_type = config.col_job_change_type
         self.jc_time = config.col_job_change_time
         self.jc_unit = config.col_job_change_unit

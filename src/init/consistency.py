@@ -8,10 +8,10 @@ import os
 class Consistency(object):
     def __init__(self, data: dict, version, path: str, verbose=False):
         self.log = []
+        self.verbose = verbose
         self.fp_version = version.fp_version
         self.fp_name = version.fp_version + '_' + version.fp_seq
         self.path = os.path.join(path, 'result', 'consistency')
-        self.verbose = verbose
 
         # name instance attribute
         self.key = Key()
@@ -23,33 +23,34 @@ class Consistency(object):
         self.demand = data[self.key.dmd]
         self.resource = data[self.key.res]
         self.constraint = data[self.key.cstr]
+        self.apply_plant = config.apply_plant
 
+        # Data hash map
         self.plant_res_grp_res = {}
         self.plant_res_res_grp = {}
-        self.apply_plant = config.apply_plant
         self.col_dmd = [self.res.plant, self.res.res_grp, self.item.sku]
 
     def run(self):
         # Make resource group to resource mapping
-        self.make_plant_res_grp_res_map()
+        self._make_plant_res_grp_res_map()
 
         #########################
         # Check resource dataset
         #########################
         # Check resource exist
-        self.check_plant_res_existence()
+        self._check_plant_res_existence()
 
         # Check that the resource exist on each demand
-        self.check_dmd_res_existence()
+        self._check_dmd_res_existence()
 
         # Check that resource duration exist
-        self.check_res_duration_existence()
+        self._check_res_duration_existence()
 
         # Save the result of consistency check
         util.save_log(log=self.log, path=self.path, version=self.fp_version, name=self.fp_name)
 
     # Check if resource exists on each plant
-    def check_plant_res_existence(self) -> None:
+    def _check_plant_res_existence(self) -> None:
         # set resource dataset
         res_grp = self.resource[self.key.res_grp].copy()
 
@@ -66,7 +67,7 @@ class Consistency(object):
                 if self.verbose:
                     print(msg)
 
-    def check_dmd_res_existence(self) -> None:
+    def _check_dmd_res_existence(self) -> None:
         dmd = self.demand.copy()
         dmd = dmd[self.col_dmd].drop_duplicates()
 
@@ -82,12 +83,12 @@ class Consistency(object):
                         if self.verbose:
                             print(msg)
 
-    def check_res_duration_existence(self):
+    def _check_res_duration_existence(self):
         # set dataset
         dmd = self.demand.copy()
         dmd = dmd[self.col_dmd].drop_duplicates()
 
-        res_dur_map = self.make_res_dur_map()
+        res_dur_map = self._make_res_dur_map()
         for plant, plant_df in dmd.groupby(by=self.res.plant):
             for sku, sku_df in plant_df.groupby(by=self.item.sku):
                 for res_grp in sku_df[self.res.res_grp]:
@@ -107,7 +108,7 @@ class Consistency(object):
                                   " any resource duration data."
                             self.log.append(msg)
 
-    def make_res_dur_map(self):
+    def _make_res_dur_map(self):
         res_dur = self.resource[self.key.res_duration].copy()
 
         res_grp_list = []
@@ -140,7 +141,7 @@ class Consistency(object):
 
         return res_dur_map
 
-    def make_plant_res_grp_res_map(self) -> None:
+    def _make_plant_res_grp_res_map(self) -> None:
         data = self.resource[self.key.res_grp].copy()
         data = data[[self.res.plant, self.res.res_grp, self.res.res]].drop_duplicates()
 

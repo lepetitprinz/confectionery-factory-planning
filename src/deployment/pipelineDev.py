@@ -6,7 +6,7 @@ from init.load import DataLoad
 from init.consistency import Consistency
 from init.preprocess import Preprocess
 from model.model import OptSeq
-from Post.processDev import Process
+from Post.process import Process
 
 
 class Pipeline(object):
@@ -17,8 +17,8 @@ class Pipeline(object):
         self.cfg = cfg
 
         # Path instance attribute
-        self.base_path = base_path
         self.path = {}
+        self.base_path = base_path
 
         # Plant information instance attribute
         self.fp_seq = fp_seq
@@ -28,7 +28,7 @@ class Pipeline(object):
 
         # Time instance attribute
         self.calendar = None
-        self.plant_start_time = None
+        self.plant_start_day = None
 
     def run(self):
         # =================================================================== #
@@ -48,9 +48,9 @@ class Pipeline(object):
         # Set initialized object
         self.path = init.pipeline_path
         self.version = init.version
-        self.fp_version = init.fp_version
         self.calendar = init.calendar
-        self.plant_start_time = init.plant_start_day
+        self.fp_version = init.fp_version
+        self.plant_start_day = init.plant_start_day
         print("Initialization is finished.\n")
 
         # =================================================================== #
@@ -65,7 +65,7 @@ class Pipeline(object):
 
         data = None
         if self.cfg['step']['cls_load']:
-            data = load.load_data()
+            data = load.load()
 
             # Save the master & demand information
             if self.cfg['exec']['save_step_yn']:
@@ -115,8 +115,8 @@ class Pipeline(object):
             if not self.cfg['step']['cls_prep']:
                 prep_data = self.io.load_object(path=self.path['prep_data'], data_type='binary')
 
-            # Modeling by each plant
-            for plant in prep_data[self.key.dmd][self.key.dmd_list_by_plant]:
+            # Model optimization by each plant
+            for plant in prep_data[self.key.dmd][self.key.dmd_list]:
                 print(f" - Set the OtpSeq model: {plant}")
                 # Instantiate OptSeq class
                 opt_seq = OptSeq(
@@ -129,10 +129,11 @@ class Pipeline(object):
                 # Initialize the each model of plant
                 model, rm_act_list = opt_seq.init(
                     plant=plant,
-                    dmd_list=prep_data[self.key.dmd][self.key.dmd_list_by_plant][plant],
+                    dmd_list=prep_data[self.key.dmd][self.key.dmd_list][plant],
                     res_grp_dict=prep_data[self.key.res][self.key.res_grp][plant]
                 )
 
+                # Make activity to mode hash map
                 act_mode_name_map = opt_seq.make_act_mode_map(model=model)
 
                 plant_model[plant] = {
@@ -142,7 +143,7 @@ class Pipeline(object):
                 }
 
                 # Check and fix the model setting
-                model = opt_seq.check_fix_model_init_set(model=model)
+                model = opt_seq.check_and_fix_model_setting(model=model)
 
                 # Optimization
                 print('\n============================================')
@@ -163,21 +164,16 @@ class Pipeline(object):
         # =================================================================== #
         if self.cfg['step']['cls_pp']:
             print("Step: Post Process\n")
-
+            # Load data / preprocessed data / model information
             if not self.cfg['step']['cls_load']:
                 data = self.io.load_object(path=self.path['load_data'], data_type='binary')
-
-                # if self.cstr_cfg['apply_prod_qty_multiple']:
-                #     data[self.key_dmd] = util.change_dmd_qty(data=data[self.key_dmd], method='multiple')
-
             if not self.cfg['step']['cls_prep']:
                 prep_data = self.io.load_object(path=self.path['prep_data'], data_type='binary')
-
             if not self.cfg['step']['cls_model']:
                 plant_model = self.io.load_object(path=self.path['model'], data_type='binary')
 
             # Post Process after optimization
-            for plant in prep_data[self.key.dmd][self.key.dmd_list_by_plant]:
+            for plant in prep_data[self.key.dmd][self.key.dmd_list]:
                 print(f"\nPost process: plant {plant}")
                 if len(plant_model[plant]['model'].act) > 0:
                     pp = Process(
@@ -186,7 +182,7 @@ class Pipeline(object):
                         query=self.query,
                         version=self.version,
                         plant=plant,
-                        plant_start_time=self.plant_start_time,
+                        plant_start_time=self.plant_start_day,
                         data=data,
                         prep_data=prep_data,
                         model_init=plant_model[plant],
