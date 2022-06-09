@@ -89,8 +89,8 @@ class Preprocess(object):
 
         # Mold capacity constraint
         mold_cstr = None
-        if self._cstr_cfg['apply_mold_capacity']:
-            mold_cstr = self._set_mold_cstr(data=constraint[self._key.mold_cstr])
+        if self._cstr_cfg['apply_mold_capa_cstr']:
+            mold_cstr = self._set_mold_cstr(data=data[self._key.res][self._key.res_grp])
 
         # Preprocessing result
         prep_data = {
@@ -214,29 +214,23 @@ class Preprocess(object):
 
         return human_capacity
 
+    # Set mold constraint
     def _set_mold_cstr(self, data: pd.DataFrame) -> dict:
         # Get plant list of demand list
         data = data[data[self._res.plant].isin(self._dmd_plant_list)].copy()
 
-        # Change data type
-        data[self._res.res_grp] = data[self._res.res_grp].astype(str)
-        data[self._item.pkg] = data[self._item.pkg].astype(str)
+        data = data[[self._res.plant, self._res.res_grp, self._cstr.mold_capa, self._cstr.mold_uom]]\
+            .drop_duplicates()\
+            .dropna()
 
-        mold_capacity = {}
+        mold_cstr = {}
         for plant, plant_df in data.groupby(by=self._res.plant):
-            res_grp_brand = {}
-            for reg_grp, res_grp_df in plant_df.groupby(by=self._res.res_grp):
-                brand_pkg = {}
-                for brand, brand_df in res_grp_df.groupby(by=self._item.brand):
-                    pkg_capa = {}
-                    for pkg, capa in zip(brand_df[self._item.pkg], brand_df[self._res.res_capa]):
-                        pkg_capa[pkg] = capa
-                    brand_pkg[brand] = pkg_capa
-                res_grp_brand[reg_grp] = brand_pkg
-            mold_capacity[plant] = res_grp_brand
+            mold_cstr[plant] = {res_grp: mold_capa for res_grp, mold_capa in
+                                zip(plant_df[self._res.res_grp], plant_df[self._cstr.mold_capa])}
 
-        return mold_capacity
+        return mold_cstr
 
+    # Set simultaneous production constraint
     def _set_sim_prod_cstr(self, data: pd.DataFrame) -> Dict[str, Dict[str, Any]]:
         # Get plant list of demand list
         data = data[data[self._res.plant].isin(self._dmd_plant_list)].copy()

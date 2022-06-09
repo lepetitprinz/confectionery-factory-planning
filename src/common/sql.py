@@ -14,11 +14,8 @@ class Query(object):
                  , ITEM_ATTR29_CD AS FLAVOR
                  , PKG_CTGRI_SUB_CD AS PKG
               FROM M4E_I401080
-             WHERE 1=1
-            -- AND ITEM_TYPE_CD IN ('FERT', 'HAWA')
-               AND FP_VRSN_ID = '{kwargs['fp_vrsn_id']}'
+             WHERE FP_VRSN_ID = '{kwargs['fp_vrsn_id']}'
                AND FP_VRSN_SEQ = '{kwargs['fp_vrsn_seq']}'
-
         """
         return sql
 
@@ -108,8 +105,8 @@ class Query(object):
                  , RES_CAPA_VAL AS CAPACITY
                  , RES_TYPE_CD
                  , CAPA_UNIT_CD
-                 , START_TIME_INDEX
-                 , END_TIME_INDEX
+                 , HALB_CAPA_VAL AS MOLD_CAPA
+                 , HALB_CAPA_UOM_CD AS MOLD_UOM
               FROM M4E_I401100
              WHERE FP_VRSN_ID = '{kwargs['fp_vrsn_id']}'
                AND FP_VRSN_SEQ = '{kwargs['fp_vrsn_seq']}'
@@ -174,7 +171,6 @@ class Query(object):
               FROM M4E_I401271
              WHERE FP_VRSN_ID = '{kwargs['fp_vrsn_id']}'
                AND FP_VRSN_SEQ = '{kwargs['fp_vrsn_seq']}'
-            -- AND PLANT_CD NOT IN ('K170')
         """
         return sql
 
@@ -208,8 +204,8 @@ class Query(object):
               FROM M4E_I401290
              WHERE FP_VRSN_ID = '{kwargs['fp_vrsn_id']}'
                AND FP_VRSN_SEQ = '{kwargs['fp_vrsn_seq']}'
-               -- AND LEFT(PLAN_YYMM, 4) = '{kwargs['yy']}'
-               -- AND PLAN_WEEK = '{kwargs['week']}'
+                -- AND LEFT(PLAN_YYMM, 4) = '{kwargs['yy']}'
+                -- AND PLAN_WEEK = '{kwargs['week']}'
         """
         return sql
 
@@ -337,5 +333,17 @@ class Query(object):
              WHERE FP_VRSN_ID = '{kwargs['fp_version']}'
                AND FP_VRSN_SEQ = '{kwargs['fp_seq']}'
                AND PLANT_CD = '{kwargs['plant_cd']}'
+        """
+        return sql
+
+    @staticmethod
+    def sql_item_halb():
+        sql = """
+            SELECT ITEM_CD
+                 , ITEM_ATTR16_CD AS WEIGHT
+                 , ITEM_ATTR19_CD AS WEIGHT_UOM
+              FROM M4S_I002040
+             WHERE USE_YN = 'Y'
+               AND ITEM_TYPE_CD = 'HALB'
         """
         return sql

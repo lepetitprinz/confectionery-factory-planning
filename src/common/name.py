@@ -69,6 +69,8 @@ class Item(object):
         self.pkg = config.col_pkg
         self.flavor = config.col_flavor
         self.item_type = config.col_item_type
+        self.weight = config.col_weight
+        self.weight_uom = config.col_weight_uom
 
 
 class Route(object):
@@ -92,6 +94,10 @@ class Constraint(object):
         self.floor = config.col_floor
         self.m_capa = config.col_man_capa
         self.w_capa = config.col_woman_capa
+
+        # Mold Capacity
+        self.mold_capa = config.col_mold_capa
+        self.mold_uom = config.col_mold_uom
 
 
 class Post(object):

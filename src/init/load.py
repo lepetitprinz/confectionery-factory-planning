@@ -16,9 +16,9 @@ class DataLoad(object):
         self._query = query
         self._fp_vrsn_date = {
             'fp_vrsn_id': version.fp_version,    # Factory planning version
-            'fp_vrsn_seq': version.fp_seq,
-            'yy': version.fp_version[3: 7],
-            'week': version.fp_version[7: 10]
+            'fp_vrsn_seq': version.fp_seq,       # Factory planning sequence
+            'yy': version.fp_version[3: 7],      # year
+            'week': version.fp_version[7: 10]    # week
         }
 
         # Name instance attribute
@@ -43,12 +43,14 @@ class DataLoad(object):
 
         return data
 
+    # Load demand dataset
     def _load_demand(self) -> pd.DataFrame:
         # Demand dataset
         demand = self._io.load_from_db(sql=self._query.sql_demand(**self._fp_vrsn_date))
 
         return demand
 
+    # Load resource dataset
     def _load_resource(self) -> Dict[str, pd.DataFrame]:
         resource = {
             # Item master
@@ -66,6 +68,7 @@ class DataLoad(object):
 
         return resource
 
+    # Load route dataset
     def _load_route(self):
         route = {
             # BOM route
@@ -74,6 +77,7 @@ class DataLoad(object):
 
         return route
 
+    # Load constraint dataset
     def _load_cstr(self) -> Dict[str, pd.DataFrame]:
         constraint = {
             # Job change constraint

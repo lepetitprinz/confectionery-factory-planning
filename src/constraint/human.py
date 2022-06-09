@@ -377,7 +377,10 @@ class Human(object):
         return curr_capa, curr_time, curr_week, curr_prod_dmd
 
     def update_capa_on_next_week(self, floor, curr_week, update_week, curr_capa):
-        curr_week_capa = self.floor_capa[floor][curr_week]
+        curr_week_capa = self.floor_capa[floor].get(
+            curr_week,
+            self.floor_capa[floor][list(self.floor_capa[floor])[-1]]
+        )
         next_week_capa = self.floor_capa[floor].get(
             update_week,
             self.floor_capa[floor][list(self.floor_capa[floor])[-1]]

@@ -93,6 +93,8 @@ col_sku_nm = 'item_nm'
 col_pkg = 'pkg'
 col_flavor = 'flavor'
 col_item_type = 'item_type_cd'
+col_weight = 'weight'
+col_weight_uom = 'weight_uom'
 
 # Columns: Route
 col_lead_time = 'lead_time'
@@ -114,6 +116,10 @@ col_job_change_unit = 'jc_unit'
 col_floor = 'floor_cd'
 col_man_capa = 'm_val'
 col_woman_capa = 'w_val'
+
+# Mold capacity
+col_mold_capa = 'mold_capa'
+col_mold_uom = 'mold_uom'
 
 #########################################################
 # Column: Post process

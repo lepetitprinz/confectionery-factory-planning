@@ -149,7 +149,7 @@ class Process(object):
         )
 
         # Best activity
-        # self.save(result=result)
+        self.save(result=result)
 
     def save(self, result) -> None:
         result = self.conv_num_to_datetime(data=result)

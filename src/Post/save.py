@@ -198,10 +198,11 @@ class Save(object):
     def set_res_capacity(self, data):
         # Resource usage
         data['day'] = [dt.datetime.strptime(day, '%Y%m%d').weekday() for day in data[self.col_date]]
+        # data = data[data['day'].isin([0, 1, 2, 3, 4])].copy()
         res_capa = []
         for res, day in zip(data[self.col_res], data['day']):
             res_avail_time = self.res_avail_time[res]
-            res_capa.append(res_avail_time[day] * 60)
+            res_capa.append(res_avail_time[day] * 60)    # Todo
 
         data[self.col_res_capa] = res_capa
 

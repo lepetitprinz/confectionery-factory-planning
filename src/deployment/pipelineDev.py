@@ -6,7 +6,7 @@ from init.load import DataLoad
 from init.consistency import Consistency
 from init.preprocess import Preprocess
 from model.model import OptSeq
-from Post.process import Process
+from Post.processDev import Process
 
 
 class Pipeline(object):
