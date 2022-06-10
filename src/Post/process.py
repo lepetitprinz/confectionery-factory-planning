@@ -127,11 +127,11 @@ class Process(object):
         # Apply the constraint: Human capacity
         if self.cfg['cstr']['apply_human_capacity']:
             result, log, capa_profile, capa_profile_dtl = self.apply_human_capa_const(data=result)
-            # if self.cfg['exec']['save_db_yn']:
-            if len(capa_profile) > 0:
-                self.save_capa_profile(data=capa_profile)
-            if len(capa_profile_dtl) > 0:
-                self.save_capa_profile_dtl(data=capa_profile_dtl)
+            if self.cfg['exec']['save_db_yn']:
+                if len(capa_profile) > 0:
+                    self.save_capa_profile(data=capa_profile)
+                if len(capa_profile_dtl) > 0:
+                    self.save_capa_profile_dtl(data=capa_profile_dtl)
 
             # log information
             self.log.extend(log)
@@ -174,6 +174,28 @@ class Process(object):
                 # Save the activity
                 save.to_csv(path=self.save_path, name='act')
 
+            if self.cfg['exec']['save_graph_yn']:
+                gantt = Gantt(
+                    fp_version=self.fp_version,
+                    fp_seq=self.fp_seq,
+                    plant=self.plant,
+                    path=self.save_path
+                )
+                # Draw demand
+                gantt.draw(
+                    data=result[result['kind'] == 'demand'],
+                    y=self.dmd.dmd,
+                    color=self.res.res,
+                    name='act_demand'
+                )
+
+                gantt.draw(
+                    data=result,
+                    y=self.res.res,
+                    color=self.dmd.dmd,
+                    name='act_resource'
+                )
+
             if self.cfg['exec']['save_db_yn']:
                 # Resource status
                 save.res_status()
@@ -187,28 +209,6 @@ class Process(object):
                 # Production quantity on day & night
                 self.save_res_day_night_qty_on_db(data=prod_qty, seq=self.fp_seq)
                 self.save_res_day_night_dmd_qty_in_db(data=prod_dmd_qty, seq=self.fp_seq)
-
-        if self.cfg['exec']['save_graph_yn']:
-            gantt = Gantt(
-                fp_version=self.fp_version,
-                fp_seq=self.fp_seq,
-                plant=self.plant,
-                path=self.save_path
-            )
-            # Draw demand
-            gantt.draw(
-                data=result[result['kind'] == 'demand'],
-                y=self.dmd.dmd,
-                color=self.res.res,
-                name='act_demand'
-            )
-
-            gantt.draw(
-                data=result,
-                y=self.res.res,
-                color=self.dmd.dmd,
-                name='act_resource'
-            )
 
     def set_res_to_res_grp(self) -> None:
         res_grp = self.res_grp.copy()

@@ -35,7 +35,7 @@ class OptSeq(object):
         self._res_grp = plant_data[self._key.res][self._key.res_grp][plant]
 
         # Resource capacity instance attribute
-        self.schedule_weeks = 8
+        self.schedule_weeks = 104
         self.sec_of_day = 86400
         self.plant_start_hour = 0    # 25200(sec) = 7(hour) * 60 * 60
 

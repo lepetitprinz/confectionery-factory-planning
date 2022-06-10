@@ -895,7 +895,7 @@ class Model(object):
                 num = int(residual[count])
                 count += 1
                 resDic[(int1, int2)] = num
-            # print(resname,residual)
+            # print(resname, residual)
             self.resources[resname].residual = resDic
 
         # job data conversion

@@ -49,7 +49,7 @@ class Human(object):
         self.work_day = 5  # Monday ~ Friday
         self.sec_of_day = 86400  # Seconds of 1 day
         self.time_multiple = 60  # Minute -> Seconds
-        self.schedule_weeks = 30
+        self.schedule_weeks = 104
         self.plant_start_hour = 0
         self.yymmdd_to_week = {}
 

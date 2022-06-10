@@ -98,11 +98,11 @@ class Process(object):
         # Resource instance attribute
         self.res_to_res_grp = {}
         self.item_avg_duration = {}
+        self.res_route = prep_data[self._key.route]
         self.res_grp = prep_data[self._key.res][self._key.res_grp][plant]
         self.res_grp_nm = prep_data[self._key.res][self._key.res_grp_nm][plant]
         self.res_nm_map = prep_data[self._key.res][self._key.res_nm][plant]
         self.res_duration = prep_data[self._key.res][self._key.res_duration][plant]
-        self.res_route = prep_data[self._key.route]
 
         # Constraint instance attribute
         self.inf_val = 10 ** 7 - 1

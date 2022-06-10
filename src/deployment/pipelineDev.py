@@ -175,20 +175,22 @@ class Pipeline(object):
             # Post Process after optimization
             for plant in prep_data[self.key.dmd][self.key.dmd_list]:
                 print(f"\nPost process: plant {plant}")
-                if len(plant_model[plant]['model'].act) > 0:
-                    pp = Process(
-                        io=self.io,
-                        cfg=self.cfg,
-                        query=self.query,
-                        version=self.version,
-                        plant=plant,
-                        plant_start_time=self.plant_start_day,
-                        data=data,
-                        prep_data=prep_data,
-                        model_init=plant_model[plant],
-                        calendar=self.calendar
-                    )
-                    pp.run()
+                # Todo: Temporal test
+                if plant == 'K130':
+                    if len(plant_model[plant]['model'].act) > 0:
+                        pp = Process(
+                            io=self.io,
+                            cfg=self.cfg,
+                            query=self.query,
+                            version=self.version,
+                            plant=plant,
+                            plant_start_time=self.plant_start_day,
+                            data=data,
+                            prep_data=prep_data,
+                            model_init=plant_model[plant],
+                            calendar=self.calendar
+                        )
+                        pp.run()
 
             # Close DB session
             self.io.session.close()

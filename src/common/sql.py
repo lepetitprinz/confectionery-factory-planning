@@ -340,10 +340,11 @@ class Query(object):
     def sql_item_halb():
         sql = """
             SELECT ITEM_CD
+                 , ITEM_TYPE_CD
                  , ITEM_ATTR16_CD AS WEIGHT
                  , ITEM_ATTR19_CD AS WEIGHT_UOM
               FROM M4S_I002040
              WHERE USE_YN = 'Y'
-               AND ITEM_TYPE_CD = 'HALB'
+               -- AND ITEM_TYPE_CD = 'HALB'
         """
         return sql
