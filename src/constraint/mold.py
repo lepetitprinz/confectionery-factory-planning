@@ -3,8 +3,7 @@ from common.name import Key, Demand, Item, Resource, Constraint, Post
 
 import numpy as np
 import pandas as pd
-import datetime as dt
-from typing import Union, Tuple, List
+from typing import Tuple, List
 
 
 class Mold(object):
@@ -73,7 +72,9 @@ class Mold(object):
             if day_capa <= daily_mold_capa:
                 continue
             else:
-                self.correct_dayily_prod(data=data, res_grp=res_grp, day=day, day_data=day_data, capa=day_capa)
+                data = self.correct_dayily_prod(data=data, res_grp=res_grp, day=day, day_data=day_data, capa=day_capa)
+
+        return data
 
     def correct_dayily_prod(self, data, res_grp, day, day_data, capa):
         weight_diff = capa - self.daily_mold_capa[res_grp]
@@ -98,16 +99,9 @@ class Mold(object):
         day_res = data[data['day'] == day].copy()
 
         # Move timeline
-        self.move_timeline(data=data, day_data=day_res, day=day, res=res, weight_diff=weight_diff)
+        moved_data = self.move_timeline(data=data, day_data=day_res, day=day, res=res, weight_diff=weight_diff)
 
-        # correct weight
-        day_res_af = day_res.copy()
-
-
-        # moved resource
-        diff_duration = self.conv_weight_to_duration(data=day_res, weight=weight_diff)
-
-        print("")
+        return moved_data
 
     def move_timeline(self, data, day_data, day, res, weight_diff):
         move_dur = self.conv_weight_to_duration(data=day_data, weight=weight_diff)
@@ -180,8 +174,8 @@ class Mold(object):
 
         return duration.values[0]
 
-    def add_day(self, day):
-        day_add = 0
+    @staticmethod
+    def add_day(day):
         if (day + 1) % 7 == 5:
             day_add = day + 3
         elif (day + 1) % 7 == 6:
@@ -235,7 +229,7 @@ class Mold(object):
 
     def make_daily_time_interval(self) -> None:
         self.time_interval = [(i, i * self.day_second, (i + 1) * self.day_second) for i in range(self.days)
-                         if i % 7 not in [5, 6]]
+                              if i % 7 not in [5, 6]]
 
     def classify_cstr_apply(self, data: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
         halb_data = data[data[self._item.sku].isin(self.half_item[self._item.sku])].copy()
