@@ -69,7 +69,7 @@ class DataLoad(object):
         return resource
 
     # Load route dataset
-    def _load_route(self):
+    def _load_route(self) -> Dict[str, pd.DataFrame]:
         route = {
             # BOM route
             self._key.route: self._io.load_from_db(sql=self._query.sql_bom_route(**self._fp_vrsn_date))

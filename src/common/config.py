@@ -156,5 +156,5 @@ prod_qty_multiple = 10
 #########################################################
 time_limit = 60 * 1    # 60 * 60 * 6
 make_span = True
-optput_flag = False
+optput_flag = True
 max_iteration = 10 ** 20

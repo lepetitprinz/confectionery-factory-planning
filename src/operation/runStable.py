@@ -3,7 +3,7 @@ from deployment.pipeline import Pipeline
 import os
 import datetime
 
-fp_num = '02'
+fp_num = '01'
 fp_seq = '1'
 
 base_path = {
@@ -32,7 +32,7 @@ cfg = {
         'apply_prod_qty_multiple': True,     # Product Quantity Multiple
         'apply_human_capacity': True,        # Human Capacity
         'apply_sim_prod_cstr': False,         # Simultaneous Production Constraint
-        'apply_mold_capa_cstr': False,        # Mold Capacity Constraint
+        'apply_mold_capa_cstr': False,       # Mold Capacity Constraint
     },
     'except': {
         'miss_duration': 'remove'    # add / remove

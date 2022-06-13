@@ -19,14 +19,6 @@ class DataIO(object):
 
         return df
 
-    # Read sql and converted to dictionary
-    def get_dict_from_db(self, sql, key, val, dtype=None) -> dict:
-        df = self.session.select(sql=sql, dtype=dtype)
-        df[key] = df[key].apply(str.lower)
-        result = df.set_index(keys=key).to_dict()[val]
-
-        return result
-
     # Insert dataframe on DB
     def insert_to_db(self, df: pd.DataFrame, tb_name: str, verbose=True) -> None:
         self.session.insert(df=df, tb_name=tb_name, verbose=verbose)
@@ -34,10 +26,6 @@ class DataIO(object):
     # Delete from DB
     def delete_from_db(self, sql: str) -> None:
         self.session.delete(sql=sql)
-
-    # Update on DB
-    def update_from_db(self, sql: str) -> None:
-        self.session.update(sql=sql)
 
     # Save the object
     @staticmethod

@@ -51,8 +51,8 @@ class Process(object):
          ):
         # Class instance attribute
         self.io = io
-        self.query = query
         self.cfg = cfg
+        self.query = query
 
         # Model version instance attribute
         self.fp_seq = version.fp_seq
@@ -63,11 +63,11 @@ class Process(object):
 
         # Name instance attribute
         self._key = Key()
+        self._item = Item()
+        self._post = Post()
         self._dmd = Demand()
         self._res = Resource()
-        self._item = Item()
         self._cstr = Constraint()
-        self._post = Post()
 
         # Columns usage instance attribute
         self.res_schd_cols = [self._res.res, self._dmd.start_time, self._dmd.end_time, self._res.res_capa]
@@ -110,7 +110,6 @@ class Process(object):
         self.res_avail_time = prep_data[self._key.cstr][self._key.res_avail_time][plant]
         if self.cfg['cstr']['apply_sim_prod_cstr']:    # Simultaneous production constraint
             self.sim_prod_cstr = prep_data[self._key.cstr][self._key.sim_prod_cstr]['necessary'].get(plant, None)
-
         if self.cfg['cstr']['apply_mold_capa_cstr']:    # Mold capacity constraint
             self.mold_capa_cstr = prep_data[self._key.cstr][self._key.mold_cstr].get(plant, None)
 
@@ -285,9 +284,11 @@ class Process(object):
         mold_cstr = Mold(
             plant=self.plant,
             plant_start_time=self.plant_start_time,
+            cstr=self.cstr_mst,
+            route=self.res_route,
+            res_dur=self.res_duration,
             mold_capa_cstr=self.mold_capa_cstr,
-            item=self.io.load_from_db(sql=self.query.sql_item_halb()),
-            route=self.res_route
+            half_item=self.io.load_from_db(sql=self.query.sql_item_halb()),
         )
         result = mold_cstr.apply(data=data)
 
