@@ -225,7 +225,7 @@ class Preprocess(object):
 
         mold_cstr = {}
         for plant, plant_df in data.groupby(by=self._res.plant):
-            mold_cstr[plant] = {res_grp: mold_capa * 1000 for res_grp, mold_capa in
+            mold_cstr[plant] = {res_grp: mold_capa for res_grp, mold_capa in
                                 zip(plant_df[self._res.res_grp], plant_df[self._cstr.mold_capa])}
 
         return mold_cstr

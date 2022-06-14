@@ -4,7 +4,7 @@ import os
 import datetime
 
 fp_num = '01'
-fp_seq = '1'
+fp_seq = '2'
 
 base_path = {
     'root': os.path.join('..', '..'),
@@ -19,10 +19,10 @@ cfg = {
         'verbose': False,
     },
     'step': {
-        'cls_load': False,
+        'cls_load': True,
         'cls_cns': False,
-        'cls_prep': False,
-        'cls_model': False,
+        'cls_prep': True,
+        'cls_model': True,
         'cls_pp': True,
         'cls_save': True,
     },

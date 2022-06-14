@@ -19,12 +19,12 @@ cfg = {
         'verbose': False,
     },
     'step': {
-        'cls_load': False,    # Load class
-        'cls_cns': False,     # Consistency Check class
-        'cls_prep': False,    # Preprocessing class
-        'cls_model': False,   # Model class
-        'cls_pp': True,       # Post processing class
-        'cls_save': False,    # Save result class
+        'cls_load': False,     # Load class
+        'cls_cns': False,      # Consistency Check class
+        'cls_prep': False,     # Preprocessing class
+        'cls_model': False,    # Model class
+        'cls_pp': True,        # Post processing class
+        'cls_save': False,     # Save result class
     },
     'cstr': {
         'apply_job_change': True,           # Job Change
