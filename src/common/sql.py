@@ -119,6 +119,8 @@ class Query(object):
             SELECT PLANT_CD
                  , RES_CD
                  , ROUTE_CD AS ITEM_CD
+                 , MIN_LOT_VAL AS MIN_LOT_SIZE
+                 , MULTI_LOT_VAL AS MULTI_LOT_SIZE
                  , CEILING(60 * CAPA_USE_RATE) AS DURATION
               FROM M4E_I401120
              WHERE CAPA_USE_RATE IS NOT NULL
@@ -146,12 +148,22 @@ class Query(object):
     def sql_res_avail_time(**kwargs):
         sql = f"""
             SELECT PLANT_CD
+                 , RES_GRP_CD
                  , RES_CD
-                 , CAPA01_VAL AS CAPACITY1
-                 , CAPA02_VAL AS CAPACITY2
-                 , CAPA03_VAL AS CAPACITY3
-                 , CAPA04_VAL AS CAPACITY4
-                 , CAPA05_VAL AS CAPACITY5
+                 , CAPA01_D_VAL AS CAPACITY1_D
+                 , CAPA01_N_VAL AS CAPACITY1_N
+                 , CAPA02_D_VAL AS CAPACITY2_D
+                 , CAPA02_N_VAL AS CAPACITY2_N
+                 , CAPA03_D_VAL AS CAPACITY3_D
+                 , CAPA03_N_VAL AS CAPACITY3_N
+                 , CAPA04_D_VAL AS CAPACITY4_D
+                 , CAPA04_N_VAL AS CAPACITY4_N
+                 , CAPA05_D_VAL AS CAPACITY5_D
+                 , CAPA05_N_VAL AS CAPACITY5_N
+                 , CAPA06_D_VAL AS CAPACITY6_D
+                 , CAPA06_N_VAL AS CAPACITY6_N
+                 , CAPA07_D_VAL AS CAPACITY7_D
+                 , CAPA07_N_VAL AS CAPACITY7_N
               FROM M4E_I401140
              WHERE FP_VRSN_ID = '{kwargs['fp_vrsn_id']}'
                AND FP_VRSN_SEQ = '{kwargs['fp_vrsn_seq']}'

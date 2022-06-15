@@ -45,16 +45,29 @@ def assert_type_int(value):
 
 
 def change_dmd_qty(data, method):
-    if method == 'multiple':
+    if method == 'multi':
         multiple = config.prod_qty_multiple
         qty = data[config.col_qty].values.copy()
         qty = np.where(qty % multiple != 0, (qty // multiple + 1) * multiple, qty)
         data[config.col_qty] = qty
+    elif method == 'min':
+        pass
 
     return data
 
 
-def calc_daily_avail_time(day: int, time, start_time, end_time):
+def calc_daily_avail_time(day: int, day_time: int, night_time: int):
+    if not isinstance(day_time, int):
+        raise TypeError("Time is not integer")
+
+    standard_time = day * 86400 + 43200
+    start_time = standard_time - day_time
+    end_time = standard_time + night_time
+
+    return start_time, end_time
+
+
+def calc_daily_avail_time_bak(day: int, time, start_time, end_time):
     if not isinstance(time, int):
         raise TypeError("Time is not integer")
 
@@ -89,3 +102,16 @@ def save_log(log: list, path, version, name):
         file.write(line + '\n')
 
     file.close()
+
+
+def make_time_pair(data: list):
+    pair = []
+    temp = []
+    for i, time in enumerate(data):
+        if i % 2 == 0:
+            temp = [time]
+        else:
+            temp.append(time)
+            pair.append(temp)
+
+    return pair

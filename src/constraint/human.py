@@ -46,10 +46,10 @@ class Human(object):
         self.prod_time_comp_standard = 'min'
 
         # Time instance attribute
-        self.work_day = 5  # Monday ~ Friday
+        self.work_day = 7
         self.sec_of_day = 86400  # Seconds of 1 day
         self.time_multiple = 60  # Minute -> Seconds
-        self.schedule_weeks = 104
+        self.schedule_weeks = 52
         self.plant_start_hour = 0
         self.yymmdd_to_week = {}
 
@@ -131,26 +131,28 @@ class Human(object):
 
     def set_res_capacity(self, data: pd.DataFrame):
         # Choose current plant
-        data = data[data[self.res.plant] == self.plant]
+        data = data[data[self.res.plant] == self.plant].copy()
 
         capa_col_list = []
         for i in range(self.work_day):
-            capa_col = self.res.res_capa + str(i + 1)
-            capa_col_list.append(capa_col)
+            for kind in ['d', 'n']:
+                capa = self.res.res_capa + str(i + 1) + '_' + kind
+                capa_col_list.append(capa)
 
         res_to_capa = {}
         for res, capa_df in data.groupby(by=self.res.res):
             days_capa = capa_df[capa_col_list].values.tolist()[0]
+            days_capa = util.make_time_pair(data=days_capa)
 
             days_capa_list = []
-            start_time, end_time = (self.plant_start_hour, self.plant_start_hour)
-            for i, time in enumerate(days_capa * self.schedule_weeks):
+            for day, (day_time, night_time) in enumerate(days_capa * self.schedule_weeks):
                 start_time, end_time = util.calc_daily_avail_time(
-                    day=i, time=int(time) * self.time_multiple, start_time=start_time, end_time=end_time
+                    day=day,
+                    day_time=int(day_time * self.time_multiple),
+                    night_time=int(night_time * self.time_multiple),
                 )
-                days_capa_list.append([start_time, end_time])
-                if i % 5 == 4:  # skip saturday & sunday
-                    start_time += self.sec_of_day * 3
+                if start_time != end_time:
+                    days_capa_list.append([start_time, end_time])
 
             days_capa_list = self.connect_continuous_capa(data=days_capa_list)
             res_to_capa[res] = days_capa_list

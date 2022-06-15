@@ -35,10 +35,11 @@ class Preprocess(object):
         self._col_dmd = [self._dmd.dmd, self._item.sku, self._res.res_grp, self._dmd.qty, self._dmd.due_date]
         self._col_res_grp = [self._res.plant, self._res.res_grp, self._res.res, self._res.res_nm]
         self._col_res_duration = [self._res.plant, self._item.sku, self._res.res, self._dmd.duration]
-        self._col_res_avail_time = [self._res.plant, self._res.res] + \
-                                   [self._res.res_capa + str(i + 1) for i in range(self.work_day)]
+        self._col_res_avail_time = [self._res.plant, self._res.res]
         self._col_res_grp_job_change = [self._res.plant, self._res.res_grp, self._cstr.jc_from, self._cstr.jc_to,
                                         self._cstr.jc_type, self._cstr.jc_time, self._cstr.jc_unit]
+        self._col_res_lot = [self._res.plant, self._res.res, self._item.sku, self._res.min_lot,
+                             self._res.multi_lot]
 
         # Time UOM instance attribute
         self.jc_time_uom = 'MIN'
@@ -47,13 +48,18 @@ class Preprocess(object):
         ######################################
         # Demand / Resource / Route
         ######################################
-        # Demand
         demand = data[self._key.dmd]
-        dmd_prep = self._set_dmd_info(data=demand)
-
-        # Resource
         resource = data[self._key.res]
         constraint = data[self._key.cstr]
+
+        # Demand
+        dmd_prep = self._set_dmd_info(
+            data=demand,
+            res=resource[self._key.res_grp],
+            res_dur=resource[self._key.res_duration]
+        )
+
+        # Resource
         res_prep = self._set_res_info(resource=resource, constraint=constraint)
 
         # Route
@@ -279,10 +285,19 @@ class Preprocess(object):
 
         return sku_to_type
 
-    def _set_dmd_info(self, data: pd.DataFrame) -> Dict[str, Dict[str, Any]]:
+    def _set_dmd_info(self, data: pd.DataFrame, res, res_dur: pd.DataFrame) -> Dict[str, Dict[str, Any]]:
+        res_grp_res = res[self._col_res_grp].copy().drop(columns=[self._res.res_nm])
+        res_lot = res_dur[self._col_res_lot].copy()
+        res_lot = pd.merge(res_lot, res_grp_res, on=[self._res.plant, self._res.res], how='left')
+
         # Quantity constraint
-        if self._cstr_cfg['apply_prod_qty_multiple']:
-            data = util.change_dmd_qty(data=data, method='multiple')
+        # Minimum lot size constraint
+        if self._cstr_cfg['apply_min_lot_size']:
+            data = self._change_dmd_qty(data=data, res=res_lot, method='min')
+
+        # Multi lot size constraint
+        if self._cstr_cfg['apply_multi_lot_size']:
+            data = self._change_dmd_qty(data=data, res=res_lot, method='multi')
 
         # Get plant list of demand list
         dmd_plant_list = list(set(data[self._res.plant]))
@@ -320,6 +335,29 @@ class Preprocess(object):
         }
 
         return dmd_prep
+
+    def _change_dmd_qty(self, data, res, method):
+        data = pd.merge(data, res, on=[self._res.plant, self._res.res_grp, self._item.sku], how='left')
+
+        if method == 'multi':
+            qty_revised = []
+            for multi_lot, qty in zip(data[self._res.multi_lot], data[self._dmd.qty]):
+                if qty % multi_lot != 0:
+                    qty_revised.append((qty // multi_lot + 1) * multi_lot)
+                else:
+                    qty_revised.append(qty)
+            data[self._dmd.qty] = qty_revised
+
+        elif method == 'min':
+            qty_revised = []
+            for min_lot, qty in zip(data[self._res.min_lot], data[self._dmd.qty]):
+                if qty < min_lot:
+                    qty_revised.append(min_lot)
+                else:
+                    qty_revised.append(qty)
+            data[self._dmd.qty] = qty_revised
+
+        return data
 
     def _calc_due_date(self, data: pd.DataFrame) -> pd.DataFrame:
         data[self._dmd.due_date] = data[self._dmd.due_date] * 24 * 60 * 60
@@ -383,7 +421,14 @@ class Preprocess(object):
 
     def _set_res_avail_time(self, data: pd.DataFrame):
         # Choose columns used in model
-        data = data[self._col_res_avail_time].copy()
+        col_capa = []
+        for i in range(self.work_day):
+            for kind in ['d', 'n']:
+                capa = self._res.res_capa + str(i + 1) + '_' + kind
+                data[capa] = data[capa].astype(int)
+                col_capa.append(capa)
+
+        data = data[self._col_res_avail_time + col_capa].copy()
 
         # choose capacity in several item case
         # data = self.filter_duplicate_capacity(data=data)
@@ -391,20 +436,20 @@ class Preprocess(object):
         # Change the data type
         data[self._res.res] = data[self._res.res].astype(str)
 
-        capa_col_list = []
-        for i in range(self.work_day):
-            capa_col = self._res.res_capa + str(i + 1)
-            capa_col_list.append(capa_col)
-            data[capa_col] = data[capa_col].astype(int)
-
         # Choose plants of demand list
         data = data[data[self._res.plant].isin(self._dmd_plant_list)].copy()
 
+        # Drop resources that don't have available time
+        data = data.drop(data[data[col_capa].sum(axis=1) == 0].index)
+
+        data = data.sort_values(by=[self._res.plant, ])
+
         res_avail_time_by_plant = {}
-        for plant, res_df in data.groupby(by=self._res.plant):
+        for plant, plant_df in data.groupby(by=self._res.plant):
             res_to_capa = {}
-            for res, capa_df in res_df.groupby(by=self._res.res):
-                res_to_capa[res] = capa_df[capa_col_list].values.tolist()[0]
+            for res, capa_df in plant_df.groupby(by=self._res.res):
+                capa_list = capa_df[col_capa].values.tolist()[0]
+                res_to_capa[res] = util.make_time_pair(capa_list)
             res_avail_time_by_plant[plant] = res_to_capa
 
         return res_avail_time_by_plant

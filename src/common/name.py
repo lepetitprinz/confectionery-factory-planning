@@ -58,6 +58,8 @@ class Resource(object):
         self.res_type = config.col_res_type
         self.res_capa = config.col_res_capa
         self.capa_unit = config.col_capa_unit
+        self.min_lot = config.col_min_lot
+        self.multi_lot = config.col_multi_lot
 
 
 class Item(object):

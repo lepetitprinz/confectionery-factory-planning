@@ -59,7 +59,8 @@ class Save(object):
         self.cstr = Constraint()
 
         self.schedule_range = []
-        self.schedule_period = 27
+        self.time_multiple = 60  # Minute -> Seconds
+        self.schedule_period = 54
         self.sec_of_half_day = 43200
         self.split_hour = dt.timedelta(hours=12)
 
@@ -70,6 +71,9 @@ class Save(object):
 
         self.daily_capa_info = {}
         self.res_day_avail_time = {}
+
+        self.res_idx_col = [self.res.res, 'day', 'res_capa_val', 'res_use_capa_val', 'res_avail_val',
+                            'res_unavail_val', 'res_jc_val']
 
     def to_csv(self, path, name: str) -> None:
         save_dir = os.path.join(path, 'opt', 'csv', self.fp_version)
@@ -132,24 +136,24 @@ class Save(object):
         start_day = dt.datetime.strptime(self.fp_version[3:7] + '-' + self.fp_version[7:10] + '-1', "%Y-W%W-%w")
         end_day = start_day + dt.timedelta(days=self.schedule_period)
         schedule_range = pd.date_range(start=start_day, end=end_day, freq='D').tolist()
-        self.schedule_range = [date for date in schedule_range if date.day_of_week not in [5, 6]]
+        self.schedule_range = [date for date in schedule_range]
 
         res_day_avail_time = {}
         for res, avail_time_list in self.res_avail_time.items():
             day_to_avail_time = {}
-            for i, avail_time in enumerate(avail_time_list):
-                day_time = self.calc_day_night_res_capacity(day=i, time_idx_type='D', capacity=avail_time * 60)
-                night_time = self.calc_day_night_res_capacity(day=i, time_idx_type='N', capacity=avail_time * 60)
-                idx_col = [self.res.res, 'day', 'res_capa_val', 'res_use_capa_val', 'res_avail_val',
-                           'res_unavail_val', 'res_jc_val']
+            for i, (day_time, night_time) in enumerate(avail_time_list):
+                # day_time = self.calc_day_night_res_capacity(day=i, time_idx_type='D', capacity=avail_time * 60)
+                # night_time = self.calc_day_night_res_capacity(day=i, time_idx_type='N', capacity=avail_time * 60)
+                day_time = day_time * self.time_multiple
+                night_time = night_time * self.time_multiple
                 avail_time_day_night = {
                     'D': pd.Series(
                         [res, i, day_time, 0, day_time, self.sec_of_half_day - day_time, 0],
-                        index=idx_col
+                        index=self.res_idx_col
                     ),
                     'N': pd.Series(
                         [res, i, night_time, 0, night_time, self.sec_of_half_day - night_time, 0],
-                        index=idx_col
+                        index=self.res_idx_col
                     )
                 }
                 day_to_avail_time[i] = avail_time_day_night
@@ -198,11 +202,11 @@ class Save(object):
     def set_res_capacity(self, data):
         # Resource usage
         data['day'] = [dt.datetime.strptime(day, '%Y%m%d').weekday() for day in data[self.col_date]]
-        # data = data[data['day'].isin([0, 1, 2, 3, 4])].copy()
+
         res_capa = []
         for res, day in zip(data[self.col_res], data['day']):
             res_avail_time = self.res_avail_time[res]
-            res_capa.append(res_avail_time[day] * 60)    # Todo
+            res_capa.append(sum(res_avail_time[day]) * 60)    # Todo
 
         data[self.col_res_capa] = res_capa
 
@@ -210,9 +214,14 @@ class Save(object):
 
     def split_res_capa_day_night(self, data):
         res_capa_val = []
-        for day, time_idx_type, capacity in zip(
-                data['day'], data[self.col_time_idx_type], data[self.col_res_capa]):
-            val = self.calc_day_night_res_capacity(day=day, time_idx_type=time_idx_type, capacity=capacity)
+        for res, day, time_idx_type, capacity in zip(
+               data[self.res.res], data['day'], data[self.col_time_idx_type], data[self.col_res_capa]):
+            res_avail_time = self.res_avail_time[res][day]
+            # val = self.calc_day_night_res_capacity(day=day, time_idx_type=time_idx_type, capacity=capacity)
+            if time_idx_type == 'D':
+                val = res_avail_time[0]
+            else:
+                val = res_avail_time[1]
             res_capa_val.append(val)
         data['res_capa_val'] = res_capa_val
 
@@ -221,22 +230,11 @@ class Save(object):
     def set_res_unavail_time(self, data):
         res_unavail_val = []
         for day, capacity in zip(data['day'], data['res_capa_val']):
-            val = self.calc_res_unavail_time(day=day, capacity=capacity)
-            res_unavail_val.append(val)
+            res_unavail_val.append(self.sec_of_half_day - capacity)
 
         data['res_unavail_val'] = res_unavail_val
 
         return data
-
-    def calc_res_unavail_time(self, day: int, capacity: int):
-        val = 0
-        if day in [0, 4]:
-            val = self.sec_of_half_day - capacity
-        elif day in [1, 2, 3]:
-            val = 0   # ToDo: temp
-            # val = self.sec_of_half_day * 2 - capacity    # ToDo: will be used
-
-        return val
 
     def add_model_info(self, data):
         res_grp_mst = self.res_grp_mst[self.res_grp_mst[self.res.plant] == self.plant].copy()

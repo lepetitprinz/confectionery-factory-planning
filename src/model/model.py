@@ -35,7 +35,8 @@ class OptSeq(object):
         self._res_grp = plant_data[self._key.res][self._key.res_grp][plant]
 
         # Resource capacity instance attribute
-        self.schedule_weeks = 104
+        self.time_multiple = 60
+        self.schedule_weeks = 52
         self.sec_of_day = 86400
         self.plant_start_hour = 0    # 25200(sec) = 7(hour) * 60 * 60
 
@@ -115,11 +116,13 @@ class OptSeq(object):
     # Set resource
     def _set_resource(self, model: Model, res_grp_dict) -> Tuple[Dict[str, Dict[str, Resource]], dict]:
         model_res_grp = {}
-        res_grp_list_copy = {**res_grp_dict}
+        res_grp_list = {**res_grp_dict}
 
-        for res_grp, res_list in res_grp_list_copy.items():
+        for res_grp, res_list in res_grp_list.items():
             model_res = {}
-            for resource in res_list:
+            for resource in res_list[:]:
+                # if resource == '10000062':
+                #     print("")
                 # Add available time of each resource
                 add_res = model.addResource(name=resource)
 
@@ -165,25 +168,22 @@ class OptSeq(object):
         return model_res_grp
 
     def _add_res_capacity(self, res: Resource, capa_days) -> Resource:
-        time_multiple = 1
-        if self.time_unit == 'M':
-            time_multiple = 60
-
-        end_time = self.plant_start_hour
-        start_time = self.plant_start_hour
-        for i, time in enumerate(capa_days * self.schedule_weeks):
+        # end_time = self.plant_start_hour
+        # start_time = self.plant_start_hour
+        day = 0
+        for day, (day_time, night_time) in enumerate(capa_days * self.schedule_weeks):
             start_time, end_time = util.calc_daily_avail_time(
-                day=i, time=time*time_multiple, start_time=start_time, end_time=end_time
+                day=day,
+                day_time=int(day_time * self.time_multiple),
+                night_time=int(night_time * self.time_multiple),
             )
 
             # Add the capacity
-            res.addCapacity(start_time, end_time, 1)
-
-            if i % 5 == 4:    # skip saturday & sunday
-                start_time += self.sec_of_day * 3
+            if start_time != end_time:
+                res.addCapacity(start_time, end_time, 1)
 
         # Exception for over demand
-        res.addCapacity(start_time + self.sec_of_day, 'inf', 1)
+        res.addCapacity((day+1) * self.sec_of_day, 'inf', 1)
 
         return res
 

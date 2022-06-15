@@ -176,7 +176,7 @@ class OptSeq(object):
         end_time = self.plant_start_hour
         for i, time in enumerate(capa_days * self.schedule_weeks):
             start_time, end_time = util.calc_daily_avail_time(
-                day=i, time=time*time_multiple, start_time=start_time, end_time=end_time
+                day=i, time=time * time_multiple, start_time=start_time, end_time=end_time
             )
 
             # Add the capacity

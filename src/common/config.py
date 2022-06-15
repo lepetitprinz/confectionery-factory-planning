@@ -16,7 +16,7 @@ project_cd = 'ENT001'
 apply_plant = ['K110', 'K120', 'K130', 'K140', 'K170']
 
 time_uom = 'sec'
-work_day = 5
+work_day = 7
 
 #########################################################
 # Data dictionary key configuration
@@ -81,9 +81,11 @@ col_res = 'res_cd'
 col_res_nm = 'res_nm'
 col_res_grp = 'res_grp_cd'
 col_res_grp_nm = 'res_grp_nm'
-col_res_type = 'res_type_cd'
 col_res_capa = 'capacity'
+col_res_type = 'res_type_cd'
 col_capa_unit = 'capa_unit_cd'
+col_min_lot = 'min_lot_size'
+col_multi_lot = 'multi_lot_size'
 
 # Column: Item
 col_brand = 'item_attr03_cd'

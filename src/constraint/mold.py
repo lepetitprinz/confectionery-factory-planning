@@ -71,10 +71,16 @@ class Mold(object):
             day_data = data[(data['day'] == day) & (data[self._item.item_type] == 'HALB')].copy()
             if len(day_data) > 0:
                 day_capa = sum(day_data['tot_weight'])
-                if day_capa <= daily_mold_capa:
-                    continue
-                else:
+                if day_capa > daily_mold_capa:
                     data = self.correct_daily_prod(
+                        data=data,
+                        res_grp=res_grp,
+                        day=day,
+                        day_data=day_data,
+                        capa=day_capa
+                    )
+                else:
+                    data = self.add_surplus_prod(
                         data=data,
                         res_grp=res_grp,
                         day=day,
@@ -83,6 +89,9 @@ class Mold(object):
                     )
 
         return data
+
+    def add_surplus_prod(self, data, res_grp, day, day_data, capa) -> pd.DataFrame:
+        pass
 
     def update_day(self, data: pd.DataFrame) -> pd.DataFrame:
         data['day'] = [self.check_day(time=stime) for stime in data[self._dmd.start_time]]
@@ -268,7 +277,6 @@ class Mold(object):
         data = data.sort_values(by=self._dmd.start_time)
         first_data = data.iloc[0]
         other_data = data.iloc[1:]
-
 
     def add_weight(self, data: pd.DataFrame) -> pd.DataFrame:
         data['diff'] = data[self._dmd.end_time] - data[self._dmd.start_time]
