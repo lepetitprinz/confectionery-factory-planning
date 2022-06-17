@@ -288,7 +288,7 @@ class Process(object):
             route=self.res_route,
             res_dur=self.res_duration,
             mold_capa_cstr=self.mold_capa_cstr,
-            half_item=self.io.load_from_db(sql=self.query.sql_item_halb()),
+            half_item=self.io.load_from_db(sql=self.query.sql_item_weight()),
         )
         result = mold_cstr.apply(data=data)
 

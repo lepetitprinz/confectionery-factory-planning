@@ -38,16 +38,13 @@ class Preprocess(object):
         self._col_res_avail_time = [self._res.plant, self._res.res]
         self._col_res_grp_job_change = [self._res.plant, self._res.res_grp, self._cstr.jc_from, self._cstr.jc_to,
                                         self._cstr.jc_type, self._cstr.jc_time, self._cstr.jc_unit]
-        self._col_res_lot = [self._res.plant, self._res.res, self._item.sku, self._res.min_lot, self._res.multi_lot]
-        self._col_mold_res = [self._res.plant, self._res.res, self._item.sku, self._cstr.mold_res,
-                              self._cstr.mold_use_rate]
-        self._col_item_weight = [self._item.sku, self._item.weight, self._item.weight_uom]
+        self._col_res_lot = [self._res.plant, self._res.res, self._item.sku, self._res.min_lot,
+                             self._res.multi_lot]
 
-        # Constraint instance attribute
+        # Time UOM instance attribute
         self.jc_time_uom = 'MIN'
         self.default_min_lot = 0
         self.default_multi_lot = 10
-        self._weight_map = {'G': 0.001, 'KG': 1., 'TON': 1000.}
 
     def preprocess(self, data):
         ######################################
@@ -101,12 +98,7 @@ class Preprocess(object):
         # Mold capacity constraint
         mold_cstr = None
         if self._cstr_cfg['apply_mold_capa_cstr']:
-            mold_cstr = self._set_mold_cstr(
-                capa=data[self._key.cstr][self._key.mold_cstr],
-                res=data[self._key.res][self._key.res_duration],
-                # item=data[self._key.item],
-                item=data[self._key.cstr]['temp']
-            )
+            mold_cstr = self._set_mold_cstr(data=data[self._key.res][self._key.res_grp])
 
         # Preprocessing result
         prep_data = {
@@ -230,76 +222,8 @@ class Preprocess(object):
 
         return human_capacity
 
-    def _set_mold_cstr(self, res: pd.DataFrame, capa: pd.DataFrame, item: pd.DataFrame) -> dict:
-        mold_res = self._set_mold_res(data=res)
-        mold_capa = self._set_mold_capa(data=capa)
-        item_weight = self._set_item_weight(data=item)
-
-        mold_cstr = {
-            self._key.mold_res: mold_res,
-            self._key.mold_capa: mold_capa,
-            self._key.item_weight: item_weight,
-        }
-
-        return mold_cstr
-
-    def _set_item_weight(self, data: pd.DataFrame):
-        data = data[self._col_item_weight].copy()
-        data[self._item.weight] = data[self._item.weight].astype(float)
-        data[self._item.weight_uom] = data[self._item.weight_uom].fillna('G')
-        data[self._item.weight] = [
-            round(weight * self._weight_map[uom], 3) for weight, uom in
-            zip(data[self._item.weight], data[self._item.weight_uom])]
-
-        item_weight = {item: weight for item, weight in zip(data[self._item.sku], data[self._item.weight])}
-
-        return item_weight
-
-    def _set_mold_res(self, data: pd.DataFrame):
-        data = data[data[self._res.plant].isin(self._dmd_plant_list)].copy()
-
-        data = data[self._col_mold_res]
-
-        data = data.fillna('-')
-
-        mold_res_map = {}
-        for plant, plant_df in data.groupby(by=self._res.plant):
-            res_item = {}
-            for res, res_df in plant_df.groupby(by=self._res.res):
-                item_mold = {}
-                for item, item_df in res_df.groupby(by=self._item.sku):
-                    mold_res = item_df[self._cstr.mold_res].values[0]
-                    mold_use_rate = item_df[self._cstr.mold_use_rate].values[0]
-                    if mold_res != '-':
-                        item_mold[item] = (mold_res, mold_use_rate)
-                if len(item_mold) > 0:
-                    res_item[res] = item_mold
-            if len(res_item) > 0:
-                mold_res_map[plant] = res_item
-
-        return mold_res_map
-
-    def _set_mold_capa(self, data: pd.DataFrame):
-        data = data[data[self._res.plant].isin(self._dmd_plant_list)].copy()
-
-        col_capa = []
-        for i in range(self.work_day):
-            for kind in ['d', 'n']:
-                capa = self._res.res_capa + str(i + 1) + '_' + kind
-                data[capa] = data[capa].astype(int)
-                col_capa.append(capa)
-
-        mold_capa = {}
-        for plant, plant_df in data.groupby(by=self._res.plant):
-            res_to_capa = {}
-            for res, res_df in plant_df.groupby(by=self._res.res):
-                capa = res_df[col_capa].values[0].tolist()
-                res_to_capa[res] = util.make_time_pair(data=capa)
-            mold_capa[plant] = res_to_capa
-
-        return mold_capa
-
-    def _set_mold_cstr_bak(self, data: pd.DataFrame) -> dict:
+    # Set mold constraint
+    def _set_mold_cstr(self, data: pd.DataFrame) -> dict:
         # Get plant list of demand list
         data = data[data[self._res.plant].isin(self._dmd_plant_list)].copy()
 

@@ -21,14 +21,17 @@ class Key(object):
         self.res_duration = config.key_res_duration
 
         # Constraint
-        self.jc = config.key_jc
-        self.sku_type = config.key_sku_type
-        self.mold_cstr = config.key_mold_cstr
-        self.human_cstr = config.key_human_cstr
-        self.human_capa = config.key_human_capa
-        self.human_usage = config.key_human_usage
+        self.jc = config.key_jc    # Job change
+        self.sku_type = config.key_sku_type      # SKU item type
+        self.mold_res = config.key_mold_res      # mold resource
+        self.mold_capa = config.key_mold_capa    # Mold capacity
+        self.mold_cstr = config.key_mold_cstr    # Mold constraint
+        self.human_cstr = config.key_human_cstr      # Human constraint
+        self.human_capa = config.key_human_capa      # Human capacity
+        self.human_usage = config.key_human_usage    # Human usage
         self.sim_prod_cstr = config.key_sim_prod_cstr
         self.res_avail_time = config.key_res_avail_time
+        self.item_weight = config.key_item_weight
 
         # Route
         self.route = config.key_bom_route
@@ -100,6 +103,8 @@ class Constraint(object):
         # Mold Capacity
         self.mold_capa = config.col_mold_capa
         self.mold_uom = config.col_mold_uom
+        self.mold_res = config.col_mold_res
+        self.mold_use_rate = config.col_mold_use_rate
 
 
 class Post(object):

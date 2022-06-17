@@ -41,12 +41,15 @@ key_res_duration = 'res_duration'
 # Constraint
 key_jc = 'job_change'
 key_sku_type = 'sku_type'
-key_mold_cstr = 'mold_capacity'
+key_mold_res = 'mold_resource'
+key_mold_capa = 'mold_capacity'
+key_mold_cstr = 'mold_constraint'
 key_human_cstr = 'human_resource'
 key_human_capa = 'human_capacity'
 key_human_usage = 'human_usage'
 key_sim_prod_cstr = 'sim_prod_cstr'
 key_res_avail_time = 'res_avail_time'
+key_item_weight = 'item_weight'
 
 # Route
 key_bom_route = 'bom_route'
@@ -122,6 +125,8 @@ col_woman_capa = 'w_val'
 # Mold capacity
 col_mold_capa = 'mold_capa'
 col_mold_uom = 'mold_uom'
+col_mold_res = 'mold_res_cd'
+col_mold_use_rate = 'mold_use_rate'
 
 #########################################################
 # Column: Post process
@@ -156,7 +161,7 @@ prod_qty_multiple = 10
 #########################################################
 # OptSeq Model
 #########################################################
-time_limit = 60 * 1    # 60 * 60 * 6
+time_limit = 60 * 5    # 60 * 60 * 6
 make_span = True
 optput_flag = True
 max_iteration = 10 ** 20

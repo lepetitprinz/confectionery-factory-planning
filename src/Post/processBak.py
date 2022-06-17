@@ -1,7 +1,7 @@
 import common.config as config
 import common.util as util
 from common.name import Key, Demand, Item, Resource, Constraint, Post
-from constraint.humanBak2 import Human
+from constraint.bak.humanBak2 import Human
 from constraint.simultaneous import Necessary
 
 from Post.save import Save

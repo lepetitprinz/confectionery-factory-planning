@@ -77,7 +77,8 @@ class Query(object):
                          , ENG_ITEM_CD         AS ITEM_CD
                          , RES_CD              AS RES_GRP_CD
                          , TIME_INDEX          AS DUE_DATE
-                         , CEILING(REQ_FP_QTY) AS QTY
+                         , CEILING(REQ_FP_QTY * 5) AS QTY
+--                          , CEILING(REQ_FP_QTY) AS QTY
                       FROM M4E_I401060
                      WHERE FP_VRSN_ID = '{kwargs['fp_vrsn_id']}'
                        AND FP_VRSN_SEQ = '{kwargs['fp_vrsn_seq']}'
@@ -119,9 +120,11 @@ class Query(object):
             SELECT PLANT_CD
                  , RES_CD
                  , ROUTE_CD AS ITEM_CD
+                 , CEILING(60 * CAPA_USE_RATE) AS DURATION
                  , MIN_LOT_VAL AS MIN_LOT_SIZE
                  , MULTI_LOT_VAL AS MULTI_LOT_SIZE
-                 , CEILING(60 * CAPA_USE_RATE) AS DURATION
+                 , HALB_RES_CD AS MOLD_RES_CD
+                 , CONSM_RATE AS MOLD_USE_RATE
               FROM M4E_I401120
              WHERE CAPA_USE_RATE IS NOT NULL
                AND FP_VRSN_ID = '{kwargs['fp_vrsn_id']}'
@@ -268,6 +271,46 @@ class Query(object):
         """
         return sql
 
+    @staticmethod
+    def sql_mold_capacity(**kwargs):
+        sql = f"""
+            SELECT PLANT_CD
+                 , RES_CD
+                 , CAPA01_D_VAL AS CAPACITY1_D
+                 , CAPA01_N_VAL AS CAPACITY1_N
+                 , CAPA02_D_VAL AS CAPACITY2_D
+                 , CAPA02_N_VAL AS CAPACITY2_N
+                 , CAPA03_D_VAL AS CAPACITY3_D
+                 , CAPA03_N_VAL AS CAPACITY3_N
+                 , CAPA04_D_VAL AS CAPACITY4_D
+                 , CAPA04_N_VAL AS CAPACITY4_N
+                 , CAPA05_D_VAL AS CAPACITY5_D
+                 , CAPA05_N_VAL AS CAPACITY5_N
+                 , CAPA06_D_VAL AS CAPACITY6_D
+                 , CAPA06_N_VAL AS CAPACITY6_N
+                 , CAPA07_D_VAL AS CAPACITY7_D
+                 , CAPA07_N_VAL AS CAPACITY7_N
+              FROM M4E_I401140
+             WHERE RES_CTIG_CD = 'RES_CTGI_11'
+               AND FP_VRSN_ID = '{kwargs['fp_vrsn_id']}'
+               AND FP_VRSN_SEQ = '{kwargs['fp_vrsn_seq']}'       
+        """
+        return sql
+
+    @staticmethod
+    def sql_item_weight():
+        sql = """
+            SELECT ITEM_CD
+                 , ITEM_TYPE_CD
+                 , ITEM_ATTR16_CD AS WEIGHT
+                 , ITEM_ATTR19_CD AS WEIGHT_UOM
+              FROM M4S_I002040
+             WHERE USE_YN = 'Y'
+               AND ITEM_ATTR16_CD IS NOT NULL
+               AND ITEM_TYPE_CD IN ('HAWA', 'FERT')
+        """
+        return sql
+
     #################################
     # Delete SQL
     #################################
@@ -345,18 +388,5 @@ class Query(object):
              WHERE FP_VRSN_ID = '{kwargs['fp_version']}'
                AND FP_VRSN_SEQ = '{kwargs['fp_seq']}'
                AND PLANT_CD = '{kwargs['plant_cd']}'
-        """
-        return sql
-
-    @staticmethod
-    def sql_item_halb():
-        sql = """
-            SELECT ITEM_CD
-                 , ITEM_TYPE_CD
-                 , ITEM_ATTR16_CD AS WEIGHT
-                 , ITEM_ATTR19_CD AS WEIGHT_UOM
-              FROM M4S_I002040
-             WHERE USE_YN = 'Y'
-               -- AND ITEM_TYPE_CD = 'HALB'
         """
         return sql

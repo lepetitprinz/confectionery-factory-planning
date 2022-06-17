@@ -5,7 +5,7 @@ from init.init import Init
 from init.load import DataLoad
 from init.consistency import Consistency
 from init.preprocess import Preprocess
-from model.model import OptSeq
+from model.modelMold import OptSeq
 from Post.process import Process
 
 
@@ -127,32 +127,33 @@ class Pipeline(object):
                 )
 
                 # Initialize the each model of plant
-                model, rm_act_list = opt_seq.init(
-                    plant=plant,
-                    dmd_list=prep_data[self.key.dmd][self.key.dmd_list][plant],
-                    res_grp_dict=prep_data[self.key.res][self.key.res_grp][plant]
-                )
+                if plant == 'K130':
+                    model, rm_act_list = opt_seq.init(
+                        plant=plant,
+                        dmd_list=prep_data[self.key.dmd][self.key.dmd_list][plant],
+                        res_grp_dict=prep_data[self.key.res][self.key.res_grp][plant]
+                    )
 
-                # Make activity to mode hash map
-                act_mode_name_map = opt_seq.make_act_mode_map(model=model)
+                    # Make activity to mode hash map
+                    act_mode_name_map = opt_seq.make_act_mode_map(model=model)
 
-                plant_model[plant] = {
-                    'model': model,
-                    'act_mode_name': act_mode_name_map,
-                    'rm_act_list': rm_act_list
-                }
+                    plant_model[plant] = {
+                        'model': model,
+                        'act_mode_name': act_mode_name_map,
+                        'rm_act_list': rm_act_list
+                    }
 
-                # Check and fix the model setting
-                model = opt_seq.check_and_fix_model_setting(model=model)
+                    # Check and fix the model setting
+                    model = opt_seq.check_and_fix_model_setting(model=model)
 
-                # Optimization
-                print('\n============================================')
-                print(f" - Optimize the OtpSeq model: {plant}")
-                print('============================================')
-                opt_seq.optimize(model=model)
+                    # Optimization
+                    print('\n============================================')
+                    print(f" - Optimize the OtpSeq model: {plant}")
+                    print('============================================')
+                    opt_seq.optimize(model=model)
 
-                # Save original result
-                opt_seq.save_org_result()
+                    # Save original result
+                    opt_seq.save_org_result()
 
             if self.cfg['exec']['save_step_yn']:
                 self.io.save_object(data=plant_model, path=self.path['model'], data_type='binary')
@@ -174,21 +175,22 @@ class Pipeline(object):
 
             # Post Process after optimization
             for plant in prep_data[self.key.dmd][self.key.dmd_list]:
-                print(f"\nPost process: plant {plant}")
-                if len(plant_model[plant]['model'].act) > 0:
-                    pp = Process(
-                        io=self.io,
-                        cfg=self.cfg,
-                        query=self.query,
-                        version=self.version,
-                        plant=plant,
-                        plant_start_time=self.plant_start_day,
-                        data=data,
-                        prep_data=prep_data,
-                        model_init=plant_model[plant],
-                        calendar=self.calendar
-                    )
-                    pp.run()
+                if plant == 'K130':
+                    print(f"\nPost process: plant {plant}")
+                    if len(plant_model[plant]['model'].act) > 0:
+                        pp = Process(
+                            io=self.io,
+                            cfg=self.cfg,
+                            query=self.query,
+                            version=self.version,
+                            plant=plant,
+                            plant_start_time=self.plant_start_day,
+                            data=data,
+                            prep_data=prep_data,
+                            model_init=plant_model[plant],
+                            calendar=self.calendar
+                        )
+                        pp.run()
 
             # Close DB session
             self.io.session.close()

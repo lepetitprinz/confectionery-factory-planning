@@ -54,7 +54,8 @@ class Process(object):
         self.cfg = cfg
 
         # Model version instance attribute
-        self.fp_seq = version.fp_seq
+        # self.fp_seq = version.fp_seq
+        self.fp_seq = 8
         self.fp_version = version.fp_version
         self.fp_name = version.fp_version + '_' + version.fp_seq + '_' + plant
         self.project_cd = config.project_cd
