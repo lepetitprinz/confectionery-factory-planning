@@ -104,8 +104,8 @@ class Preprocess(object):
             mold_cstr = self._set_mold_cstr(
                 capa=data[self._key.cstr][self._key.mold_cstr],
                 res=data[self._key.res][self._key.res_duration],
-                # item=data[self._key.item],
-                item=data[self._key.cstr]['temp']
+                item=data[self._key.item],
+                # item=data[self._key.cstr]['temp']
             )
 
         # Preprocessing result

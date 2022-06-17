@@ -55,7 +55,7 @@ class Process(object):
 
         # Model version instance attribute
         # self.fp_seq = version.fp_seq
-        self.fp_seq = 8
+        self.fp_seq = '8'
         self.fp_version = version.fp_version
         self.fp_name = version.fp_version + '_' + version.fp_seq + '_' + plant
         self.project_cd = config.project_cd
@@ -628,6 +628,9 @@ class Process(object):
         self.io.insert_to_db(df=merged, tb_name='M4E_O402010')
 
     def save_res_day_night_qty_on_db(self, data: pd.DataFrame, seq: str) -> None:
+        data = self.set_item_res_capa_rate(data=data)
+        data[self.post.res_use_capa] = np.round(data[self.dmd.prod_qty] * data['capa_rate'], 0)
+
         data = self.add_version_info(data=data, seq=seq)
         data[self.res.plant] = self.plant
         data[self.col_date] = data[self.col_date].dt.strftime('%Y%m%d')

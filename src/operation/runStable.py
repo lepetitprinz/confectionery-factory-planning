@@ -14,14 +14,14 @@ base_path = {
 cfg = {
     'exec': {
         'save_step_yn': True,
-        'save_db_yn': False,
-        'save_graph_yn': False,
+        'save_db_yn': True,
+        'save_graph_yn': True,
         'verbose': False,
     },
     'step': {
-        'cls_load': True,
+        'cls_load': False,
         'cls_cns': False,
-        'cls_prep': True,
+        'cls_prep': False,
         'cls_model': True,
         'cls_pp': False,
         'cls_save': False,

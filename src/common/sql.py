@@ -13,6 +13,8 @@ class Query(object):
                  , ITEM_TYPE_CD
                  , ITEM_ATTR29_CD AS FLAVOR
                  , PKG_CTGRI_SUB_CD AS PKG
+                 , ITEM_ATTR17_CD AS WEIGHT
+                 , ITEM_ATTR19_CD AS WEIGHT_UOM
               FROM M4E_I401080
              WHERE FP_VRSN_ID = '{kwargs['fp_vrsn_id']}'
                AND FP_VRSN_SEQ = '{kwargs['fp_vrsn_seq']}'
@@ -77,8 +79,7 @@ class Query(object):
                          , ENG_ITEM_CD         AS ITEM_CD
                          , RES_CD              AS RES_GRP_CD
                          , TIME_INDEX          AS DUE_DATE
-                         , CEILING(REQ_FP_QTY * 5) AS QTY
---                          , CEILING(REQ_FP_QTY) AS QTY
+                         , CEILING(REQ_FP_QTY) AS QTY
                       FROM M4E_I401060
                      WHERE FP_VRSN_ID = '{kwargs['fp_vrsn_id']}'
                        AND FP_VRSN_SEQ = '{kwargs['fp_vrsn_seq']}'

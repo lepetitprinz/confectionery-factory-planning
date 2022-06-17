@@ -3,6 +3,7 @@ import common.config as config
 from common.name import Key
 
 import os
+from math import ceil
 from itertools import permutations
 from typing import Dict, Tuple, List
 from optimize.optseq import Model, Mode, Parameters, Activity, Resource
@@ -157,7 +158,6 @@ class OptSeq(object):
                 )
 
         if self._cstr_cfg['apply_mold_capa_cstr']:
-
             for res, mold_capa in self.mold_capa.items():
                 add_res = model.addResource(name=res)
                 add_res = self._add_mold_res_capa(res=add_res, capa_days=mold_capa)
@@ -168,12 +168,13 @@ class OptSeq(object):
 
     def _add_mold_res_capa(self, res, capa_days):
         day = 0
+        amount = 1
         for day, (day_capa, night_capa) in enumerate(capa_days * self.schedule_weeks):
-            res.addCapacity(day * self.sec_of_day, day * self.sec_of_day + 43200, 1)
-            res.addCapacity(day * self.sec_of_day + 43200, (day + 1) * self.sec_of_day, 1)
+            res.addCapacity(day * self.sec_of_day, day * self.sec_of_day + 43200, amount)
+            res.addCapacity(day * self.sec_of_day + 43200, (day + 1) * self.sec_of_day, amount)
 
         # Exception for over demand
-        res.addCapacity((day+1) * self.sec_of_day, 'inf', 1)
+        res.addCapacity((day + 1) * self.sec_of_day, 'inf', amount)
 
         return res
 
@@ -356,8 +357,7 @@ class OptSeq(object):
                             model_res=model_res,
                             res=resource,
                             item=item_cd,
-                            qty=qty,
-                            duration=duration
+                            qty=qty
                         )
 
                 # add mode list to activity
@@ -376,28 +376,34 @@ class OptSeq(object):
 
         return flag
 
-    def _add_mold_res_on_mode(self, mode: Mode, model_res, res, item: str, qty, duration) -> Mode:
+    def _add_mold_res_on_mode(self, mode: Mode, model_res, res, item: str, qty) -> Mode:
         mold_res, mold_use_rate = self.mold_res[res][item]
+        mold_capa = max(self.mold_capa[mold_res][0])
         duration = self.calc_mold_duration(
-            qty=qty,
+            mold_capa=mold_capa,
             mold_use_rate=mold_use_rate,
-            box_weight=self.item_weight[item],
+            qty=qty
         )
 
         mode = self._add_resource(
             mode=mode,
             resource=model_res[mold_res],
-            duration=duration,
-            amount=1
+            duration=duration
         )
 
         return mode
 
-    @staticmethod
-    def calc_mold_duration(qty, mold_use_rate, box_weight) -> int:
-        amount = int(qty * box_weight * mold_use_rate)
+    def calc_mold_duration(self, mold_capa, mold_use_rate, qty) -> int:
+        duration = int(mold_use_rate * qty * self.sec_of_day // 2 // mold_capa)
 
-        return amount
+        return duration
+
+    @staticmethod
+    def calc_mold_duration_bak(mold_capa, mold_use_rate, box_weight, capa_use_rate) -> int:
+        qty = mold_capa / mold_use_rate / box_weight
+        duration = int(ceil(qty * capa_use_rate))
+
+        return duration
 
     def _add_virtual_res_on_mode(self, mode, resource, model_res, duration):
         virtual_dict = model_res.get('virtual', None)

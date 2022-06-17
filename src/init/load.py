@@ -29,12 +29,14 @@ class DataLoad(object):
         self._cstr = Constraint()
 
     def load(self) -> Dict[str, Dict[str, pd.DataFrame]]:
+        item = self._load_item()
         route = self._load_route()          # Load the BOM route
         demand = self._load_demand()        # Load the demand dataset
         resource = self._load_resource()    # Load the master dataset
         constraint = self._load_cstr()      # Load the constraint dataset
 
         data = {
+            self._key.item: item,
             self._key.route: route,
             self._key.dmd: demand,
             self._key.res: resource,
@@ -42,6 +44,12 @@ class DataLoad(object):
         }
 
         return data
+
+    def _load_item(self) -> pd.DataFrame:
+        # Demand dataset
+        item = self._io.load_from_db(sql=self._query.sql_item_master(**self._fp_vrsn_date))
+
+        return item
 
     # Load demand dataset
     def _load_demand(self) -> pd.DataFrame:
