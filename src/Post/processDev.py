@@ -111,7 +111,7 @@ class Process(object):
         if self.cfg['cstr']['apply_sim_prod_cstr']:    # Simultaneous production constraint
             self.sim_prod_cstr = prep_data[self._key.cstr][self._key.sim_prod_cstr]['necessary'].get(plant, None)
         if self.cfg['cstr']['apply_mold_capa_cstr']:    # Mold capacity constraint
-            self.mold_capa_cstr = prep_data[self._key.cstr][self._key.mold_cstr].get(plant, None)
+            self.mold_capa_cstr = prep_data[self._key.cstr][self._key.mold_cstr]
 
         # Path instance attribute
         self.save_path = os.path.join('..', '..', 'result')
@@ -287,8 +287,8 @@ class Process(object):
             cstr=self.cstr_mst,
             route=self.res_route,
             res_dur=self.res_duration,
-            mold_capa_cstr=self.mold_capa_cstr,
-            half_item=self.io.load_from_db(sql=self.query.sql_item_weight()),
+            mold_cstr=self.mold_capa_cstr,
+            res_to_res_grp=self.res_to_res_grp
         )
         result = mold_cstr.apply(data=data)
 

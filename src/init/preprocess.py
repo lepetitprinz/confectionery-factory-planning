@@ -260,6 +260,11 @@ class Preprocess(object):
 
         data = data[self._col_mold_res]
 
+        # Change data type
+        data[self._res.res] = data[self._res.res].astype(str)
+        data[self._item.sku] = data[self._item.sku].astype(str)
+        data[self._cstr.mold_res] = data[self._cstr.mold_res].astype(str)
+
         data = data.fillna('-')
 
         mold_res_map = {}
@@ -281,6 +286,8 @@ class Preprocess(object):
 
     def _set_mold_capa(self, data: pd.DataFrame):
         data = data[data[self._res.plant].isin(self._dmd_plant_list)].copy()
+
+        data[self._res.res] = data[self._res.res].astype(str)
 
         col_capa = []
         for i in range(self.work_day):

@@ -160,21 +160,43 @@ class OptSeq(object):
         if self._cstr_cfg['apply_mold_capa_cstr']:
             for res, mold_capa in self.mold_capa.items():
                 add_res = model.addResource(name=res)
-                add_res = self._add_mold_res_capa(res=add_res, capa_days=mold_capa)
+                add_res = self._add_mold_res_capa(res=add_res, mold_capa=mold_capa, capa_days=capa_days)
                 for res_grp in model_res_grp:
                     model_res_grp[res_grp].update({res: add_res})
 
         return model_res_grp, res_grp_dict
 
-    def _add_mold_res_capa(self, res, capa_days):
+    def _add_mold_res_capa(self, res, mold_capa, capa_days):
         day = 0
-        amount = 1
-        for day, (day_capa, night_capa) in enumerate(capa_days * self.schedule_weeks):
-            res.addCapacity(day * self.sec_of_day, day * self.sec_of_day + 43200, amount)
-            res.addCapacity(day * self.sec_of_day + 43200, (day + 1) * self.sec_of_day, amount)
+        day_capa, night_capa = (1, 1)
+        for day, ((day_capa, night_capa), (day_time, night_time)) in enumerate(
+                zip(mold_capa * self.schedule_weeks, capa_days * self.schedule_weeks)):
+            # res.addCapacity(day * self.sec_of_day, day * self.sec_of_day + 43200, day_capa)
+            # res.addCapacity(day * self.sec_of_day + 43200, (day + 1) * self.sec_of_day, night_capa)
+            start_time, end_time = util.calc_daily_avail_time(
+                day=day,
+                day_time=int(day_time * self.time_multiple),
+                night_time=int(night_time * self.time_multiple),
+            )
+            if start_time != end_time:
+                res.addCapacity(start_time, day * self.sec_of_day + 43200, int(day_capa))
+                res.addCapacity(day * self.sec_of_day + 43200, end_time, int(night_capa))
+            # res.addCapacity(day * self.sec_of_day + 43200, (day + 1) * self.sec_of_day, night_capa)
 
         # Exception for over demand
-        res.addCapacity((day + 1) * self.sec_of_day, 'inf', amount)
+        res.addCapacity((day + 1) * self.sec_of_day, 'inf', day_capa + night_capa)
+
+        return res
+
+    def _add_mold_res_capa_bak(self, res, capa_days):
+        day = 0
+        night_capa = 1
+        for day, (day_capa, night_capa) in enumerate(capa_days * self.schedule_weeks):
+            res.addCapacity(day * self.sec_of_day, day * self.sec_of_day + 43200, day_capa)
+            res.addCapacity(day * self.sec_of_day + 43200, (day + 1) * self.sec_of_day, night_capa)
+
+        # Exception for over demand
+        res.addCapacity((day + 1) * self.sec_of_day, 'inf', night_capa)
 
         return res
 
@@ -317,8 +339,7 @@ class OptSeq(object):
         return act
 
     # Set work processing method
-    def _set_mode(self, act: Activity, dmd_id: str, item_cd: str, qty: int, res_list: list,
-                  model_res: dict):
+    def _set_mode(self, act: Activity, dmd_id: str, item_cd: str, qty: int, res_list: list, model_res: dict):
         for resource in res_list:
             # Calculate the duration (the working time of the mode)
             duration_per_unit = self._get_duration_per_unit(item_cd=item_cd, res_cd=resource)
@@ -357,7 +378,8 @@ class OptSeq(object):
                             model_res=model_res,
                             res=resource,
                             item=item_cd,
-                            qty=qty
+                            qty=qty,
+                            duration=duration
                         )
 
                 # add mode list to activity
@@ -376,20 +398,21 @@ class OptSeq(object):
 
         return flag
 
-    def _add_mold_res_on_mode(self, mode: Mode, model_res, res, item: str, qty) -> Mode:
+    def _add_mold_res_on_mode(self, mode: Mode, model_res, res, item: str, qty, duration) -> Mode:
         mold_res, mold_use_rate = self.mold_res[res][item]
-        mold_capa = max(self.mold_capa[mold_res][0])
-        duration = self.calc_mold_duration(
-            mold_capa=mold_capa,
-            mold_use_rate=mold_use_rate,
-            qty=qty
-        )
+        # mold_capa = max(self.mold_capa[mold_res][0])
+        # duration = self.calc_mold_duration(
+        #     mold_capa=mold_capa,
+        #     mold_use_rate=mold_use_rate,
+        #     qty=qty
+        # )
 
         mode = self._add_resource(
             mode=mode,
             resource=model_res[mold_res],
-            duration=40000
-            # duration=duration
+            duration=duration,
+            amount=int(qty * mold_use_rate),
+            # rtype='break'
         )
 
         return mode
@@ -420,9 +443,9 @@ class OptSeq(object):
 
     # Add the specified resource which amount required when executing the mode
     @staticmethod
-    def _add_resource(mode: Mode, resource, duration: int, amount=1) -> Mode:
+    def _add_resource(mode: Mode, resource, duration: int, amount=1, rtype=None) -> Mode:
         # requirement : gives the required amount of resources
-        mode.addResource(resource=resource, requirement={(0, duration): amount}, rtype=None)
+        mode.addResource(resource=resource, requirement={(0, duration): amount}, rtype=rtype)
 
         return mode
 

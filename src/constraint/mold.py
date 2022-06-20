@@ -7,10 +7,9 @@ from typing import Tuple, List, Hashable
 
 
 class Mold(object):
-    def __init__(self, plant, plant_start_time, cstr, route, res_dur, mold_capa_cstr, half_item):
+    def __init__(self, plant, plant_start_time, cstr, route, res_dur, mold_cstr, res_to_res_grp):
         self.plant = plant
         self.plant_start_time = plant_start_time
-        self.daily_mold_capa = mold_capa_cstr
         self.mold_apply_res_grp = []
 
         # Name instance attribute
@@ -21,19 +20,23 @@ class Mold(object):
         self._res = Resource()
         self._cstr = Constraint()
 
-        # Dataset
+        # Dataset & hash map
         self.route = route
         self.cstr_mst = cstr
-        self.res_to_capa = {}
         self.res_dur = res_dur
-        self.half_item = half_item
+        self.res_to_capa = {}
+        self.res_to_res_grp = res_to_res_grp
+
+        # Mold constraint instance attribute
+        self.mold_res = mold_cstr[self._key.mold_res].get(plant, None)
+        self.mold_capa = mold_cstr[self._key.mold_capa].get(plant, None)
+        self.item_weight = mold_cstr[self._key.item_weight]
 
         # Time instance attribute
         self.days = 60
-        self.day_second = 86400
-        self.work_day = 5  # 5 days: Monday ~ Friday
-        self.sec_of_day = 86400  # Seconds of 1 day
-        self.time_multiple = 60  # Minute -> Seconds
+        self.work_day = 7    # 5 days: Monday ~ Friday
+        self.sec_of_day = 86400    # Seconds of 1 day
+        self.time_multiple = 60    # Minute -> Seconds
         self.time_interval = []
         self.schedule_weeks = 104
         self.plant_start_hour = 0
@@ -43,7 +46,7 @@ class Mold(object):
         self._col_item = [self._item.sku, self._item.item_type, self._item.weight, self._item.weight_uom]
 
     def apply(self, data: pd.DataFrame):
-        # Preprcess the dataset
+        # Preprocess the dataset
         data = self.preprocess(data=data)
 
         # Classify constraints appliance
@@ -109,7 +112,7 @@ class Mold(object):
         # Decide what resource to move
         res_to_move = self.decide_resource_move(data=data, day_data=day_data, weight_diff=weight_diff)
 
-        # correct resource timeline
+        # Correct the resource timeline
         for res, weight in res_to_move:
             apply_data = data[data[self._res.res] == res]
             non_apply_data = data[data[self._res.res] != res]
@@ -125,6 +128,7 @@ class Mold(object):
 
         return data
 
+    # Correct the resource timeline
     def correct_res_timeline(self, data, day, res, weight_diff) -> pd.DataFrame:
         day_res = data[data['day'] == day].copy()
 
@@ -215,17 +219,6 @@ class Mold(object):
     def conv_duration_to_weight(duration, weight_unit, capa_use_rate):
         return duration * weight_unit / capa_use_rate
 
-    @staticmethod
-    def add_day(day):
-        if (day + 1) % 7 == 5:
-            day_add = day + 3
-        elif (day + 1) % 7 == 6:
-            day_add = day + 2
-        else:
-            day_add = day + 1
-
-        return day_add
-
     def decide_resource_move(self, data, day_data, weight_diff) -> list:
         # filter resource weight that is bigger than over-weight
         day_data_filter = day_data[day_data['tot_weight'] >= weight_diff].copy()
@@ -299,23 +292,21 @@ class Mold(object):
         # Preprocess mold data
         self.prep_mold()
 
-        # Preprocess the dataset
-        item = self.prep_item()
         # route = self.prep_route()
         self.make_daily_time_interval()
 
         self.set_res_capacity(data=self.cstr_mst[self._key.res_avail_time])
 
         # Add item information
-        merged = pd.merge(data, item, on=[self._item.sku], how='left').fillna('-')
+        # merged = pd.merge(data, item, on=[self._item.sku], how='left').fillna('-')
 
-        return merged
+        # return merged
 
     def prep_mold(self):
-        self.mold_apply_res_grp = list(self.daily_mold_capa.keys())
+        self.mold_apply_res_grp = list(set([self.res_to_res_grp[res] for res in self.mold_res]))
 
     def make_daily_time_interval(self) -> None:
-        self.time_interval = [(i, i * self.day_second, (i + 1) * self.day_second) for i in range(self.days)
+        self.time_interval = [(i, i * self.sec_of_day, (i + 1) * self.sec_of_day) for i in range(self.days)
                               if i % 7 not in [5, 6]]
 
     def classify_cstr_apply(self, data: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
@@ -372,13 +363,6 @@ class Mold(object):
 
                     return splited
 
-    def prep_item(self) -> pd.DataFrame:
-        item = self.half_item[self._col_item]
-        item[self._item.weight] = item[self._item.weight].astype(float)
-        item[self._item.weight] = np.ceil(item[self._item.weight])
-
-        return item
-
     def set_res_capacity(self, data: pd.DataFrame) -> None:
         # Choose current plant
         data = data[data[self._res.plant] == self.plant]
@@ -393,14 +377,10 @@ class Mold(object):
             days_capa = capa_df[capa_col_list].values.tolist()[0]
 
             days_capa_list = []
-            start_time, end_time = (self.plant_start_hour, self.plant_start_hour)
-            for i, time in enumerate(days_capa * self.schedule_weeks):
+            for i, (day_time, night_time) in enumerate(days_capa * self.schedule_weeks):
                 start_time, end_time = util.calc_daily_avail_time(
-                    day=i, time=int(time) * self.time_multiple, start_time=start_time, end_time=end_time
-                )
+                    day=i, day_time=day_time, night_time=night_time)
                 days_capa_list.append([start_time, end_time])
-                if i % 5 == 4:  # skip saturday & sunday
-                    start_time += self.sec_of_day * 3
 
             days_capa_list = self.connect_continuous_capa(data=days_capa_list)
             res_to_capa[res] = days_capa_list
