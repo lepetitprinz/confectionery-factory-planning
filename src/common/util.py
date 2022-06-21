@@ -1,7 +1,4 @@
-import common.config as config
-
 import os
-import numpy as np
 
 
 def make_dir(path) -> None:
@@ -44,44 +41,13 @@ def assert_type_int(value):
     assert type(value) is int, 'Value is not int type'
 
 
-def change_dmd_qty(data, method):
-    if method == 'multi':
-        multiple = config.prod_qty_multiple
-        qty = data[config.col_qty].values.copy()
-        qty = np.where(qty % multiple != 0, (qty // multiple + 1) * multiple, qty)
-        data[config.col_qty] = qty
-    elif method == 'min':
-        pass
-
-    return data
-
-
 def calc_daily_avail_time(day: int, day_time: int, night_time: int):
     if not isinstance(day_time, int):
-        raise TypeError("Time is not integer")
+        raise TypeError("Type of time is not integer")
 
     standard_time = day * 86400 + 43200
     start_time = standard_time - day_time
     end_time = standard_time + night_time
-
-    return start_time, end_time
-
-
-def calc_daily_avail_time_bak(day: int, time, start_time, end_time):
-    if not isinstance(time, int):
-        raise TypeError("Time is not integer")
-
-    sec_of_day = 86400
-
-    if day % 5 == 0:
-        end_time = start_time + sec_of_day
-        start_time = start_time + sec_of_day - time
-    elif day % 5 == 4:
-        start_time = end_time
-        end_time = end_time + time
-    else:
-        start_time = end_time
-        end_time = end_time + sec_of_day
 
     return start_time, end_time
 

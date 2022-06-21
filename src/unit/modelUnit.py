@@ -412,7 +412,6 @@ class OptSeq(object):
             resource=model_res[mold_res],
             duration=duration,
             amount=int(qty * mold_use_rate),
-            # rtype='break'
         )
 
         return mode

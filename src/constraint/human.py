@@ -1,4 +1,5 @@
 import common.util as util
+import common.config as config
 from common.name import Key, Demand, Item, Resource, Constraint, Post
 
 import numpy as np
@@ -39,6 +40,7 @@ class Human(object):
         self.col_dmd = [self.dmd.dmd, self.res.res_grp, self.item.sku, self.dmd.due_date]
         self.col_human_capa = [self.res.plant, self.cstr.floor, 'week', self.cstr.m_capa, self.cstr.w_capa]
 
+        # Data hash map
         self.floor_capa = {}
         self.res_to_capa = {}
         self.res_grp_to_floor = {}
@@ -46,11 +48,11 @@ class Human(object):
         self.prod_time_comp_standard = 'min'
 
         # Time instance attribute
-        self.work_day = 7
-        self.sec_of_day = 86400  # Seconds of 1 day
-        self.time_multiple = 60  # Minute -> Seconds
-        self.schedule_weeks = 52
-        self.plant_start_hour = 0
+        self.work_day = config.work_day
+        self.sec_of_day = config.sec_of_day   # Seconds of 1 day
+        self.time_multiple = config.time_multiple    # Minute -> Seconds
+        self.schedule_weeks = config.schedule_weeks
+        self.plant_start_hour = config.plant_start_hour
         self.yymmdd_to_week = {}
 
         # save the timeline change log

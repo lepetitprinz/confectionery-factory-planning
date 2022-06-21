@@ -1,6 +1,5 @@
 from common.name import Key, Demand, Item, Resource, Constraint
 
-
 import pandas as pd
 from typing import Dict
 
@@ -62,7 +61,7 @@ class DataLoad(object):
     def _load_resource(self) -> Dict[str, pd.DataFrame]:
         resource = {
             # Item master
-            self._key.item: self._io.load_from_db(sql=self._query.sql_item_master(**self._fp_vrsn_date)),
+            # self._key.item: self._io.load_from_db(sql=self._query.sql_item_master(**self._fp_vrsn_date)),
 
             # Resource group master
             self._key.res_grp: self._io.load_from_db(sql=self._query.sql_res_grp(**self._fp_vrsn_date)),
@@ -78,10 +77,7 @@ class DataLoad(object):
 
     # Load route dataset
     def _load_route(self) -> Dict[str, pd.DataFrame]:
-        route = {
-            # BOM route
-            self._key.route: self._io.load_from_db(sql=self._query.sql_bom_route(**self._fp_vrsn_date))
-        }
+        route = {self._key.route: self._io.load_from_db(sql=self._query.sql_bom_route(**self._fp_vrsn_date))}
 
         return route
 
@@ -105,8 +101,6 @@ class DataLoad(object):
 
             # Mold capacity constraint    # Todo: Developing
             self._key.mold_cstr: self._io.load_from_db(sql=self._query.sql_mold_capacity(**self._fp_vrsn_date)),
-            # self._key.mold_cstr: self._io.load_from_db(sql=self._query.sql_mold_capacity_temp(**self._fp_vrsn_date))
-            'temp': self._io.load_from_db(sql=self._query.sql_item_weight())
         }
 
         return constraint

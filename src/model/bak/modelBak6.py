@@ -3,7 +3,6 @@ import common.config as config
 from common.name import Key
 
 import os
-from math import ceil
 from itertools import permutations
 from typing import Dict, Tuple, List
 from optimize.optseq import Model, Mode, Parameters, Activity, Resource
@@ -38,7 +37,6 @@ class OptSeq(object):
         # Resource capacity instance attribute
         self.time_multiple = 60
         self.schedule_weeks = 52
-        # self.schedule_weeks = 14
         self.sec_of_day = 86400
         self.plant_start_hour = 0    # 25200(sec) = 7(hour) * 60 * 60
 
@@ -53,8 +51,8 @@ class OptSeq(object):
         self._route_rate = plant_data[self._key.route][self._key.route_rate].get(plant, None)
 
         # Path instance attribute
-        self.save_path = os.path.join('..', '..', 'result')
-        self.optseq_output_path = os.path.join('..', 'operation', 'optseq_output.txt')
+        self.save_path = os.path.join('../..', '..', 'result')
+        self.optseq_output_path = os.path.join('../..', 'operation', 'optseq_output.txt')
 
         # Constraint
         # Resource available time instance attribute
@@ -69,11 +67,6 @@ class OptSeq(object):
         # Simultaneous production
         if self._cstr_cfg['apply_sim_prod_cstr']:
             self.sim_prod_cstr = plant_data[self._key.cstr][self._key.sim_prod_cstr].get(plant, None)
-
-        if self._cstr_cfg['apply_mold_capa_cstr']:
-            self.mold_res = plant_data[self._key.cstr][self._key.mold_cstr][self._key.mold_res].get(plant, None)
-            self.mold_capa = plant_data[self._key.cstr][self._key.mold_cstr][self._key.mold_capa].get(plant, None)
-            self.item_weight = plant_data[self._key.cstr][self._key.mold_cstr][self._key.item_weight]
 
     def init(self, plant: str, dmd_list: list, res_grp_dict: dict):
         # Step 0. Preprocessing
@@ -128,6 +121,8 @@ class OptSeq(object):
         for res_grp, res_list in res_grp_list.items():
             model_res = {}
             for resource in res_list[:]:
+                # if resource == '10000062':
+                #     print("")
                 # Add available time of each resource
                 add_res = model.addResource(name=resource)
 
@@ -138,6 +133,7 @@ class OptSeq(object):
                     else:
                         # Remove resource candidate from resource group
                         res_grp_dict[res_grp].remove(resource)
+                        continue
 
                 else:
                     # Add infinite capacity resource
@@ -157,26 +153,7 @@ class OptSeq(object):
                     model_res_grp=model_res_grp,
                 )
 
-        if self._cstr_cfg['apply_mold_capa_cstr']:
-            for res, mold_capa in self.mold_capa.items():
-                add_res = model.addResource(name=res)
-                add_res = self._add_mold_res_capa(res=add_res, capa_days=mold_capa)
-                for res_grp in model_res_grp:
-                    model_res_grp[res_grp].update({res: add_res})
-
         return model_res_grp, res_grp_dict
-
-    def _add_mold_res_capa(self, res, capa_days):
-        day = 0
-        amount = 1
-        for day, (day_capa, night_capa) in enumerate(capa_days * self.schedule_weeks):
-            res.addCapacity(day * self.sec_of_day, day * self.sec_of_day + 43200, amount)
-            res.addCapacity(day * self.sec_of_day + 43200, (day + 1) * self.sec_of_day, amount)
-
-        # Exception for over demand
-        res.addCapacity((day + 1) * self.sec_of_day, 'inf', amount)
-
-        return res
 
     def _add_virtual_resource(self, model: Model, model_res_grp: dict, ):
         for res_grp, res_map in self.sim_prod_cstr.items():
@@ -190,7 +167,7 @@ class OptSeq(object):
 
         return model_res_grp
 
-    def _add_res_capacity(self, res: Resource, capa_days) -> Resource:
+    def _add_res_capacity(self, res: Resource, capa_days: list) -> Resource:
         day = 0
         for day, (day_time, night_time) in enumerate(capa_days * self.schedule_weeks):
             start_time, end_time = util.calc_daily_avail_time(
@@ -213,7 +190,7 @@ class OptSeq(object):
             -> Tuple[Model, dict, List[str]]:
         activity = {}
         for dmd_id, item_cd, res_grp_cd, qty, due_date in dmd_list:
-            if res_grp_dict.get(res_grp_cd, None):   # Todo : Filter demand that does not exist in resource group info
+            if res_grp_dict.get(res_grp_cd, None):
                 # Make the activity naming
                 act_name = util.generate_model_name(name_list=[dmd_id, item_cd, res_grp_cd])
 
@@ -288,7 +265,7 @@ class OptSeq(object):
         return model, activity
 
     @staticmethod
-    def _add_route_temporal(model, route_act, fwd_act, delay):
+    def _add_route_temporal(model: Model, route_act: Activity, fwd_act: Activity, delay):
         model.addTemporal(pred=route_act, succ=fwd_act, tempType='CS', delay=delay)
 
         return model
@@ -303,7 +280,7 @@ class OptSeq(object):
             # Add break for each mode
             mode.addBreak(start=0, finish=duration, maxtime='inf')
 
-            # Add resource for each mode(resource)
+            # Add resource for each mode (resource)
             res_grp = self._res_to_res_grp[resource]
             mode = self._add_resource(
                 mode=mode,
@@ -317,8 +294,7 @@ class OptSeq(object):
         return act
 
     # Set work processing method
-    def _set_mode(self, act: Activity, dmd_id: str, item_cd: str, qty: int, res_list: list,
-                  model_res: dict):
+    def _set_mode(self, act: Activity, dmd_id: str, item_cd: str, qty: int, res_list: list, model_res: dict):
         for resource in res_list:
             # Calculate the duration (the working time of the mode)
             duration_per_unit = self._get_duration_per_unit(item_cd=item_cd, res_cd=resource)
@@ -350,61 +326,10 @@ class OptSeq(object):
                         duration=duration
                     )
 
-                if self._cstr_cfg['apply_mold_capa_cstr']:
-                    if self._check_mold_res_existence(res=resource, item=item_cd):
-                        mode = self._add_mold_res_on_mode(
-                            mode=mode,
-                            model_res=model_res,
-                            res=resource,
-                            item=item_cd,
-                            qty=qty
-                        )
-
                 # add mode list to activity
                 act.addModes(mode)
 
         return act
-
-    def _check_mold_res_existence(self, res, item) -> bool:
-        flag = False
-        if self.mold_res is not None:
-            res_check = self.mold_res.get(res, None)
-            if res_check is not None:
-                item_check = res_check.get(item, None)
-                if item_check is not None:
-                    flag = True
-
-        return flag
-
-    def _add_mold_res_on_mode(self, mode: Mode, model_res, res, item: str, qty) -> Mode:
-        mold_res, mold_use_rate = self.mold_res[res][item]
-        mold_capa = max(self.mold_capa[mold_res][0])
-        duration = self.calc_mold_duration(
-            mold_capa=mold_capa,
-            mold_use_rate=mold_use_rate,
-            qty=qty
-        )
-
-        mode = self._add_resource(
-            mode=mode,
-            resource=model_res[mold_res],
-            duration=40000
-            # duration=duration
-        )
-
-        return mode
-
-    def calc_mold_duration(self, mold_capa, mold_use_rate, qty) -> int:
-        duration = int(mold_use_rate * qty * self.sec_of_day // 2 // mold_capa)
-
-        return duration
-
-    @staticmethod
-    def calc_mold_duration_bak(mold_capa, mold_use_rate, box_weight, capa_use_rate) -> int:
-        qty = mold_capa / mold_use_rate / box_weight
-        duration = int(ceil(qty * capa_use_rate))
-
-        return duration
 
     def _add_virtual_res_on_mode(self, mode, resource, model_res, duration):
         virtual_dict = model_res.get('virtual', None)
@@ -420,9 +345,9 @@ class OptSeq(object):
 
     # Add the specified resource which amount required when executing the mode
     @staticmethod
-    def _add_resource(mode: Mode, resource, duration: int, amount=1) -> Mode:
+    def _add_resource(mode: Mode, resource, duration: int) -> Mode:
         # requirement : gives the required amount of resources
-        mode.addResource(resource=resource, requirement={(0, duration): amount}, rtype=None)
+        mode.addResource(resource=resource, requirement={(0, duration): 1}, rtype=None)
 
         return mode
 
@@ -649,15 +574,15 @@ class OptSeq(object):
                     res = list(mode.requirement.keys())[0][0]
                     act_mode_res_list.add(res)
 
-        # if len(act_mode_res_list - res_list) > 0:
-        #     raise ValueError(f"Infeasible Setting")
-        #
-        # elif len(res_list - act_mode_res_list) > 0:
-        #     res_filter_list = list(res_list - act_mode_res_list)
-        #
-        #     for resource in model.res[:]:
-        #         if resource.name in res_filter_list:
-        #             model.res.remove(resource)
+        if len(act_mode_res_list - res_list) > 0:
+            raise ValueError(f"Infeasible Setting")
+
+        elif len(res_list - act_mode_res_list) > 0:
+            res_filter_list = list(res_list - act_mode_res_list)
+
+            for resource in model.res[:]:
+                if resource.name in res_filter_list:
+                    model.res.remove(resource)
 
         return model
 

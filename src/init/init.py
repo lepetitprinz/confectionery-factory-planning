@@ -43,7 +43,7 @@ class Init(object):
             week=today_df['week'].values[0],
             seq=self.fp_num
         )
-        # fp_version = 'FP_2022W23.01'    # Todo: temporal
+        fp_version = 'FP_2022W24.01'    # Todo: temporal
 
         self.fp_version = fp_version
         self.version.set_version(fp_version=fp_version, fp_seq=self.fp_seq)

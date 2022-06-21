@@ -5,7 +5,7 @@ from init.init import Init
 from init.load import DataLoad
 from init.consistency import Consistency
 from init.preprocess import Preprocess
-from model.model import OptSeq
+from model.bak.modelBak6 import OptSeq
 from Post.process import Process
 
 

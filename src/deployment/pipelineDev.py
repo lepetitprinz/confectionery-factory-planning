@@ -1,11 +1,11 @@
 from common.name import Key
 from common.sql import Query
 from dao.io import DataIO
-from init.initDev import Init
+from init.init import Init
 from init.load import DataLoad
 from init.consistency import Consistency
-from init.preprocessDev import Preprocess
-from model.modelDev import OptSeq
+from init.preprocess import Preprocess
+from model.model import OptSeq
 from Post.processDev import Process
 
 
@@ -175,22 +175,20 @@ class Pipeline(object):
             # Post Process after optimization
             for plant in prep_data[self.key.dmd][self.key.dmd_list]:
                 print(f"\nPost process: plant {plant}")
-                # Todo: Temporal test
-                if plant == 'K130':
-                    if len(plant_model[plant]['model'].act) > 0:
-                        pp = Process(
-                            io=self.io,
-                            cfg=self.cfg,
-                            query=self.query,
-                            version=self.version,
-                            plant=plant,
-                            plant_start_time=self.plant_start_day,
-                            data=data,
-                            prep_data=prep_data,
-                            model_init=plant_model[plant],
-                            calendar=self.calendar
-                        )
-                        pp.run()
+                if len(plant_model[plant]['model'].act) > 0:
+                    pp = Process(
+                        io=self.io,
+                        cfg=self.cfg,
+                        query=self.query,
+                        version=self.version,
+                        plant=plant,
+                        plant_start_time=self.plant_start_day,
+                        data=data,
+                        prep_data=prep_data,
+                        model_init=plant_model[plant],
+                        calendar=self.calendar
+                    )
+                    pp.run()
 
             # Close DB session
             self.io.session.close()

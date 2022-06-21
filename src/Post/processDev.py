@@ -75,11 +75,11 @@ class Process(object):
                          self._dmd.start_time, self._dmd.end_time, 'kind']
         self.prod_qty_cols = [
             self._res.res_grp, self._res.res_grp_nm, self._res.res, self._res.res_nm, self._item.sku, self._item.sku_nm,
-            self.col_date, self._post.time_idx, self._dmd.prod_qty
+            self._post.date, self._post.time_idx, self._dmd.prod_qty
         ]
         self.prod_dmd_qty_cols = [
             self._dmd.dmd, self._res.res_grp, self._res.res_grp_nm, self._res.res, self._res.res_nm, self._item.sku,
-            self._item.sku_nm, self.col_date, self._post.time_idx, self._dmd.prod_qty
+            self._item.sku_nm, self._post.date, self._post.time_idx, self._dmd.prod_qty
         ]
 
         # Plant instance attribute
@@ -92,7 +92,7 @@ class Process(object):
         self._calendar = calendar
         self._demand = data[self._key.dmd]
         self.res_mst = data[self._key.res][self._key.res_grp]
-        self.item_mst = data[self._key.res][self._key.item]
+        self.item_mst = data[self._key.item]
         self.cstr_mst = data[self._key.cstr]
 
         # Resource instance attribute
@@ -146,7 +146,7 @@ class Process(object):
                 self.log.extend(log)
 
         if self.cfg['cstr']['apply_mold_capa_cstr']:
-            if self.mold_capa_cstr is not None:
+            if self.mold_capa_cstr[self._key.mold_res].get(self.plant, None) is not None:
                 result = self.apply_mold_cstr(data=result)
 
         util.save_log(
@@ -157,7 +157,7 @@ class Process(object):
         )
 
         # Best activity
-        self.save(result=result)
+        # self.save(result=result)
 
     def save(self, result) -> None:
         result = self.conv_num_to_datetime(data=result)
@@ -410,7 +410,7 @@ class Process(object):
 
         qty_df = pd.DataFrame(
             timeline_list,
-            columns=[self._dmd.dmd, self._res.res, self._item.sku, self.col_date, self._post.time_idx,
+            columns=[self._dmd.dmd, self._res.res, self._item.sku, self._post.date, self._post.time_idx,
                      self._dmd.duration]
         )
         qty_df = self.set_item_res_capa_rate(data=qty_df)
@@ -427,7 +427,7 @@ class Process(object):
         # Data processing
         qty_df = qty_df.drop(columns=[self._dmd.duration])
         qty_df = qty_df.groupby(by=[self._dmd.dmd, self._res.res, self._item.sku,
-                                    self.col_date, self._post.time_idx, 'capa_rate']) \
+                                    self._post.date, self._post.time_idx, 'capa_rate']) \
             .sum() \
             .reset_index()
 
@@ -444,7 +444,7 @@ class Process(object):
 
         qty_df = pd.DataFrame(
             timeline_list,
-            columns=[self._res.res, self._item.sku, self.col_date, self._post.time_idx, self._dmd.duration]
+            columns=[self._res.res, self._item.sku, self._post.date, self._post.time_idx, self._dmd.duration]
         )
         qty_df = self.set_item_res_capa_rate(data=qty_df)
         qty_df[self._dmd.duration] = qty_df[self._dmd.duration] / np.timedelta64(1, 's')
@@ -460,7 +460,7 @@ class Process(object):
 
         # Data processing
         qty_df = qty_df.drop(columns=[self._dmd.duration])
-        qty_df = qty_df.groupby(by=[self._res.res, self._item.sku, self.col_date, self._post.time_idx, 'capa_rate']) \
+        qty_df = qty_df.groupby(by=[self._res.res, self._item.sku, self._post.date, self._post.time_idx, 'capa_rate']) \
             .sum() \
             .reset_index()
 
@@ -635,7 +635,7 @@ class Process(object):
         merged = self.add_version_info(data=merged, seq=seq)
 
         merged = merged.rename(columns={
-            self._item.sku: self._post.eng_item, self._dmd.end_time: self.col_date, self._dmd.prod_qty: 'fp_qty'})
+            self._item.sku: self._post.eng_item, self._dmd.end_time: self._post.date, self._dmd.prod_qty: 'fp_qty'})
 
         # Delete previous result
         kwargs = {
@@ -651,7 +651,7 @@ class Process(object):
     def save_res_day_night_qty_on_db(self, data: pd.DataFrame, seq: str) -> None:
         data = self.add_version_info(data=data, seq=seq)
         data[self._res.plant] = self.plant
-        data[self.col_date] = data[self.col_date].dt.strftime('%Y%m%d')
+        data[self._post.date] = data[self._post.date].dt.strftime('%Y%m%d')
 
         # Add item type code
         data = pd.merge(
@@ -672,7 +672,7 @@ class Process(object):
     def save_res_day_night_dmd_qty_in_db(self, data: pd.DataFrame, seq: str):
         data = self.add_version_info(data=data, seq=seq)
         data[self._res.plant] = self.plant
-        data[self.col_date] = data[self.col_date].dt.strftime('%Y%m%d')
+        data[self._post.date] = data[self._post.date].dt.strftime('%Y%m%d')
 
         # Add item type code
         data = pd.merge(
@@ -738,162 +738,6 @@ class Process(object):
 
         # Save the result on DB
         self.io.insert_to_db(df=data, tb_name='M4E_O402140')
-
-    def save_res_status_on_db(self, data: pd.DataFrame, seq: str):
-        #
-        timeline_list = []
-        for res, res_df in data.groupby(self._res.res):
-            for kind, kind_df in res_df.groupby('kind'):
-                for start, end in zip(kind_df['start'], kind_df['end']):
-                    timeline_list.extend(self.calc_res_duration(res=res, kind=kind, start=start, end=end))
-
-        res_status = pd.DataFrame(
-            timeline_list,
-            columns=[self._res.res, 'kind', self.col_date, self._post.time_idx, self._dmd.duration]
-        )
-        res_status[self.col_date] = res_status[self.col_date].dt.strftime('%Y%m%d')
-        res_status[self._dmd.duration] = res_status[self._dmd.duration] / np.timedelta64(1, 's')
-
-        res_status = res_status.groupby(by=[self._res.res, 'kind', self.col_date, self._post.time_idx]) \
-            .sum() \
-            .reset_index()
-
-        res_status_dmd = res_status[res_status['kind'] == 'demand'].copy()
-        res_status_dmd = res_status_dmd.rename(columns={self._dmd.duration: self._post.res_use_capa})
-        res_status_dmd = res_status_dmd.drop(columns=['kind'])
-        res_status_jc = res_status[res_status['kind'] == 'job_change'].copy()
-        res_status_jc = res_status_jc.rename(columns={self._dmd.duration: 'res_jc_val'})
-        res_status_jc = res_status_jc.drop(columns=['kind'])
-
-        res_final = pd.merge(res_status_dmd, res_status_jc, how='left',
-                             on=[self._res.res, self.col_date, self._post.time_idx]).fillna(0)
-
-        # Resource usage
-        res_final['day'] = [dt.datetime.strptime(day, '%Y%m%d').weekday() for day in res_final[self.col_date]]
-        res_capa = []
-        for res, day in zip(res_final[self._res.res], res_final['day']):
-            res_avail_time = self.res_avail_time[res]
-            res_capa.append(res_avail_time[day] * 60)
-        res_final[self._res.res_capa] = res_capa
-
-        # Resource capacity time
-        res_capa_val = []
-        for day, time_idx_type, capacity in zip(
-                res_final['day'], res_final[self._post.time_idx], res_final[self._res.res_capa]):
-            val = self.calc_day_night_res_capacity(day=day, time_idx_type=time_idx_type, capacity=capacity)
-            res_capa_val.append(val)
-        res_final['res_capa_val'] = res_capa_val
-
-        # Resource unavailable time
-        res_unavail_val = []
-        for day, time_idx_type, capacity in zip(
-                res_final['day'], res_final[self._post.time_idx], res_final['res_capa_val']):
-            val = self.calc_res_unavail_time(day=day, capacity=capacity)
-            res_unavail_val.append(val)
-        res_final['res_unavail_val'] = res_unavail_val
-
-        # Resource available time
-        res_final['res_avail_val'] = res_final['res_capa_val'] - res_final['res_use_capa_val'] - res_final['res_jc_val']
-
-        res_grp_mst = self.res_mst[[self._res.res, 'res_type_cd']]
-        res_final = pd.merge(res_final, res_grp_mst, how='left', on=self._res.res).fillna('UNDEFINED')
-        res_final = res_final.rename(columns={'res_type_cd': 'capa_type_cd'})
-
-        # Add information
-        res_final[self._res.plant] = self.plant
-        res_final[self._res.res_grp] = [self.res_to_res_grp.get(res_cd, 'UNDEFINED')
-                                        for res_cd in res_final[self._res.res]]
-        res_final = self.add_version_info(data=res_final, seq=seq)
-
-        res_final = res_final.drop(columns=[self._res.res_capa, 'day'])
-
-        # Delete previous result
-        kwargs = {'fp_version': self.fp_version, 'fp_seq': self.fp_seq, 'plant_cd': self.plant}
-        self.io.delete_from_db(sql=self.query.del_res_status_result(**kwargs))
-
-        # Save the result on DB
-        self.io.insert_to_db(df=res_final, tb_name='M4E_O402050')
-
-    def calc_res_unavail_time(self, day: int, capacity: int):
-        val = 0
-        if day in [0, 4]:
-            val = self.sec_of_half_day - capacity
-        elif day in [1, 2, 3]:
-            val = 0   # ToDo: temp
-            # val = self.sec_of_half_day * 2 - capacity    # ToDo: will be used
-
-        return val
-
-    def calc_day_night_res_capacity(self, day: int, time_idx_type: str, capacity: int):
-        val = 0
-        if day == 0:
-            if time_idx_type == 'D':
-                val = max(0, capacity - self.sec_of_half_day)
-            elif time_idx_type == 'N':
-                val = min(capacity, self.sec_of_half_day)
-        elif day in [1, 2, 3]:
-            val = self.sec_of_half_day    # ToDo: temp
-            # val = capacity    # ToDo: will be used
-        else:
-            if time_idx_type == 'D':
-                val = min(capacity, self.sec_of_half_day)
-            elif time_idx_type == 'N':
-                val = max(0, capacity - self.sec_of_half_day)
-
-        return val
-
-    def calc_res_duration(self, res, kind, start, end):
-        timeline = []
-        start_day = dt.datetime.strptime(dt.datetime.strftime(start, '%Y%m%d'), '%Y%m%d')
-        start_time = dt.timedelta(hours=start.hour, minutes=start.minute, seconds=start.second)
-        end_day = dt.datetime.strptime(dt.datetime.strftime(end, '%Y%m%d'), '%Y%m%d')
-        end_time = dt.timedelta(hours=end.hour, minutes=end.minute, seconds=end.second)
-
-        if end_time == dt.timedelta(seconds=0):
-            end_day = end_day - dt.timedelta(days=1)
-            end_time = dt.timedelta(hours=24)
-
-        diff_day = (end_day - start_day).days
-
-        if diff_day == 0:
-            duration_day = dt.timedelta(hours=0)
-            duration_night = dt.timedelta(hours=0)
-            if end_time < self.split_hour:
-                duration_day = end_time - start_time
-            elif start_time > self.split_hour:
-                duration_night = end_time - start_time
-            else:
-                duration_day = self.split_hour - start_time
-                duration_night = end_time - self.split_hour
-
-            timeline.append([res, kind, start_day, 'D', duration_day])
-            timeline.append([res, kind, start_day, 'N', duration_night])
-
-        elif diff_day == 1:
-            prev_duration_day, prev_duration_night = self.calc_timeline_prev(start_time=start_time)
-            next_duration_day, next_duration_night = self.calc_timeline_next(end_time=end_time)
-
-            timeline.append([res, kind, start_day, 'D', prev_duration_day])
-            timeline.append([res, kind, start_day, 'N', prev_duration_night])
-            timeline.append([res, kind, end_day, 'D', next_duration_day])
-            timeline.append([res, kind, end_day, 'N', next_duration_night])
-
-        else:
-            prev_duration_day, prev_duration_night = self.calc_timeline_prev(start_time=start_time)
-            next_duration_day, next_duration_night = self.calc_timeline_next(end_time=end_time)
-
-            timeline.append([res, kind, start_day, 'D', prev_duration_day])
-            timeline.append([res, kind, start_day, 'N', prev_duration_night])
-            timeline.append([res, kind, end_day, 'D', next_duration_day])
-            timeline.append([res, kind, end_day, 'N', next_duration_night])
-
-            for i in range(diff_day - 1):
-                timeline.append(
-                    [res, kind, start_day + dt.timedelta(days=i + 1), 'D', self.split_hour])
-                timeline.append(
-                    [res, kind, start_day + dt.timedelta(days=i + 1), 'N', self.split_hour])
-
-        return timeline
 
     def add_version_info(self, data: pd.DataFrame, seq: str):
         data['project_cd'] = self.project_cd

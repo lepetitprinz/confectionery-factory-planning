@@ -1,4 +1,5 @@
 import common.util as util
+import common.config as config
 from common.name import Key, Demand, Item, Resource, Constraint
 
 import numpy as np
@@ -25,24 +26,26 @@ class Necessary(object):
 
         self.plant = plant
         self.plant_start_time = plant_start_time
-        self.sim_prod_cstr = sim_prod_cstr
 
         # Dataset
         self.org_data = org_data
-        self.item_mst = org_data[self.key.res][self.key.item]
+        self.item_mst = org_data[self.key.item]
         self.cstr_mst = org_data[self.key.cstr]
         self.dmd_schedule = demand
+        self.sim_prod_cstr = sim_prod_cstr
 
+        # data hash map
         self.res_to_capa = {}
         self.res_grp_to_res_map = {}
         self.res_to_res_grp_map = {}
         self.brand_pkg_sku_map = {}
 
-        self.work_day = 5          # Monday ~ Friday
+        # Time instance attribute
+        self.work_day = config.work_day    # Monday ~ Friday
         self.sec_of_day = 86400    # Seconds of 1 day
-        self.time_multiple = 60    # Minute -> Seconds
-        self.schedule_weeks = 17
-        self.plant_start_hour = 0
+        self.time_multiple = config.time_multiple    # Minute -> Seconds
+        self.schedule_weeks = config.schedule_weeks
+        self.plant_start_hour = config.plant_start_hour
 
         self.log = []
 
@@ -54,10 +57,10 @@ class Necessary(object):
         self.set_res_capacity(data=self.cstr_mst[self.key.res_avail_time])
 
         # Classify demand if possible to product demand simultaneously
-        apply_dmd, non_apply_dmd = self.classify_sim_prod_possible_dmd(data=data)
+        apply_dmd, non_apply_dmd = self._classify_sim_prod_possible_dmd(data=data)
 
         # Find and make simultaneously producible product
-        all_dmd = self.find_and_make_sim_product(apply_dmd_df=apply_dmd, all_dmd=data)
+        all_dmd = self._find_and_make_sim_product(apply_dmd_df=apply_dmd, all_dmd=data)
 
         # log
         log = sorted(list(set(self.log)))
@@ -66,12 +69,12 @@ class Necessary(object):
 
     def preprocess(self, data: pd.DataFrame) -> pd.DataFrame:
         res = self.prep_res()
-        item = self.prep_item()
-        data = self.add_item_information(data=data, item=item)
+        item = self._prep_item()
+        data = self._add_item_information(data=data, item=item)
 
         # Mapping data
-        self.set_res_grp_res_map(res=res)
-        self.set_brand_pkg_sku_map()
+        self._set_res_grp_res_map(res=res)
+        self._set_brand_pkg_sku_map()
 
         data['fixed'] = False
 
@@ -89,7 +92,7 @@ class Necessary(object):
 
         return res_mst
 
-    def set_res_grp_res_map(self, res: pd.DataFrame):
+    def _set_res_grp_res_map(self, res: pd.DataFrame) -> None:
         # Resource duration
         res_duration = self.org_data[self.key.res][self.key.res_duration]
 
@@ -112,7 +115,7 @@ class Necessary(object):
         self.res_grp_to_res_map = res_grp_to_res_map
         self.res_to_res_grp_map = res_to_res_grp_map
 
-    def set_brand_pkg_sku_map(self):
+    def _set_brand_pkg_sku_map(self) -> None:
         item = self.item_mst.copy()
         item = item[self.col_item]
 
@@ -129,20 +132,20 @@ class Necessary(object):
 
         self.brand_pkg_sku_map = brand_pkg_sku_map
 
-    def prep_item(self) -> pd.DataFrame:
+    def _prep_item(self) -> pd.DataFrame:
         item = self.item_mst.copy()
         item = item[self.col_item]
         item = item.drop_duplicates()
 
         return item
 
-    def add_item_information(self, data: pd.DataFrame, item: pd.DataFrame):
+    def _add_item_information(self, data: pd.DataFrame, item: pd.DataFrame) -> pd.DataFrame:
         merged = pd.merge(data, item, on=self.item.sku, how='left')
         merged = merged.fillna('-')
 
         return merged
 
-    def classify_sim_prod_possible_dmd(self, data: pd.DataFrame):
+    def _classify_sim_prod_possible_dmd(self, data: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
         apply_idx = []
         for idx, res_grp, brand, pkg in zip(
                 data.index, data[self.res.res_grp], data[self.item.brand], data[self.item.pkg]
@@ -160,7 +163,7 @@ class Necessary(object):
 
         return apply_dmd, non_apply_dmd
 
-    def find_and_make_sim_product(self, apply_dmd_df: pd.DataFrame, all_dmd: pd.DataFrame):
+    def _find_and_make_sim_product(self, apply_dmd_df: pd.DataFrame, all_dmd: pd.DataFrame) -> pd.DataFrame:
         # Search on each demand
         for idx, dmd in apply_dmd_df.iterrows():
             # Available package of simultaneously making
@@ -173,13 +176,18 @@ class Necessary(object):
             if sku is not None:
                 sku_in_other_dmd = self.search_sku_in_other_dmd(sku=sku, dmd=dmd, apply_dmd=apply_dmd_df)
                 if len(sku_in_other_dmd) > 0:
-                    self.rearrange_sku_in_timeline(dmd=dmd, all_dmd=all_dmd, sku=sku, cand_dmd=sku_in_other_dmd)
+                    all_dmd = self.rearrange_sku_in_timeline(
+                        dmd=dmd,
+                        all_dmd=all_dmd,
+                        sku=sku,
+                        cand_dmd=sku_in_other_dmd
+                    )
                 else:
-                    all_dmd = self.arrange_sku_in_timeline(dmd=dmd, all_dmd=all_dmd, sku=sku)
+                    all_dmd = self._arrange_sku_in_timeline(dmd=dmd, all_dmd=all_dmd, sku=sku)
 
         return all_dmd
 
-    def arrange_sku_in_timeline(self, dmd, all_dmd: pd.DataFrame, sku: str):
+    def _arrange_sku_in_timeline(self, dmd, all_dmd: pd.DataFrame, sku: str):
         # resource candidates (Resource list excluding apply demand resource)
         res_candidates = list(set(self.res_grp_to_res_map[dmd[self.res.res_grp]]) - {dmd[self.res.res]})
 
@@ -193,34 +201,35 @@ class Necessary(object):
             # Check that timeline is available on each resource
             flag_by_res = []
             for res, res_df in avail_dmd.groupby(by=self.res.res):
-                flag = self.check_res_timeline_is_available(res_dmd=res_df, new_dmd=dmd)
+                flag = self._check_res_timeline_is_available(res_dmd=res_df, new_dmd=dmd)
                 flag_by_res.append((res_df, flag))
 
             # Resource
-            res_dmd, flag = self.decide_which_res_to_use(data=flag_by_res)
+            res_dmd, flag = self._decide_which_res_to_use(data=flag_by_res)
 
             # Update
             confirm_res = res_dmd[self.res.res].unique()[0]
-            new_dmd = self.update_new_dmd(dmd=dmd, res=confirm_res, sku=sku)
+            new_dmd = self._update_new_dmd(dmd=dmd, res=confirm_res, sku=sku)
 
             # Write log
             self.write_new_dmd_log(data=new_dmd)
 
             #
-            all_dmd = self.arrange_sku(new_dmd=new_dmd, all_dmd=all_dmd, confirm_res=confirm_res, flag=flag)
+            all_dmd = self._arrange_sku(new_dmd=new_dmd, all_dmd=all_dmd, confirm_res=confirm_res, flag=flag)
 
         return all_dmd
 
-    def update_new_dmd(self, dmd: pd.Series, res, sku) -> pd.Series:
+    def _update_new_dmd(self, dmd: pd.Series, res, sku) -> pd.Series:
         new_dmd = dmd.copy()
         new_dmd[self.dmd.dmd] = 'SP' + new_dmd[self.dmd.dmd][2:]
         new_dmd[self.res.res] = res
         new_dmd[self.item.sku] = sku
+        new_dmd[self.dmd.duration] = new_dmd[self.dmd.end_time] - new_dmd[self.dmd.start_time]
         new_dmd['fixed'] = True
 
         return new_dmd
 
-    def arrange_sku(self, new_dmd, all_dmd, confirm_res, flag):
+    def _arrange_sku(self, new_dmd, all_dmd, confirm_res, flag):
         if flag:
             all_dmd = all_dmd.append(new_dmd)
         else:
@@ -232,14 +241,14 @@ class Necessary(object):
             apply_start, apply_end = new_dmd[self.dmd.start_time], new_dmd[self.dmd.end_time]
 
             # split demand by needs to move or not
-            move_dmd = res_dmd[res_dmd[self.dmd.end_time] > apply_start]
-            non_move_dmd = res_dmd[res_dmd[self.dmd.end_time] <= apply_start]
+            move_dmd = res_dmd[res_dmd[self.dmd.end_time] > apply_start].copy()
+            non_move_dmd = res_dmd[res_dmd[self.dmd.end_time] <= apply_start].copy()
 
             # Move timeline
-            move_dmd = self.move_with_fixed_or_not(data=move_dmd, apply_end=apply_end)
+            move_dmd = self._move_with_fixed_or_not(data=move_dmd, apply_end=apply_end)
 
             # Split
-            move_dmd = self.apply_res_capa_on_timeline(data=move_dmd, res=confirm_res)
+            move_dmd = self._apply_res_capa_on_timeline(data=move_dmd, res=confirm_res)
             # move_dmd = move_dmd.append(new_dmd).sort_values(by=self.dmd.start_time)
 
             res_dmd = pd.concat([non_move_dmd, move_dmd], axis=0, ignore_index=True).reset_index(drop=True)
@@ -248,7 +257,7 @@ class Necessary(object):
 
         return all_dmd
 
-    def move_with_fixed_or_not(self, data: pd.DataFrame,  apply_end):
+    def _move_with_fixed_or_not(self, data: pd.DataFrame, apply_end):
         data[self.dmd.duration] = data[self.dmd.end_time] - data[self.dmd.start_time]
 
         applied_df = pd.DataFrame()
@@ -304,7 +313,7 @@ class Necessary(object):
 
         return applied_df
 
-    def decide_which_res_to_use(self, data: list) -> Tuple[pd.DataFrame, bool]:
+    def _decide_which_res_to_use(self, data: list) -> Tuple[pd.DataFrame, bool]:
         available_cnt = sum([flag for _, flag in data])
 
         res_to_use = None
@@ -334,7 +343,7 @@ class Necessary(object):
 
         return res_to_use
 
-    def check_res_timeline_is_available(self, res_dmd: pd.DataFrame, new_dmd: pd.DataFrame) -> bool:
+    def _check_res_timeline_is_available(self, res_dmd: pd.DataFrame, new_dmd: pd.DataFrame) -> bool:
         # sort current resource by timeline
         res_dmd = res_dmd.sort_values(by=self.dmd.start_time)
 
@@ -394,18 +403,14 @@ class Necessary(object):
 
         return exist_df
 
-    def rearrange_sku_in_timeline(self, dmd, all_dmd, sku, cand_dmd):
+    def rearrange_sku_in_timeline(self, dmd, all_dmd, sku, cand_dmd) -> pd.DataFrame:
         confirm_res = self.decide_rearrange_resource(data=cand_dmd)
 
         cand_dmd = cand_dmd[cand_dmd[self.res.res] == confirm_res].copy()
 
         flag = self.check_sku_is_movable(dmd=dmd, cand_dmd=cand_dmd)
 
-    def check_sku_is_movable(self, dmd: pd.Series, cand_dmd: pd.DataFrame):
-        dmd_start_time, dmd_end_time = dmd[self.dmd.start_time], dmd[self.dmd.end_time]
-
-        # Sort candidate demands bu demand start time
-        cand_dmd = cand_dmd.sort_values(by=self.dmd.start_time)
+        return all_dmd
 
     def decide_rearrange_resource(self, data: pd.DataFrame):
         res_list = list(data[self.res.res].unique())
@@ -421,6 +426,12 @@ class Necessary(object):
             confirm_res = sorted(res_end_time_list, key=lambda x: x[1])[0][0]
 
         return confirm_res
+
+    def check_sku_is_movable(self, dmd: pd.Series, cand_dmd: pd.DataFrame):
+        dmd_start_time, dmd_end_time = dmd[self.dmd.start_time], dmd[self.dmd.end_time]
+
+        # Sort candidate demands bu demand start time
+        cand_dmd = cand_dmd.sort_values(by=self.dmd.start_time)
 
     @staticmethod
     def connect_continuous_capa(data: list):
@@ -450,8 +461,9 @@ class Necessary(object):
 
         capa_col_list = []
         for i in range(self.work_day):
-            capa_col = self.res.res_capa + str(i + 1)
-            capa_col_list.append(capa_col)
+            for kind in ['d', 'n']:
+                capa = self.res.res_capa + str(i + 1) + '_' + kind
+                capa_col_list.append(capa)
 
         res_to_capa = {}
         for res, capa_df in data.groupby(by=self.res.res):
@@ -473,7 +485,7 @@ class Necessary(object):
 
         self.res_to_capa = res_to_capa
 
-    def apply_res_capa_on_timeline(self, data, res):
+    def _apply_res_capa_on_timeline(self, data, res):
         applied_data = pd.DataFrame()
         data = data.sort_values(by=self.dmd.start_time)
         res_capa_list = self.res_to_capa[res]

@@ -9,11 +9,6 @@ from itertools import permutations
 
 
 class Preprocess(object):
-    # Time configuration
-    time_uom = config.time_uom
-    work_day = config.work_day
-    time_multiple = {'DAY': 86400, 'HOUR': 3600, 'MIN': 60}
-
     def __init__(self, cstr_cfg: dict, version):
         self._version = version
         self._cstr_cfg = cstr_cfg
@@ -23,31 +18,39 @@ class Preprocess(object):
         self._dmd = Demand()
         self._res = Resource()
         self._item = Item()
-        self._route = Route()
         self._cstr = Constraint()
+        self._route = Route()
 
         # Plant instance attribute
         self._item_list = {}
         self._res_grp_list = []
         self._dmd_plant_list = []
 
+        #  Time configuration
+        self._work_day = config.work_day
+        self._time_uom = config.time_uom
+        self._time_multiple = {'DAY': 86400, 'HOUR': 3600, 'MIN': 60}
+
+        # Constraint instance attribute
+        self._jc_time_uom = 'MIN'
+        self._weight_map = {'G': 0.001, 'KG': 1., 'TON': 1000.}
+        self._default_min_lot = config.default_min_lot
+        self._default_multi_lot = config.default_multi_lot
+
         # Column usage instance attribute
         self._col_dmd = [self._dmd.dmd, self._item.sku, self._res.res_grp, self._dmd.qty, self._dmd.due_date]
         self._col_res_grp = [self._res.plant, self._res.res_grp, self._res.res, self._res.res_nm]
         self._col_res_duration = [self._res.plant, self._item.sku, self._res.res, self._dmd.duration]
         self._col_res_avail_time = [self._res.plant, self._res.res]
-        self._col_res_grp_job_change = [self._res.plant, self._res.res_grp, self._cstr.jc_from, self._cstr.jc_to,
-                                        self._cstr.jc_type, self._cstr.jc_time, self._cstr.jc_unit]
+        self._col_res_grp_job_change = [
+            self._res.plant, self._res.res_grp, self._cstr.jc_from, self._cstr.jc_to, self._cstr.jc_type,
+            self._cstr.jc_time, self._cstr.jc_unit
+        ]
         self._col_res_lot = [self._res.plant, self._res.res, self._item.sku, self._res.min_lot, self._res.multi_lot]
-        self._col_mold_res = [self._res.plant, self._res.res, self._item.sku, self._cstr.mold_res,
-                              self._cstr.mold_use_rate]
+        self._col_mold_res = [
+            self._res.plant, self._res.res, self._item.sku, self._cstr.mold_res, self._cstr.mold_use_rate
+        ]
         self._col_item_weight = [self._item.sku, self._item.weight, self._item.weight_uom]
-
-        # Constraint instance attribute
-        self.jc_time_uom = 'MIN'
-        self.default_min_lot = 0
-        self.default_multi_lot = 10
-        self._weight_map = {'G': 0.001, 'KG': 1., 'TON': 1000.}
 
     def preprocess(self, data):
         ######################################
@@ -82,8 +85,9 @@ class Preprocess(object):
         # Job change
         job_change, sku_type = (None, None)
         if self._cstr_cfg['apply_job_change']:
-            sku_type = self._set_sku_type_map(data=resource[self._key.item])
-            job_change = self._set_job_change(data=constraint[self._key.jc])
+            sku_type = self._set_sku_type_map(data=data[self._key.item])
+            if len(constraint[self._key.jc]) > 0:
+                job_change = self._set_job_change(data=constraint[self._key.jc])
 
         # Simultaneous production constraint
         sim_prod_cstr = None
@@ -114,12 +118,12 @@ class Preprocess(object):
             self._key.res: res_prep,
             self._key.route: route_prep,
             self._key.cstr: {
-                self._key.jc: job_change,
+                self._key.jc: job_change,    # Job change
                 self._key.sku_type: sku_type,
+                self._key.mold_cstr: mold_cstr,    #
                 self._key.human_cstr: human_cstr,
                 self._key.sim_prod_cstr: sim_prod_cstr,
                 self._key.res_avail_time: res_avail_time,
-                self._key.mold_cstr: mold_cstr
             },
         }
 
@@ -128,7 +132,7 @@ class Preprocess(object):
     def _set_route_info(self, data: pd.DataFrame, res_dur: pd.DataFrame) -> Dict:
         # Preprocess the bom route & resource duration
         data[self._route.lead_time] = [
-            int(lt * self.time_multiple[uom]) for lt, uom in zip(
+            int(lt * self._time_multiple[uom]) for lt, uom in zip(
                 data[self._route.lead_time], data[self._route.time_uom])
         ]
         data = data.drop(columns=[self._route.time_uom])
@@ -259,13 +263,12 @@ class Preprocess(object):
         data = data[data[self._res.plant].isin(self._dmd_plant_list)].copy()
 
         data = data[self._col_mold_res]
+        data = data[~data[self._cstr.mold_res].isna()]
 
         # Change data type
         data[self._res.res] = data[self._res.res].astype(str)
         data[self._item.sku] = data[self._item.sku].astype(str)
         data[self._cstr.mold_res] = data[self._cstr.mold_res].astype(str)
-
-        data = data.fillna('-')
 
         mold_res_map = {}
         for plant, plant_df in data.groupby(by=self._res.plant):
@@ -290,7 +293,7 @@ class Preprocess(object):
         data[self._res.res] = data[self._res.res].astype(str)
 
         col_capa = []
-        for i in range(self.work_day):
+        for i in range(self._work_day):
             for kind in ['d', 'n']:
                 capa = self._res.res_capa + str(i + 1) + '_' + kind
                 data[capa] = data[capa].astype(int)
@@ -378,12 +381,14 @@ class Preprocess(object):
 
         # Quantity constraint
         # Minimum lot size constraint
+        data = pd.merge(data, res_lot, on=[self._res.plant, self._res.res_grp, self._item.sku], how='left')
+
         if self._cstr_cfg['apply_min_lot_size']:
-            data = self._change_dmd_qty(data=data, res=res_lot, method='min')
+            data = self._change_dmd_qty(data=data, method='min')
 
         # Multi lot size constraint
         if self._cstr_cfg['apply_multi_lot_size']:
-            data = self._change_dmd_qty(data=data, res=res_lot, method='multi')
+            data = self._change_dmd_qty(data=data, method='multi')
 
         # Get plant list of demand list
         dmd_plant_list = list(set(data[self._res.plant]))
@@ -422,11 +427,13 @@ class Preprocess(object):
 
         return dmd_prep
 
-    def _change_dmd_qty(self, data, res, method):
-        data = pd.merge(data, res, on=[self._res.plant, self._res.res_grp, self._item.sku], how='left')
-        data[self._res.multi_lot] = data[self._res.multi_lot].fillna(self.default_multi_lot)
+    def _change_dmd_qty(self, data, method):
+        # data = pd.merge(data, res, on=[self._res.plant, self._res.res_grp, self._item.sku], how='left')
 
         if method == 'multi':
+            # Fill na
+            data[self._res.multi_lot] = data[self._res.multi_lot].fillna(self._default_multi_lot)
+
             qty_revised = []
             for multi_lot, qty in zip(data[self._res.multi_lot], data[self._dmd.qty]):
                 if qty % multi_lot != 0:
@@ -436,7 +443,8 @@ class Preprocess(object):
             data[self._dmd.qty] = qty_revised
 
         elif method == 'min':
-            data[self._res.min_lot] = data[self._res.min_lot].fillna(self.default_min_lot)
+            # Fill na
+            data[self._res.min_lot] = data[self._res.min_lot].fillna(self._default_min_lot)
             qty_revised = []
             for min_lot, qty in zip(data[self._res.min_lot], data[self._dmd.qty]):
                 if qty < min_lot:
@@ -510,7 +518,7 @@ class Preprocess(object):
     def _set_res_avail_time(self, data: pd.DataFrame):
         # Choose columns used in model
         col_capa = []
-        for i in range(self.work_day):
+        for i in range(self._work_day):
             for kind in ['d', 'n']:
                 capa = self._res.res_capa + str(i + 1) + '_' + kind
                 data[capa] = data[capa].astype(int)
@@ -633,7 +641,7 @@ class Preprocess(object):
 
     def match_job_change_time(self, candidate: dict, job_change_master: pd.DataFrame) -> Dict[str, Dict[Hashable, Any]]:
         # Change time unit
-        if self.jc_time_uom == 'MIN':
+        if self._jc_time_uom == 'MIN':
             job_change_master[self._cstr.jc_time] = job_change_master[self._cstr.jc_time] * 60
 
         job_change_by_plant = {}

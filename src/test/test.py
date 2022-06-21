@@ -1,5 +1,3 @@
-import pandas as pd
-
 from dao.io import DataIO
 from common.sql import Query
 

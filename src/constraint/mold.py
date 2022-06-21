@@ -1,4 +1,5 @@
 import common.util as util
+import common.config as config
 from common.name import Key, Demand, Item, Resource, Constraint, Post
 
 import numpy as np
@@ -8,10 +9,6 @@ from typing import Tuple, List, Hashable
 
 class Mold(object):
     def __init__(self, plant, plant_start_time, cstr, route, res_dur, mold_cstr, res_to_res_grp):
-        self.plant = plant
-        self.plant_start_time = plant_start_time
-        self.mold_apply_res_grp = []
-
         # Name instance attribute
         self._key = Key()
         self._post = Post()
@@ -19,6 +16,10 @@ class Mold(object):
         self._dmd = Demand()
         self._res = Resource()
         self._cstr = Constraint()
+
+        self.plant = plant
+        self.plant_start_time = plant_start_time
+        self.mold_apply_res_grp = []
 
         # Dataset & hash map
         self.route = route
@@ -33,13 +34,12 @@ class Mold(object):
         self.item_weight = mold_cstr[self._key.item_weight]
 
         # Time instance attribute
-        self.days = 60
-        self.work_day = 7    # 5 days: Monday ~ Friday
-        self.sec_of_day = 86400    # Seconds of 1 day
-        self.time_multiple = 60    # Minute -> Seconds
+        self.work_day = config.work_day    # 6 days: Monday ~ Friday
+        self.sec_of_day = config.sec_of_day    # Seconds of 1 day
+        self.time_multiple = config.time_multiple    # Minute -> Seconds
         self.time_interval = []
-        self.schedule_weeks = 104
-        self.plant_start_hour = 0
+        self.schedule_weeks = config.schedule_weeks
+        self.plant_start_hour = config.plant_start_hour
 
         # Column usage
         self._weight_map = {'G': 0.001, 'KG': 1, 'TON': 1000}
@@ -47,7 +47,7 @@ class Mold(object):
 
     def apply(self, data: pd.DataFrame):
         # Preprocess the dataset
-        data = self.preprocess(data=data)
+        self.preprocess(data=data)
 
         # Classify constraints appliance
         apply_dmd, non_apply_dmd = self.classify_cstr_apply(data=data)
@@ -272,23 +272,18 @@ class Mold(object):
         other_data = data.iloc[1:]
 
     def add_weight(self, data: pd.DataFrame) -> pd.DataFrame:
-        data['diff'] = data[self._dmd.end_time] - data[self._dmd.start_time]
+        data[self._dmd.duration] = data[self._dmd.end_time] - data[self._dmd.start_time]
         data['capa_use_rate'] = [    # Capa use rate
             self.res_dur[sku][res] for sku, res in zip(data[self._item.sku], data[self._res.res])
         ]
 
         # Calculate Production quantity
-        data[self._dmd.prod_qty] = data['diff'] / data['capa_use_rate']
-        data[self._item.weight] = [
-            int(weight * self._weight_map[uom]) for weight, uom in
-            zip(data[self._item.weight], data[self._item.weight_uom])]
-        data['tot_weight'] = data[self._item.weight] * np.floor(data[self._dmd.prod_qty])
-
-        data = data.drop(columns=['diff', self._item.weight_uom])
+        data[self._dmd.prod_qty] = data[self._dmd.duration] / data['capa_use_rate']
+        data['tot_weight'] = data['mold_weight'] * np.floor(data[self._dmd.prod_qty])
 
         return data
 
-    def preprocess(self, data: pd.DataFrame) -> pd.DataFrame:
+    def preprocess(self, data: pd.DataFrame) -> None:
         # Preprocess mold data
         self.prep_mold()
 
@@ -303,42 +298,50 @@ class Mold(object):
         # return merged
 
     def prep_mold(self):
-        self.mold_apply_res_grp = list(set([self.res_to_res_grp[res] for res in self.mold_res]))
+        self.mold_apply_res_grp = list(set([self.res_to_res_grp[res] for res in self.mold_res
+                                            if res in self.res_to_res_grp]))
 
     def make_daily_time_interval(self) -> None:
-        self.time_interval = [(i, i * self.sec_of_day, (i + 1) * self.sec_of_day) for i in range(self.days)
-                              if i % 7 not in [5, 6]]
+        self.time_interval = [(i, i * self.sec_of_day, (i + 1) * self.sec_of_day) for i in range(self.schedule_weeks)]
 
     def classify_cstr_apply(self, data: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
-        halb_data = data[data[self._item.sku].isin(self.half_item[self._item.sku])].copy()
-        halb_res_grp = halb_data[self._res.res_grp].unique()
-        res_grp = set(halb_res_grp) & set(self.mold_apply_res_grp)
+        flag, mold_res, weight = [], [], []
+        for res, sku in zip(data[self._res.res], data[self._item.sku]):
+            sku_exist = self.mold_res.get(res, None)
+            if sku_exist is None:
+                flag.append(False)
+            else:
+                mold_res_weight = sku_exist.get(sku, None)
+                if mold_res_weight is None:
+                    flag.append(False)
+                else:
+                    flag.append(True)
+                    mold_res.append(mold_res_weight[0])
+                    weight.append(mold_res_weight[1])
+        data['apply_flag'] = flag
 
-        apply_dmd = data[data[self._res.res_grp].isin(res_grp)]
-        non_apply_dmd = data[~data[self._res.res_grp].isin(res_grp)]
+        apply_dmd = data[data['apply_flag']]
+        apply_dmd['mold_res'] = mold_res
+        apply_dmd['mold_weight'] = weight
+        non_apply_dmd = data[~data['apply_flag']]
+
+        apply_dmd = apply_dmd.drop(columns='apply_flag')
+        non_apply_dmd = non_apply_dmd.drop(columns='apply_flag')
 
         return apply_dmd, non_apply_dmd
 
     def slice_timeline_by_each_day(self, data: pd.DataFrame) -> pd.DataFrame:
-        fert = data[data[self._item.item_type] == 'FERT'].copy()
-        halb = data[data[self._item.item_type] == 'HALB'].copy()
-
-        # Todo: Temporal conversion
-        halb[self._item.weight] = 3
-        halb['day'] = 0
-
         # Slice timeline of half-item
         splited_list = []
-        for i, row in halb.iterrows():
-            splited = self.slice_timeline(row, splited=[])
+        for i, row in data.iterrows():
+            splited = self.slice_timeline(row, splitted=[])
             splited_list.extend(splited)
 
-        halb_splited = pd.DataFrame(splited_list)
-        merged = pd.concat([fert, halb_splited], axis=0).fillna('-')
+        data_splite = pd.DataFrame(splited_list)
 
-        return merged
+        return data_splite
 
-    def slice_timeline(self, row: pd.Series, splited: list) -> List[pd.Series]:
+    def slice_timeline(self, row: pd.Series, splitted: list) -> List[pd.Series]:
         stime = row[self._dmd.start_time]
         etime = row[self._dmd.end_time]
         for day, day_start, day_end in self.time_interval:
@@ -347,21 +350,21 @@ class Mold(object):
             else:
                 if etime <= day_end:
                     row['day'] = day
-                    splited.append(row)
+                    splitted.append(row)
 
-                    return splited
+                    return splitted
                 else:
                     # split times
                     row_bf = row.copy()
                     row_bf[self._dmd.end_time] = day_end
                     row_bf['day'] = day
-                    splited.append(row_bf)
+                    splitted.append(row_bf)
 
                     row_af = row.copy()
                     row_af[self._dmd.start_time] = day_end
-                    splited = self.slice_timeline(row=row_af, splited=splited)
+                    splitted = self.slice_timeline(row=row_af, splitted=splitted)
 
-                    return splited
+                    return splitted
 
     def set_res_capacity(self, data: pd.DataFrame) -> None:
         # Choose current plant
@@ -369,21 +372,25 @@ class Mold(object):
 
         capa_col_list = []
         for i in range(self.work_day):
-            capa_col = self._res.res_capa + str(i + 1)
-            capa_col_list.append(capa_col)
+            for kind in ['d', 'n']:
+                capa = self._res.res_capa + str(i + 1) + '_' + kind
+                capa_col_list.append(capa)
 
         res_to_capa = {}
         for res, capa_df in data.groupby(by=self._res.res):
             days_capa = capa_df[capa_col_list].values.tolist()[0]
+            days_capa = util.make_time_pair(data=days_capa)
 
             days_capa_list = []
             for i, (day_time, night_time) in enumerate(days_capa * self.schedule_weeks):
                 start_time, end_time = util.calc_daily_avail_time(
-                    day=i, day_time=day_time, night_time=night_time)
-                days_capa_list.append([start_time, end_time])
+                    day=i, day_time=int(day_time), night_time=int(night_time))
+                if start_time != end_time:
+                    days_capa_list.append([start_time, end_time])
 
             days_capa_list = self.connect_continuous_capa(data=days_capa_list)
-            res_to_capa[res] = days_capa_list
+            if len(days_capa_list) > 0:
+                res_to_capa[res] = days_capa_list
 
         self.res_to_capa = res_to_capa
 

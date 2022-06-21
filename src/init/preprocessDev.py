@@ -9,11 +9,6 @@ from itertools import permutations
 
 
 class Preprocess(object):
-    # Time configuration
-    time_uom = config.time_uom
-    work_day = config.work_day
-    time_multiple = {'DAY': 86400, 'HOUR': 3600, 'MIN': 60}
-
     def __init__(self, cstr_cfg: dict, version):
         self._version = version
         self._cstr_cfg = cstr_cfg
@@ -31,22 +26,30 @@ class Preprocess(object):
         self._res_grp_list = []
         self._dmd_plant_list = []
 
+        #  Time configuration
+        self.work_day = config.work_day
+        self.time_uom = config.time_uom
+        self.time_multiple = {'DAY': 86400, 'HOUR': 3600, 'MIN': 60}
+
+        # Constraint instance attribute
+        self.jc_time_uom = 'MIN'
+        self.default_min_lot = config.default_min_lot
+        self.default_multi_lot = config.default_multi_lot
+        self._weight_map = {'G': 0.001, 'KG': 1., 'TON': 1000.}
+
         # Column usage instance attribute
         self._col_dmd = [self._dmd.dmd, self._item.sku, self._res.res_grp, self._dmd.qty, self._dmd.due_date]
         self._col_res_grp = [self._res.plant, self._res.res_grp, self._res.res, self._res.res_nm]
         self._col_res_duration = [self._res.plant, self._item.sku, self._res.res, self._dmd.duration]
         self._col_res_avail_time = [self._res.plant, self._res.res]
-        self._col_res_grp_job_change = [self._res.plant, self._res.res_grp, self._cstr.jc_from, self._cstr.jc_to,
-                                        self._cstr.jc_type, self._cstr.jc_time, self._cstr.jc_unit]
+        self._col_res_grp_job_change = [
+            self._res.plant, self._res.res_grp, self._cstr.jc_from, self._cstr.jc_to, self._cstr.jc_type,
+            self._cstr.jc_time, self._cstr.jc_unit
+        ]
         self._col_res_lot = [self._res.plant, self._res.res, self._item.sku, self._res.min_lot,
                              self._res.multi_lot]
 
-        # Time UOM instance attribute
-        self.jc_time_uom = 'MIN'
-        self.default_min_lot = 0
-        self.default_multi_lot = 10
-
-    def preprocess(self, data):
+    def preprocess(self, data: dict) -> dict:
         ######################################
         # Demand / Resource / Route
         ######################################
@@ -79,7 +82,7 @@ class Preprocess(object):
         # Job change
         job_change, sku_type = (None, None)
         if self._cstr_cfg['apply_job_change']:
-            sku_type = self._set_sku_type_map(data=resource[self._key.item])
+            sku_type = self._set_sku_type_map(data=data[self._key.item])
             job_change = self._set_job_change(data=constraint[self._key.jc])
 
         # Simultaneous production constraint

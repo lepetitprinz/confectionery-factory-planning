@@ -121,6 +121,7 @@ class Post(object):
         # Resource capacity
         self.res_jc_capa = config.col_res_jc_capa
         self.res_use_capa = config.col_res_use_capa
+        self.res_avail_capa = config.col_res_avail_capa
         self.res_unavail_capa = config.col_res_unavail_capa
 
         # Human capacity
@@ -134,6 +135,7 @@ class Post(object):
         # Time
         self.to_time = config.col_to_time
         self.from_time = config.col_from_time
+        self.date = config.col_date
         self.to_yymmdd = config.col_to_yymmdd
         self.from_yymmdd = config.col_from_yymmdd
         self.time_idx = config.col_time_index_type

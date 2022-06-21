@@ -15,8 +15,22 @@ PASSWORD = 'Diam0nd123!'   # User password
 project_cd = 'ENT001'
 apply_plant = ['K110', 'K120', 'K130', 'K140', 'K170']
 
-time_uom = 'sec'
 work_day = 7
+time_uom = 'sec'
+time_multiple = 60
+schedule_weeks = 52     # 6 month
+plant_start_hour = 0
+sec_of_day = 86400
+
+#########################################################
+# Default setting configuration
+#########################################################
+
+# Constraint
+inf_val = 10 ** 7 - 1
+default_min_lot = 0
+default_multi_lot = 1
+default_res_duration = 1
 
 #########################################################
 # Data dictionary key configuration
@@ -131,10 +145,13 @@ col_mold_use_rate = 'mold_use_rate'
 #########################################################
 # Column: Post process
 #########################################################
+col_kind = 'kind'
+
 # Item
 col_eng_item = 'eng_item_cd'
 
 # User & time
+col_date = 'yymmdd'
 col_to_time = 'to_time'
 col_from_time = 'from_time'
 col_to_yymmdd = 'to_yymmdd'
@@ -144,6 +161,8 @@ col_time_index_type = 'time_index_type'
 
 # Resource capacity
 col_res_jc_capa = 'res_jc_val'
+col_res_use_capa = 'res_used_capa_val'
+col_res_avail_capa = 'res_avail_val'
 col_res_unavail_capa = 'res_unavail_val'
 
 # Human capacity
@@ -153,7 +172,6 @@ col_use_m_capa = 'used_man_capa'
 col_use_w_capa = 'used_woman_capa'
 col_avail_m_capa = 'avail_man_capa'
 col_avail_w_capa = 'avail_woman_capa'
-col_res_use_capa = 'res_used_capa_val'
 
 # Constraint configuration
 prod_qty_multiple = 10
@@ -161,7 +179,14 @@ prod_qty_multiple = 10
 #########################################################
 # OptSeq Model
 #########################################################
-time_limit = 60 * 1    # 60 * 60 * 6
 make_span = True
 optput_flag = True
 max_iteration = 10 ** 20
+time_limit = {
+    'K110': 60,
+    'K120': 60,
+    'K130': 60,
+    'K140': 60,
+    'K150': 60,
+    'K170': 60,
+}
