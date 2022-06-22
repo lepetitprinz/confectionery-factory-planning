@@ -79,7 +79,8 @@ class Process(object):
         ]
         self.prod_dmd_qty_cols = [
             self._dmd.dmd, self._res.res_grp, self._res.res_grp_nm, self._res.res, self._res.res_nm, self._item.sku,
-            self._item.sku_nm, self._post.date, self._post.time_idx, self._dmd.prod_qty
+            self._item.sku_nm, self._post.date, self._post.time_idx, self._dmd.prod_qty, self._dmd.start_time,
+            self._dmd.end_time
         ]
 
         # Plant instance attribute
@@ -404,14 +405,14 @@ class Process(object):
             for res_cd, res_df in dmd_df.groupby(self._res.res):
                 for item_cd, item_df in res_df.groupby(self._item.sku):
                     for start, end in zip(item_df['start'], item_df['end']):
-                        duration = self.calc_duration(res_cd, item_cd, start, end)
+                        duration = self.calc_duration_dtl(res_cd, item_cd, start, end)
                         temp = [[dmd_id] + dur for dur in duration]
                         timeline_list.extend(temp)
 
         qty_df = pd.DataFrame(
             timeline_list,
             columns=[self._dmd.dmd, self._res.res, self._item.sku, self._post.date, self._post.time_idx,
-                     self._dmd.duration]
+                     self._dmd.duration, self._dmd.start_time, self._dmd.end_time]
         )
         qty_df = self.set_item_res_capa_rate(data=qty_df)
         qty_df[self._dmd.duration] = qty_df[self._dmd.duration] / np.timedelta64(1, 's')
@@ -424,18 +425,24 @@ class Process(object):
             neginf=self.inf_val
         )
 
+        # Convert quantity of job change
+        qty_df[self._dmd.prod_qty] = np.where(qty_df[self._dmd.dmd].str.contains('@'), 0, qty_df[self._dmd.prod_qty])
+
         # Data processing
         qty_df = qty_df.drop(columns=[self._dmd.duration])
-        qty_df = qty_df.groupby(by=[self._dmd.dmd, self._res.res, self._item.sku,
-                                    self._post.date, self._post.time_idx, 'capa_rate']) \
-            .sum() \
-            .reset_index()
+        # qty_df = qty_df.groupby(by=[self._dmd.dmd, self._res.res, self._item.sku,
+        #                             self._post.date, self._post.time_idx, 'capa_rate']) \
+        #     .sum() \
+        #     .reset_index()
 
         qty_df = self.add_name_info(data=qty_df, cols=self.prod_dmd_qty_cols)
 
         return qty_df
 
     def calc_timeline_prod_qty(self, data: pd.DataFrame):
+        # Filter job change
+        data = data[data['kind'] == 'demand'].copy()
+
         timeline_list = []
         for res_cd, res_df in data.groupby(self._res.res):
             for item_cd, item_df in res_df.groupby(self._item.sku):
@@ -542,6 +549,113 @@ class Process(object):
             for i in range(diff_day - 1):
                 timeline.append([res_cd, item_cd, start_day + dt.timedelta(days=i + 1), 'D', self.split_hour])
                 timeline.append([res_cd, item_cd, start_day + dt.timedelta(days=i + 1), 'N', self.split_hour])
+
+        return timeline
+
+    def calc_duration_dtl(self, res_cd, item_cd, start, end):
+        start_day = dt.datetime.strptime(dt.datetime.strftime(start, '%Y%m%d'), '%Y%m%d')
+        start_time = dt.timedelta(hours=start.hour, minutes=start.minute, seconds=start.second)
+        end_day = dt.datetime.strptime(dt.datetime.strftime(end, '%Y%m%d'), '%Y%m%d')
+        end_time = dt.timedelta(hours=end.hour, minutes=end.minute, seconds=end.second)
+
+        #
+        if end_time == dt.timedelta(seconds=0):
+            end_day = end_day - dt.timedelta(days=1)
+            end_time = dt.timedelta(hours=24)
+
+        diff_day = (end_day - start_day).days
+
+        timeline = []
+        if diff_day == 0:
+            duration_day = dt.timedelta(hours=0)
+            duration_night = dt.timedelta(hours=0)
+            day_start = start_day + self.split_hour
+            day_end = start_day + self.split_hour
+            night_start = end_day + self.split_hour
+            night_end = end_day + self.split_hour
+            if end_time < self.split_hour:
+                day_start = start_day + start_time
+                duration_day = end_time - start_time
+            elif start_time > self.split_hour:
+                night_end = end_day + end_time
+                duration_night = end_time - start_time
+            else:
+                # Day
+                day_start = start_day + start_time
+                duration_day = self.split_hour - start_time
+
+                # Night
+                night_end = end_day + end_time
+                duration_night = end_time - self.split_hour
+
+            timeline.append([res_cd, item_cd, start_day, 'D', duration_day, day_start, day_end])
+            timeline.append([res_cd, item_cd, start_day, 'N', duration_night, night_start, night_end])
+
+        elif diff_day == 1:
+            fst_day_end = start_day + self.split_hour
+            fst_night_end = start_day + dt.timedelta(days=1)
+            if start_time < self.split_hour:
+                fst_day_start = start_day + start_time
+                fst_night_start = start_day + self.split_hour
+            else:
+                fst_day_start = start_day + self.split_hour
+                fst_night_start = start_day + start_time
+
+            last_day_start = end_day
+            last_night_start = end_day + self.split_hour
+            if end_time < self.split_hour:
+                last_day_end = end_day + end_time
+                last_night_end = end_day + self.split_hour
+            else:
+                last_day_end = end_day + self.split_hour
+                last_night_end = end_day + end_time
+
+            prev_dur_d, prev_dur_n = self.calc_timeline_prev(start_time=start_time)
+            next_dur_d, next_dur_n = self.calc_timeline_next(end_time=end_time)
+
+            timeline.append([res_cd, item_cd, start_day, 'D', prev_dur_d, fst_day_start, fst_day_end])
+            timeline.append([res_cd, item_cd, start_day, 'N', prev_dur_n, fst_night_start, fst_night_end])
+            timeline.append([res_cd, item_cd, end_day, 'D', next_dur_d, last_day_start, last_day_end])
+            timeline.append([res_cd, item_cd, end_day, 'N', next_dur_n, last_night_start, last_night_end])
+
+        else:
+            fst_day_end = start_day + self.split_hour
+            fst_night_end = start_day + dt.timedelta(days=1)
+            if start_time < self.split_hour:
+                fst_day_start = start_day + start_time
+                fst_night_start = start_day + self.split_hour
+            else:
+                fst_day_start = start_day + self.split_hour
+                fst_night_start = start_day + start_time
+
+            last_day_start = end_day
+            last_night_start = end_day + self.split_hour
+            if end_time < self.split_hour:
+                last_day_end = end_day + end_time
+                last_night_end = end_day + self.split_hour
+            else:
+                last_day_end = end_day + self.split_hour
+                last_night_end = end_day + end_time
+
+            prev_dur_d, prev_dur_n = self.calc_timeline_prev(start_time=start_time)
+            next_dur_d, next_dur_n = self.calc_timeline_next(end_time=end_time)
+
+            timeline.append([res_cd, item_cd, start_day, 'D', prev_dur_d, fst_day_start, fst_day_end])
+            timeline.append([res_cd, item_cd, start_day, 'N', prev_dur_n, fst_night_start, fst_night_end])
+            timeline.append([res_cd, item_cd, end_day, 'D', next_dur_d, last_day_start, last_day_end])
+            timeline.append([res_cd, item_cd, end_day, 'N', next_dur_n, last_night_start, last_night_end])
+
+            day_start = start_day
+            day_end = start_day + self.split_hour
+            night_start = start_day + self.split_hour
+            night_end = start_day + dt.timedelta(days=1)
+
+            for i in range(diff_day - 1):
+                add_day = dt.timedelta(days=i + 1)
+                timeline.append([res_cd, item_cd, start_day + add_day, 'D', self.split_hour,
+                                 day_start + add_day, day_end + add_day])
+                timeline.append([res_cd, item_cd, start_day + add_day, 'N', self.split_hour,
+                                 night_start + add_day, night_end + add_day])
 
         return timeline
 
@@ -681,8 +795,23 @@ class Process(object):
             how='left',
             on=self._item.sku
         )
+
         data[self._post.item_type] = data[self._post.item_type].fillna('-')
         data[self._item.sku_nm] = data[self._item.sku_nm].fillna('-')
+
+        # Convert data type
+        # Change data type (datetime -> string)
+        data[self._dmd.start_time] = data[self._dmd.start_time].dt.strftime('%y%m%d%H%m%s')
+        data[self._dmd.start_time] = data[self._dmd.start_time] \
+            .str.replace('-', '') \
+            .str.replace(':', '') \
+            .str.replace(' ', '')
+        data[self._dmd.end_time] = data[self._dmd.end_time].dt.strftime('%y%m%d%h%M%s')
+        data[self._dmd.end_time] = data[self._dmd.end_time] \
+            .str.replace('-', '') \
+            .str.replace(':', '') \
+            .str.replace(' ', '')
+
         data = data.rename(columns={self._dmd.dmd: self._post.fp_key})
 
         kwargs = {self._post.fp_version: self.fp_version, self._post.fp_seq: self.fp_seq, 'plant_cd': self.plant}

@@ -521,6 +521,7 @@ class Preprocess(object):
         for i in range(self._work_day):
             for kind in ['d', 'n']:
                 capa = self._res.res_capa + str(i + 1) + '_' + kind
+                data[capa] = data[capa].fillna(0)
                 data[capa] = data[capa].astype(int)
                 col_capa.append(capa)
 

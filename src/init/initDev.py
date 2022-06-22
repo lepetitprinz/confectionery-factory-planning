@@ -38,11 +38,11 @@ class Init(object):
 
         # Set forward planning version
         today_df = self.calendar[self.calendar['yymmdd'] == today].copy()
-        # fp_version = util.make_fp_version_name(
-        #     year=today_df['yy'].values[0],
-        #     week=today_df['week'].values[0],
-        #     seq=self.fp_num
-        # )
+        fp_version = util.make_fp_version_name(
+            year=today_df['yy'].values[0],
+            week=today_df['week'].values[0],
+            seq=self.fp_num
+        )
         fp_version = 'FP_2022W24.01'    # Todo: temporal
 
         self.fp_version = fp_version

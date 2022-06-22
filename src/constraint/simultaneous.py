@@ -140,7 +140,7 @@ class Necessary(object):
         return item
 
     def _add_item_information(self, data: pd.DataFrame, item: pd.DataFrame) -> pd.DataFrame:
-        merged = pd.merge(data, item, on=self.item.sku, how='left')
+        merged = pd.merge(data, item, on=[self.item.sku, self.item.pkg], how='left')
         merged = merged.fillna('-')
 
         return merged

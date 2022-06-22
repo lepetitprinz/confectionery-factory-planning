@@ -3,3 +3,5 @@
 *.pyc
 *.html
 *.csv
+*.txt
+*.pickle
