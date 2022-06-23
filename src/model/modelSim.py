@@ -155,13 +155,6 @@ class OptSeq(object):
                     model_res_grp=model_res_grp,
                 )
 
-        # if self._cstr_cfg['apply_mold_capa_cstr']:
-        #     for res, mold_capa in self._mold_capa.items():
-        #         add_res = model.addResource(name=res)
-        #         add_res = self._add_mold_res_capa(res=add_res, mold_capa=mold_capa)
-        #         for res_grp in model_res_grp:
-        #             model_res_grp[res_grp].update({res: add_res})
-
         return model_res_grp, res_grp_dict
 
     def _add_virtual_resource(self, model: Model, model_res_grp: dict, ):
@@ -175,20 +168,6 @@ class OptSeq(object):
             model_res_grp[res_grp].update(model_res)
 
         return model_res_grp
-
-    def _add_mold_res_capa(self, res, mold_capa):
-        day = 0
-        night_capa = 1
-        for day, (day_capa, night_capa) in enumerate(mold_capa * self._schedule_weeks):
-            if day_capa != 0:
-                res.addCapacity(day * self._sec_of_day, day * self._sec_of_day + 43200, int(day_capa))
-            if night_capa != 0:
-                res.addCapacity(day * self._sec_of_day + 43200, (day + 1) * self._sec_of_day, int(night_capa))
-
-        # Exception for over demand
-        res.addCapacity((day + 1) * self._sec_of_day, 'inf', night_capa)
-
-        return res
 
     def _add_res_capacity(self, res: Resource, capa_days: list) -> Resource:
         day = 0
@@ -366,17 +345,6 @@ class OptSeq(object):
             )
 
         return mode
-
-    def _check_mold_res_existence(self, res, item) -> bool:
-        flag = False
-        if self._mold_res is not None:
-            res_check = self._mold_res.get(res, None)
-            if res_check is not None:
-                item_check = res_check.get(item, None)
-                if item_check is not None:
-                    flag = True
-
-        return flag
 
     # Add the specified resource which amount required when executing the mode
     @staticmethod

@@ -7,6 +7,9 @@ import pandas as pd
 from typing import List, Tuple, Dict, Any, Hashable, Union
 from itertools import permutations
 
+from common.sql import Query
+from dao.io import DataIO
+
 
 class Preprocess(object):
     def __init__(self, cstr_cfg: dict, version):
@@ -105,11 +108,11 @@ class Preprocess(object):
         # Mold capacity constraint
         mold_cstr = None
         if self._cstr_cfg['apply_mold_capa_cstr']:
+            io = DataIO()
+            query = Query()
             mold_cstr = self._set_mold_cstr(
                 capa=data[self._key.cstr][self._key.mold_cstr],
                 res=data[self._key.res][self._key.res_duration],
-                item=data[self._key.item],
-                # item=data[self._key.cstr]['temp']
             )
 
         # Preprocessing result
@@ -234,15 +237,14 @@ class Preprocess(object):
 
         return human_capacity
 
-    def _set_mold_cstr(self, res: pd.DataFrame, capa: pd.DataFrame, item: pd.DataFrame) -> dict:
+    def _set_mold_cstr(self, res: pd.DataFrame, capa: pd.DataFrame) -> dict:
         mold_res = self._set_mold_res(data=res)
         mold_capa = self._set_mold_capa(data=capa)
-        item_weight = self._set_item_weight(data=item)
+        # item_weight = self._set_item_weight(data=item)
 
         mold_cstr = {
             self._key.mold_res: mold_res,
             self._key.mold_capa: mold_capa,
-            self._key.item_weight: item_weight,
         }
 
         return mold_cstr

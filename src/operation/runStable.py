@@ -3,8 +3,8 @@ from deployment.pipeline import Pipeline
 import os
 import datetime
 
-fp_num = '02'
-fp_seq = '1'
+fp_num = '01'
+fp_seq = '3'
 
 base_path = {
     'root': os.path.join('..', '..'),
@@ -19,9 +19,9 @@ cfg = {
         'verbose': False,
     },
     'step': {
-        'cls_load': True,
+        'cls_load': False,
         'cls_cns': False,
-        'cls_prep': True,
+        'cls_prep': False,
         'cls_model': False,
         'cls_pp': True,
         'cls_save': False,
@@ -30,9 +30,9 @@ cfg = {
         'apply_job_change': True,            # Job Change
         'apply_min_lot_size': True,          # Minimum lot size
         'apply_multi_lot_size': True,        # Multiple lot size
-        'apply_human_capacity': True,        # Human Capacity
+        'apply_human_capacity': False,       # Human Capacity
         'apply_sim_prod_cstr': True,         # Simultaneous Production Constraint
-        'apply_mold_capa_cstr': False,       # Mold Capacity Constraint
+        'apply_mold_capa_cstr': True,        # Mold Capacity Constraint
         'apply_res_available_time': True,    # Resource Capacity
     },
     'except': {

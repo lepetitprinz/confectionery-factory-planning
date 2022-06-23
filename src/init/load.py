@@ -99,7 +99,7 @@ class DataLoad(object):
             # Simultaneous production constraint
             self._key.sim_prod_cstr: self._io.load_from_db(sql=self._query.sql_sim_prod_cstr(**self._fp_vrsn_date)),
 
-            # Mold capacity constraint    # Todo: Developing
+            # Mold capacity constraint
             self._key.mold_cstr: self._io.load_from_db(sql=self._query.sql_mold_capacity(**self._fp_vrsn_date)),
         }
 

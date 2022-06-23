@@ -1,4 +1,4 @@
-# reading data ... done: 0.01(s)
+# reading data ... done: 0.00(s)
 
 # random seed: 1
 
@@ -74,5 +74,5 @@ objective value = 316645
 
 cpu time = 0.00/60.00(s)
 
-iteration = 0/340303
+iteration = 0/343121
 
