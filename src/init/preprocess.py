@@ -59,6 +59,7 @@ class Preprocess(object):
         ######################################
         # Demand / Resource / Route
         ######################################
+        item = data[self._key.item]
         demand = data[self._key.dmd]
         resource = data[self._key.res]
         constraint = data[self._key.cstr]
@@ -117,6 +118,7 @@ class Preprocess(object):
 
         # Preprocessing result
         prep_data = {
+            self._key.item: item,
             self._key.dmd: dmd_prep,
             self._key.res: res_prep,
             self._key.route: route_prep,
@@ -338,13 +340,13 @@ class Preprocess(object):
 
         # Simultaneous type : necessary
         necessary = data[data['sim_type'] == 'NEC']
-        nece_sim_prod_cstr = self._make_sim_prod_cstr_map(data=necessary)
+        nece_sim_prod_cstr = self._make_sim_prod_cstr_map(data=necessary, kind='nec')
 
         # Simultaneous type : impossible
         impo_sim_prod_cstr = None
         impossible = data[data['sim_type'] == 'IMP']
         if len(impossible) > 0:
-            impo_sim_prod_cstr = self._make_sim_prod_cstr_map(data=impossible)
+            impo_sim_prod_cstr = self._make_sim_prod_cstr_map(data=impossible, kind='imp')
 
         plant_sim_prod_cstr = {
             'necessary': nece_sim_prod_cstr,
@@ -353,16 +355,22 @@ class Preprocess(object):
 
         return plant_sim_prod_cstr
 
-    def _make_sim_prod_cstr_map(self, data: pd.DataFrame) -> dict:
+    def _make_sim_prod_cstr_map(self, data: pd.DataFrame, kind: str) -> dict:
         sim_prod_cstr = {}
         for plant, plant_df in data.groupby(by=self._res.plant):
             res_grp_brand = {}
             for res_grp, res_grp_df in plant_df.groupby(by=self._res.res_grp):
                 brand_pkg = {}
                 for brand, brand_df in res_grp_df.groupby(by=self._item.brand):
-                    pkg1_pkg2 = {}
+                    if kind == 'nec':
+                        pkg1_pkg2 = {}
+                    elif kind == 'imp':
+                        pkg1_pkg2 = []
                     for pkg1, pkg2 in zip(brand_df[self._item.pkg + '1'], brand_df[self._item.pkg + '2']):
-                        pkg1_pkg2[pkg1] = pkg2
+                        if kind == 'nec':
+                            pkg1_pkg2[pkg1] = pkg2
+                        elif kind == 'imp':
+                            pkg1_pkg2 = [pkg1, pkg2]
                     brand_pkg[brand] = pkg1_pkg2
                 res_grp_brand[res_grp] = brand_pkg
             sim_prod_cstr[plant] = res_grp_brand

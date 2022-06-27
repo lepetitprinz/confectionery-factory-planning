@@ -277,20 +277,20 @@ class Query(object):
         sql = f"""
             SELECT PLANT_CD
                  , RES_CD
-                 , CAPA01_D_VAL AS CAPACITY1_D
-                 , CAPA01_N_VAL AS CAPACITY1_N
-                 , CAPA02_D_VAL AS CAPACITY2_D
-                 , CAPA02_N_VAL AS CAPACITY2_N
-                 , CAPA03_D_VAL AS CAPACITY3_D
-                 , CAPA03_N_VAL AS CAPACITY3_N
-                 , CAPA04_D_VAL AS CAPACITY4_D
-                 , CAPA04_N_VAL AS CAPACITY4_N
-                 , CAPA05_D_VAL AS CAPACITY5_D
-                 , CAPA05_N_VAL AS CAPACITY5_N
-                 , CAPA06_D_VAL AS CAPACITY6_D
-                 , CAPA06_N_VAL AS CAPACITY6_N
-                 , CAPA07_D_VAL AS CAPACITY7_D
-                 , CAPA07_N_VAL AS CAPACITY7_N
+                 , ISNULL(CAPA01_D_VAL, 0) AS CAPACITY1_D
+                 , ISNULL(CAPA01_N_VAL, 0) AS CAPACITY1_N
+                 , ISNULL(CAPA02_D_VAL, 0) AS CAPACITY2_D
+                 , ISNULL(CAPA02_N_VAL, 0) AS CAPACITY2_N
+                 , ISNULL(CAPA03_D_VAL, 0) AS CAPACITY3_D
+                 , ISNULL(CAPA03_N_VAL, 0) AS CAPACITY3_N
+                 , ISNULL(CAPA04_D_VAL, 0) AS CAPACITY4_D
+                 , ISNULL(CAPA04_N_VAL, 0) AS CAPACITY4_N
+                 , ISNULL(CAPA05_D_VAL, 0) AS CAPACITY5_D
+                 , ISNULL(CAPA05_N_VAL, 0) AS CAPACITY5_N
+                 , ISNULL(CAPA06_D_VAL, 0) AS CAPACITY6_D
+                 , ISNULL(CAPA06_N_VAL, 0) AS CAPACITY6_N
+                 , ISNULL(CAPA07_D_VAL, 0) AS CAPACITY7_D
+                 , ISNULL(CAPA07_N_VAL, 0) AS CAPACITY7_N
               FROM M4E_I401140
              WHERE RES_CTIG_CD = 'RES_CTGI_11'
                AND FP_VRSN_ID = '{kwargs['fp_vrsn_id']}'

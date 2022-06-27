@@ -74,5 +74,5 @@ objective value = 316645
 
 cpu time = 0.00/60.00(s)
 
-iteration = 0/343121
+iteration = 0/333044
 

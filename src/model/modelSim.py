@@ -1,6 +1,8 @@
+import pandas as pd
+
 import common.util as util
 import common.config as config
-from common.name import Key
+from common.name import Key, Item, Demand
 
 import os
 from itertools import permutations
@@ -30,10 +32,19 @@ class OptSeq(object):
 
         # Name instance attribute
         self._key = Key()
+        self._item = Item()
+        self._dmd = Demand()
 
         # Resource instance attribute
         self._res_grp = plant_data[self._key.res][self._key.res_grp][plant]
         self._res_to_res_grp = {}
+
+        # Item instance attribute
+        self._item_mst = plant_data[self._key.item]
+        self._sku_to_pkg = {}
+        self._sku_to_brand = {}
+        self._brand_pkg_sku_map = {}
+        self.col_item = [self._item.sku, self._item.brand, self._item.pkg]
 
         # Resource capacity instance attribute
         self._sec_of_day = 86400
@@ -66,16 +77,12 @@ class OptSeq(object):
 
         # Simultaneous production constraint
         if self._cstr_cfg['apply_sim_prod_cstr']:
-            self._sim_prod_cstr = plant_data[self._key.cstr][self._key.sim_prod_cstr].get(plant, None)
-
-        # Mold capacity constraint
-        # if self._cstr_cfg['apply_mold_capa_cstr']:
-        #     self._mold_res = plant_data[self._key.cstr][self._key.mold_cstr][self._key.mold_res].get(plant, None)
-        #     self._mold_capa = plant_data[self._key.cstr][self._key.mold_cstr][self._key.mold_capa].get(plant, None)
+            self._sim_prod_cstr_nec = plant_data[self._key.cstr][self._key.sim_prod_cstr]['necessary'].get(plant, None)
+            self._sim_prod_cstr_imp = plant_data[self._key.cstr][self._key.sim_prod_cstr]['impossible'].get(plant, None)
 
     def init(self, plant: str, dmd_list: list, res_grp_dict: dict):
         # Step 0. Preprocessing
-        self._set_res_to_res_grp()
+        self._preprocess()
 
         # Step 1. Instantiate the model
         model = Model(name=plant)
@@ -102,6 +109,55 @@ class OptSeq(object):
         model = self._set_model_parameter(model=model)
 
         return model, rm_act_list
+
+    def _preprocess(self):
+        self._set_res_to_res_grp()
+        self._set_sku_to_brand_and_pkg()
+        self._set_brand_pkg_sku_map()
+
+    def _set_brand_pkg_sku_map(self) -> None:
+        item = self._item_mst.copy()
+        item = item[self.col_item]
+
+        brand_pkg_sku_map = {}
+        for brand, brand_df in item.groupby(by=self._item.brand):
+            pkg_sku = {}
+            for pkg, pkg_df in brand_df.groupby(by=self._item.pkg):
+                for sku in pkg_df[self._item.sku]:
+                    if pkg in pkg_sku:
+                        pkg_sku[pkg].append(sku)
+                    else:
+                        pkg_sku[pkg] = [sku]
+            brand_pkg_sku_map[brand] = pkg_sku
+
+        self.brand_pkg_sku_map = brand_pkg_sku_map
+
+    def _set_res_to_res_grp(self) -> None:
+        res_grp = self._res_grp.copy()
+        res_to_res_grp = {}
+        for res_grp_cd, res_list in res_grp.items():
+            for res_cd in res_list:
+                res_to_res_grp[res_cd] = res_grp_cd
+
+        self._res_to_res_grp = res_to_res_grp
+
+    def _set_sku_to_brand_and_pkg(self) -> None:
+        item = self._item_mst.copy()
+        item = item[self.col_item]
+
+        # Convert data type
+        item[self._item.sku] = item[self._item.sku].astype(str)
+        item[self._item.pkg] = item[self._item.pkg].astype(str)
+
+        # Make sku to sku information hash map
+        sku_to_pkg = {}
+        sku_to_brand = {}
+        for sku, brand, pkg in zip(item[self._item.sku], item[self._item.brand], item[self._item.pkg]):
+            sku_to_pkg[sku] = pkg
+            sku_to_brand[sku] = brand
+
+        self._sku_to_pkg = sku_to_pkg
+        self._sku_to_brand = sku_to_brand
 
     @staticmethod
     def _get_res_to_dmd_list(model: Model):
@@ -148,17 +204,18 @@ class OptSeq(object):
             else:
                 res_grp_dict.pop(res_grp)
 
-        if self._cstr_cfg['apply_sim_prod_cstr']:
-            if self._sim_prod_cstr is not None:
-                model_res_grp = self._add_virtual_resource(
-                    model=model,
-                    model_res_grp=model_res_grp,
-                )
+        # if self._cstr_cfg['apply_sim_prod_cstr']:
+        #     if self._sim_prod_cstr_imp is not None:
+        #         # apply simultaneously impossible
+        #         model_res_grp = self._add_virtual_resource(
+        #             model=model,
+        #             model_res_grp=model_res_grp,
+        #         )
 
         return model_res_grp, res_grp_dict
 
     def _add_virtual_resource(self, model: Model, model_res_grp: dict, ):
-        for res_grp, res_map in self._sim_prod_cstr.items():
+        for res_grp, res_map in self._sim_prod_cstr_imp.items():
             model_res = {}
             for res1, res2 in res_map.items():
                 res_name = res1 + '_' + res2
@@ -228,9 +285,192 @@ class OptSeq(object):
                             model_res=model_res,
                         )
 
+        # Simultaneous production constraint
+        if self._cstr_cfg['apply_sim_prod_cstr']:
+            # Possible production
+            model, activity = self._check_and_add_sim_prod_act(
+                model=model,
+                activity=activity,
+                dmd_list=dmd_list,
+                res_grp_dict=res_grp_dict,
+                model_res=model_res
+            )
+
+            # Impossible production
+            # model, activity = self._check_virtual_res_on_act(
+            #     model=model,
+            #     activity=activity,
+            #     dmd_list=dmd_list
+            # )
+
         model, rm_act_list = self._remove_empty_mode_from_model(model=model)
 
         return model, activity, rm_act_list
+
+    def _check_virtual_res_on_act(self, model, activity, dmd_list):
+        apply_dmd = self._search_sim_prod_impossible_dmd(data=dmd_list)
+        if len(apply_dmd) > 0:
+            dmd_pair = self._check_imposible_dmd_pair(data=apply_dmd)
+            if len(dmd_pair) > 0:
+                print("Apply simultaneous production is impossible")
+                model, activity = self._add_virtual_res_on_act(
+                    model=model,
+                    activity=activity,
+                    dmd_pair=dmd_pair
+                )
+
+        return model, activity
+
+    def _search_sim_prod_impossible_dmd(self, data: list) -> List[List[str]]:
+        imp_dmd = []
+        for dmd_id, sku, res_grp, qty, due_date in data:
+            cstr_brand = self._sim_prod_cstr_imp.get(res_grp, None)
+            if cstr_brand is not None:
+                brand = self._sku_to_brand[sku]
+                cstr_pkg = cstr_brand.get(brand, None)
+                if cstr_pkg is not None:
+                    pkg = self._sku_to_pkg[sku]
+                    if pkg in cstr_pkg:
+                        imp_dmd.append([dmd_id, res_grp, sku, brand, pkg])
+
+        return imp_dmd
+
+    def _check_imposible_dmd_pair(self, data):
+        dmd_df = pd.DataFrame(
+            data,
+            columns=[self._dmd.dmd, 'res_grp_cd', self._item.sku, self._item.brand, self._item.pkg]
+        )
+        pair = []
+        for res_grp, res_grp_df, in dmd_df.groupby(by='res_grp_cd'):
+            for brand, brand_df in res_grp_df.groupby(by=self._item.brand):
+                pkg_list = brand_df[self._item.pkg].unique()
+                if len(pkg_list) > 1:
+                    for pkg in pkg_list:
+                        pkg_dmd = brand_df[brand_df[self._item.pkg] == pkg]
+                        non_pkg_dmd = brand_df[~brand_df[self._item.pkg] == pkg]
+
+                        act1 = util.generate_model_name(
+                            name_list=[pkg_dmd[self._dmd.dmd], pkg_dmd[self._item.sku], pkg_dmd['res_grp_cd']])
+                        act2 = util.generate_model_name(
+                            name_list=[non_pkg_dmd[self._dmd.dmd], non_pkg_dmd[self._item.sku],
+                                       non_pkg_dmd['res_grp_cd']]
+                        )
+                        if (act1, act2) not in pair:
+                            pair.append((act1, act2))
+
+        return pair
+
+    def _add_virtual_res_on_act(self, model, activity, dmd_pair):
+        for act1, act2 in dmd_pair:
+            activity1 = activity[act1]
+            activity2 = activity[act2]
+            sku1, res_grp1 = activity1.split('@')[1:]
+            sku2, res_grp2 = activity2.split('@')[1:]
+
+            virtual_res_name = res_grp1 + '@' + self._sku_to_brand[sku1] + '@' + self._sku_to_pkg[sku1] + '_'\
+                               + self._sku_to_pkg[sku2]
+            virtual_res = model.addResource(name=virtual_res_name, capacity={(0, "inf"): 1})
+
+            for mode in activity1.modes:
+                self._add_virtual_res_on_mode(
+                    mode=mode,
+                    res=virtual_res,
+                    duration=mode.duration
+                )
+
+            for mode in activity2.modes:
+                self._add_virtual_res_on_mode(
+                    mode=mode,
+                    res=virtual_res,
+                    # res=list(mode.requirement.keys())[0][0],
+                    duration=mode.duration
+                )
+
+        return model, activity
+
+    def _add_virtual_res_on_mode(self, mode, res, duration):
+        mode = self._add_resource(
+                    mode=mode,
+                    resource=res,
+                    duration=duration
+                )
+
+        return mode
+
+    def _check_and_add_sim_prod_act(self, model, activity, dmd_list, res_grp_dict, model_res):
+        apply_dmd = self._classify_sim_prod_possible_dmd(data=dmd_list)
+        if len(apply_dmd) > 0:
+            model, activity = self._add_sim_prod_act(
+                model=model,
+                dmd_list=dmd_list,
+                apply_dmd=apply_dmd,
+                res_grp_dict=res_grp_dict,
+                model_res=model_res)
+
+        return model, activity
+
+    def _add_sim_prod_act(self, model: Model, dmd_list: list, apply_dmd: list, res_grp_dict: dict, model_res: dict):
+        for dmd_id, sku, res_grp, qty, due_date in apply_dmd:
+            # Available package of simultaneously making
+            brand = self._sku_to_brand[sku]
+            sim_pkg = self._sim_prod_cstr_nec[res_grp][brand][self._sku_to_pkg[sku]]
+
+            # Select SKU to be made
+            sku = self._select_sku_to_be_made(brand=brand, pkg=sim_pkg)
+
+            # Search SKU if it is in other demand
+            if sku is not None:
+                sku_in_other_dmd = self._search_sku_in_other_dmd(dmd_list=dmd_list, sku=sku)
+                if len(sku_in_other_dmd) > 0:
+                    print('!!!')
+            else:
+                self._add_new_act(model=model, dmd=[dmd_id, sku, res_grp, qty, due_date], model_res=model_res)
+
+    def _add_new_act(self, model: Model, dmd: list, model_res: dict):
+        pass
+        abc
+
+    @staticmethod
+    def _search_sku_in_other_dmd(dmd_list: list, sku: str):
+        sku_in_dmd = []
+        for dmd in dmd_list:
+            if sku in dmd[1]:
+                sku_in_dmd.append(dmd)
+
+        return sku_in_dmd
+
+    def _select_sku_to_be_made(self, brand, pkg):
+        sku = None
+        pkg_sku_list = self._brand_pkg_sku_map.get(brand, None)
+        if pkg_sku_list is not None:
+            sku_list = pkg_sku_list.get(pkg, None)
+            if sku_list is not None:
+                if len(sku_list) > 1:
+                    sku = self.compare_curr_stock(sku_list=sku_list)
+                elif len(sku_list) == 1:
+                    sku = sku_list[0]
+
+        return sku
+
+    @staticmethod
+    def compare_curr_stock(sku_list: list):
+        # Todo: need to revise
+        return sku_list[0]
+
+    def _classify_sim_prod_possible_dmd(self, data: list) -> List[str]:
+        apply_dmd = []
+        for dmd_id, sku, res_grp, qty, due_date in data:
+            cstr_res_grp = self._sim_prod_cstr_nec.get(res_grp, None)
+            if cstr_res_grp is not None:
+                brand = self._sku_to_brand[sku]
+                cstr_brand = cstr_res_grp.get(brand, None)
+                if cstr_brand is not None:
+                    pkg = self._sku_to_pkg[sku]
+                    cstr_pkg = cstr_brand.get(pkg, None)
+                    if cstr_pkg is not None:
+                        apply_dmd.append([dmd_id, sku, res_grp, qty, due_date])
+
+        return apply_dmd
 
     def _add_route_act(self, model, activity, fwd_act, dmd_id, item_cd, qty, due_date, model_res):
         half_item_list = self._route_item[item_cd]
@@ -320,13 +560,13 @@ class OptSeq(object):
                     duration=duration
                 )
 
-                if self._cstr_cfg['apply_sim_prod_cstr']:
-                    mode = self._add_virtual_res_on_mode(
-                        mode=mode,
-                        resource=resource,
-                        model_res=model_res,
-                        duration=duration
-                    )
+                # if self._cstr_cfg['apply_sim_prod_cstr']:
+                #     mode = self._add_virtual_res_on_mode(
+                #         mode=mode,
+                #         resource=resource,
+                #         model_res=model_res,
+                #         duration=duration
+                #     )
 
                 # add mode list to activity
                 act.addModes(mode)
@@ -334,17 +574,17 @@ class OptSeq(object):
         return act
 
     # Simultaneous constraint: Add virtual resource
-    def _add_virtual_res_on_mode(self, mode, resource, model_res, duration):
-        virtual_dict = model_res.get('virtual', None)
-        if virtual_dict:
-            virtual_res = virtual_dict.get(resource, None)
-            mode = self._add_resource(
-                mode=mode,
-                resource=virtual_res,
-                duration=duration
-            )
-
-        return mode
+    # def _add_virtual_res_on_mode(self, mode, resource, model_res, duration):
+    #     virtual_dict = model_res.get('virtual', None)
+    #     if virtual_dict:
+    #         virtual_res = virtual_dict.get(resource, None)
+    #         mode = self._add_resource(
+    #             mode=mode,
+    #             resource=virtual_res,
+    #             duration=duration
+    #         )
+    #
+    #     return mode
 
     # Add the specified resource which amount required when executing the mode
     @staticmethod
@@ -599,15 +839,6 @@ class OptSeq(object):
     @staticmethod
     def optimize(model: Model):
         model.optimize()
-
-    def _set_res_to_res_grp(self) -> None:
-        res_grp = self._res_grp.copy()
-        res_to_res_grp = {}
-        for res_grp_cd, res_list in res_grp.items():
-            for res_cd in res_list:
-                res_to_res_grp[res_cd] = res_grp_cd
-
-        self._res_to_res_grp = res_to_res_grp
 
     #####################
     # Save

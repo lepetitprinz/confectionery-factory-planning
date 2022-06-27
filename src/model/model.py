@@ -66,7 +66,8 @@ class OptSeq(object):
 
         # Simultaneous production constraint
         if self._cstr_cfg['apply_sim_prod_cstr']:
-            self._sim_prod_cstr = plant_data[self._key.cstr][self._key.sim_prod_cstr].get(plant, None)
+            # self._sim_prod_cstr_imp = plant_data[self._key.cstr][self._key.sim_prod_cstr]['impossible'].get(plant, None)
+            self._sim_prod_cstr_imp = plant_data[self._key.cstr][self._key.sim_prod_cstr].get(plant, None)
 
         # Mold capacity constraint
         # if self._cstr_cfg['apply_mold_capa_cstr']:
@@ -149,7 +150,7 @@ class OptSeq(object):
                 res_grp_dict.pop(res_grp)
 
         if self._cstr_cfg['apply_sim_prod_cstr']:
-            if self._sim_prod_cstr is not None:
+            if self._sim_prod_cstr_imp is not None:
                 model_res_grp = self._add_virtual_resource(
                     model=model,
                     model_res_grp=model_res_grp,
@@ -165,7 +166,7 @@ class OptSeq(object):
         return model_res_grp, res_grp_dict
 
     def _add_virtual_resource(self, model: Model, model_res_grp: dict, ):
-        for res_grp, res_map in self._sim_prod_cstr.items():
+        for res_grp, res_map in self._sim_prod_cstr_imp.items():
             model_res = {}
             for res1, res2 in res_map.items():
                 res_name = res1 + '_' + res2
@@ -366,17 +367,6 @@ class OptSeq(object):
             )
 
         return mode
-
-    def _check_mold_res_existence(self, res, item) -> bool:
-        flag = False
-        if self._mold_res is not None:
-            res_check = self._mold_res.get(res, None)
-            if res_check is not None:
-                item_check = res_check.get(item, None)
-                if item_check is not None:
-                    flag = True
-
-        return flag
 
     # Add the specified resource which amount required when executing the mode
     @staticmethod

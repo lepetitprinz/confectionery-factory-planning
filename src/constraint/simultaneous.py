@@ -1,11 +1,11 @@
 import common.util as util
 import common.config as config
-from common.name import Key, Demand, Item, Resource, Constraint
+from common.name import Key, Demand, Item, Resource
 
 import numpy as np
 import pandas as pd
 import datetime as dt
-from typing import Hashable, Dict, Union, Tuple
+from typing import Tuple
 
 
 class Necessary(object):
@@ -182,7 +182,6 @@ class Necessary(object):
                     all_dmd = self.rearrange_sku_in_timeline(
                         dmd=dmd,
                         all_dmd=all_dmd,
-                        sku=sku,
                         cand_dmd=sku_in_other_dmd
                     )
                 else:
@@ -406,7 +405,7 @@ class Necessary(object):
 
         return exist_df
 
-    def rearrange_sku_in_timeline(self, dmd, all_dmd, sku, cand_dmd) -> pd.DataFrame:
+    def rearrange_sku_in_timeline(self, dmd, all_dmd, cand_dmd) -> pd.DataFrame:
         confirm_res = self.decide_rearrange_resource(data=cand_dmd)
 
         cand_dmd = cand_dmd[cand_dmd[self.res.res] == confirm_res].copy()

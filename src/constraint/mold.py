@@ -1,17 +1,16 @@
 import common.util as util
 import common.config as config
-from common.name import Key, Demand, Item, Resource, Constraint, Post
+from common.name import Key, Demand, Item, Resource, Constraint
 
 import numpy as np
 import pandas as pd
-from typing import Tuple, List, Hashable, Union
+from typing import Tuple, List
 
 
 class Mold(object):
     def __init__(self, plant, cstr, res_dur, mold_cstr, res_to_res_grp):
         # Name instance attribute
         self._key = Key()
-        self._post = Post()
         self._item = Item()
         self._dmd = Demand()
         self._res = Resource()
@@ -157,13 +156,15 @@ class Mold(object):
             af_dmd['tot_weight'] = af_capa
             af_dmd[self._dmd.prod_qty] = round(data[self._dmd.prod_qty] * af_rate)
             af_dmd[self._dmd.duration] = round(data[self._dmd.duration] * af_rate)
-            af_dmd[self._dmd.start_time] = self.res_day_capa[af_dmd[self._res.res]][self.calc_next_day(day)][0]
+            # af_dmd[self._dmd.start_time] = self.res_day_capa[af_dmd[self._res.res]][self.calc_next_day_bak(day)][0]
+            af_dmd[self._dmd.start_time] = self.calc_next_day(res=af_dmd[self._res.res], day=day)
             af_dmd[self._dmd.end_time] = af_dmd[self._dmd.start_time] + af_dmd[self._dmd.duration]
 
             move_duration = bf_dmd[self._dmd.start_time] - data[self._dmd.start_time]
         else:
             bf_dmd = pd.DataFrame()
-            af_dmd[self._dmd.start_time] = self.res_day_capa[data[self._res.res]][self.calc_next_day(day)][0]
+            # af_dmd[self._dmd.start_time] = self.res_day_capa[data[self._res.res]][self.calc_next_day_bak(day)][0]
+            af_dmd[self._dmd.start_time] = self.calc_next_day(res=af_dmd[self._res.res], day=day)
             af_dmd[self._dmd.end_time] = af_dmd[self._dmd.start_time] + data[self._dmd.duration]
             move_duration = af_dmd[self._dmd.start_time] - data[self._dmd.start_time]
 
@@ -175,10 +176,31 @@ class Mold(object):
 
         return bf_rate, 1 - bf_rate
 
+    def calc_next_day(self, res: str, day: int) -> int:
+        res_day_capa_list = self.res_day_capa[res]
+        if len(res_day_capa_list) == 7:
+            next_day = day + 1
+        elif len(res_day_capa_list) == 6:
+            if day % 7 == 5:
+                next_day = day + 2
+            else:
+                next_day = day + 1
+        else:
+            if day % 7 == 5:
+                next_day = day + 2
+            elif day % 7 == 4:
+                next_day = day + 3
+            else:
+                next_day = day + 1
+
+        return res_day_capa_list[next_day][0]
+
     @staticmethod
-    def calc_next_day(day):
+    def calc_next_day_bak(day):
         if day % 7 == 5:
             next_day = day + 2
+        elif day % 7 == 4:
+            next_day = day + 3
         else:
             next_day = day + 1
 
@@ -194,7 +216,6 @@ class Mold(object):
             on=[self._res.res, self._dmd.end_time]
         )
 
-        move_dmd = pd.DataFrame()
         if len(weight_by_res[weight_by_res['tot_weight'] >= excess_capa]):
             weight_over_res = weight_by_res[weight_by_res['tot_weight'] >= excess_capa]
             weight_over_min_res = weight_over_res[weight_over_res['tot_weight'] == weight_over_res['tot_weight'].min()
@@ -278,10 +299,6 @@ class Mold(object):
 
         return applied_data
 
-    @staticmethod
-    def conv_duration_to_weight(duration, weight_unit, capa_use_rate):
-        return duration * weight_unit / capa_use_rate
-
     def add_weight(self, data: pd.DataFrame) -> pd.DataFrame:
         data[self._dmd.duration] = data[self._dmd.end_time] - data[self._dmd.start_time]
         data['capa_use_rate'] = [    # Capa use rate
@@ -326,6 +343,8 @@ class Mold(object):
             else:
                 mold_res_weight = sku_exist.get(sku, None)
                 if mold_res_weight is None:
+                    flag.append(False)
+                elif np.isnan(mold_res_weight[1]):
                     flag.append(False)
                 else:
                     flag.append(True)

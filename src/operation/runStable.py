@@ -4,7 +4,7 @@ import os
 import datetime
 
 fp_num = '01'
-fp_seq = '3'
+fp_seq = '4'
 
 base_path = {
     'root': os.path.join('..', '..'),

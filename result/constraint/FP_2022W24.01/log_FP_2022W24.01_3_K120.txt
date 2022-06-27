@@ -1,3 +1,3 @@
 Plant[K120] - Demand[SP_0000173] - Resource Group[2104] -Resource[10012789] - SKU[5106433] : Simultaneous production is added.
 Plant[K120] - Demand[SP_0000176] - Resource Group[2104] -Resource[10012789] - SKU[5106433] : Simultaneous production is added.
-Plant[K120] - Demand[SP_0000180] - Resource Group[2104] -Resource[10001142] - SKU[5106433] : Simultaneous production is added.
+Plant[K120] - Demand[SP_0000180] - Resource Group[2104] -Resource[10010023] - SKU[5106433] : Simultaneous production is added.
