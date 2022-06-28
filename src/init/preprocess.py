@@ -50,9 +50,7 @@ class Preprocess(object):
             self._cstr.jc_time, self._cstr.jc_unit
         ]
         self._col_res_lot = [self._res.plant, self._res.res, self._item.sku, self._res.min_lot, self._res.multi_lot]
-        self._col_mold_res = [
-            self._res.plant, self._res.res, self._item.sku, self._cstr.mold_res, self._cstr.mold_use_rate
-        ]
+        self._col_mold_res = [self._res.plant, self._res.res, self._item.sku, self._cstr.mold_res]
         self._col_item_weight = [self._item.sku, self._item.weight, self._item.weight_uom]
 
     def preprocess(self, data):
@@ -266,6 +264,7 @@ class Preprocess(object):
     def _set_mold_res(self, data: pd.DataFrame):
         data = data[data[self._res.plant].isin(self._dmd_plant_list)].copy()
 
+        # Filter columns
         data = data[self._col_mold_res]
         data = data[~data[self._cstr.mold_res].isna()]
 
@@ -281,9 +280,8 @@ class Preprocess(object):
                 item_mold = {}
                 for item, item_df in res_df.groupby(by=self._item.sku):
                     mold_res = item_df[self._cstr.mold_res].values[0]
-                    mold_use_rate = item_df[self._cstr.mold_use_rate].values[0]
                     if mold_res != '-':
-                        item_mold[item] = (mold_res, mold_use_rate)
+                        item_mold[item] = mold_res
                 if len(item_mold) > 0:
                     res_item[res] = item_mold
             if len(res_item) > 0:
@@ -533,6 +531,7 @@ class Preprocess(object):
                 capa = self._res.res_capa + str(i + 1) + '_' + kind
                 data[capa] = data[capa].fillna(0)
                 data[capa] = data[capa].astype(int)
+                data[capa] = np.where(data[capa] > 720, 720, data[capa])
                 col_capa.append(capa)
 
         data = data[self._col_res_avail_time + col_capa].copy()
@@ -549,7 +548,7 @@ class Preprocess(object):
         # Drop resources that don't have available time
         data = data.drop(data[data[col_capa].sum(axis=1) == 0].index)
 
-        data = data.sort_values(by=[self._res.plant, ])
+        data = data.sort_values(by=[self._res.plant])
 
         res_avail_time_by_plant = {}
         for plant, plant_df in data.groupby(by=self._res.plant):

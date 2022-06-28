@@ -1,43 +1,4 @@
-Demand[FP_0000108] - Plant[K120] - Floor[A] - Resource Group[2104] - Resource[10001142] - SKU[5106433]: Constraint of human capacity is applied.
-Demand[FP_0000109] - Plant[K120] - Floor[A] - Resource Group[2104] - Resource[10001142] - SKU[5106434]: Constraint of human capacity is applied.
-Demand[FP_0000171] - Plant[K120] - Floor[A] - Resource Group[2105] - Resource[10015408] - SKU[5107605]: Constraint of human capacity is applied.
-Demand[FP_0000173] - Plant[K120] - Floor[A] - Resource Group[2104] - Resource[10005902] - SKU[5107656]: Constraint of human capacity is applied.
-Demand[FP_0000176] - Plant[K120] - Floor[A] - Resource Group[2104] - Resource[10005902] - SKU[5107656]: Constraint of human capacity is applied.
-Demand[FP_0000255] - Plant[K120] - Floor[A] - Resource Group[2105] - Resource[10015408] - SKU[5109190]: Constraint of human capacity is applied.
-Demand[FP_0000363] - Plant[K120] - Floor[A] - Resource Group[2104] - Resource[10005902] - SKU[5125187]: Constraint of human capacity is applied.
-Demand[FP_0000365@FP_0000984] - Plant[K120] - Floor[A] - Resource Group[2104] - Resource[10001142] - SKU[5142258]: Constraint of human capacity is applied.
-Demand[FP_0000365] - Plant[K120] - Floor[A] - Resource Group[2104] - Resource[10001142] - SKU[5125187]: Constraint of human capacity is applied.
-Demand[FP_0000430] - Plant[K120] - Floor[A] - Resource Group[2105] - Resource[10006325] - SKU[5128013]: Constraint of human capacity is applied.
-Demand[FP_0000482] - Plant[K120] - Floor[A] - Resource Group[2104] - Resource[10010023] - SKU[5129844]: Constraint of human capacity is applied.
-Demand[FP_0000620] - Plant[K120] - Floor[A] - Resource Group[2110] - Resource[10005762] - SKU[5140692]: Constraint of human capacity is applied.
-Demand[FP_0000802] - Plant[K120] - Floor[A] - Resource Group[2104] - Resource[10010023] - SKU[5141386]: Constraint of human capacity is applied.
-Demand[FP_0000806] - Plant[K120] - Floor[A] - Resource Group[2104] - Resource[10010023] - SKU[5141386]: Constraint of human capacity is applied.
-Demand[FP_0000831] - Plant[K120] - Floor[A] - Resource Group[2108] - Resource[10005544] - SKU[5141684]: Constraint of human capacity is applied.
-Demand[FP_0000881] - Plant[K120] - Floor[A] - Resource Group[2104] - Resource[10010023] - SKU[5141808]: Constraint of human capacity is applied.
-Demand[FP_0000884] - Plant[K120] - Floor[A] - Resource Group[2104] - Resource[10010023] - SKU[5141808]: Constraint of human capacity is applied.
-Demand[FP_0000907@FP_0001127] - Plant[K120] - Floor[A] - Resource Group[2105] - Resource[10015408] - SKU[5142814]: Constraint of human capacity is applied.
-Demand[FP_0000907] - Plant[K120] - Floor[A] - Resource Group[2105] - Resource[10015408] - SKU[5141844]: Constraint of human capacity is applied.
-Demand[FP_0000912] - Plant[K120] - Floor[A] - Resource Group[2108] - Resource[10005544] - SKU[5141954]: Constraint of human capacity is applied.
-Demand[FP_0000926] - Plant[K120] - Floor[A] - Resource Group[2108] - Resource[10005544] - SKU[5141986]: Constraint of human capacity is applied.
-Demand[FP_0000929] - Plant[K120] - Floor[A] - Resource Group[2108] - Resource[10005544] - SKU[5141986]: Constraint of human capacity is applied.
-Demand[FP_0000932] - Plant[K120] - Floor[A] - Resource Group[2108] - Resource[10005544] - SKU[5141986]: Constraint of human capacity is applied.
-Demand[FP_0000960] - Plant[K120] - Floor[A] - Resource Group[2108] - Resource[10005544] - SKU[5142202]: Constraint of human capacity is applied.
-Demand[FP_0000961] - Plant[K120] - Floor[A] - Resource Group[2108] - Resource[10005544] - SKU[5142202]: Constraint of human capacity is applied.
-Demand[FP_0000984] - Plant[K120] - Floor[A] - Resource Group[2104] - Resource[10001142] - SKU[5142258]: Constraint of human capacity is applied.
-Demand[FP_0000985] - Plant[K120] - Floor[A] - Resource Group[2104] - Resource[10005902] - SKU[5142258]: Constraint of human capacity is applied.
-Demand[FP_0000995] - Plant[K120] - Floor[B] - Resource Group[2303] - Resource[10003447] - SKU[5142325]: Constraint of human capacity is applied.
-Demand[FP_0001091] - Plant[K120] - Floor[B] - Resource Group[2303] - Resource[10013015] - SKU[5142692]: Constraint of human capacity is applied.
-Demand[FP_0001127@FP_0001251] - Plant[K120] - Floor[A] - Resource Group[2105] - Resource[10015408] - SKU[5142870]: Constraint of human capacity is applied.
-Demand[FP_0001127] - Plant[K120] - Floor[A] - Resource Group[2105] - Resource[10015408] - SKU[5142814]: Constraint of human capacity is applied.
-Demand[FP_0001158] - Plant[K120] - Floor[B] - Resource Group[2306] - Resource[10018825] - SKU[5142838]: Constraint of human capacity is applied.
-Demand[FP_0001204] - Plant[K120] - Floor[A] - Resource Group[2105] - Resource[10015408] - SKU[5142866]: Constraint of human capacity is applied.
-Demand[FP_0001207] - Plant[K120] - Floor[A] - Resource Group[2105] - Resource[10015408] - SKU[5142866]: Constraint of human capacity is applied.
-Demand[FP_0001208] - Plant[K120] - Floor[A] - Resource Group[2105] - Resource[10015408] - SKU[5142866]: Constraint of human capacity is applied.
-Demand[FP_0001213] - Plant[K120] - Floor[A] - Resource Group[2105] - Resource[10006325] - SKU[5142867]: Constraint of human capacity is applied.
-Demand[FP_0001217@FP_0001253] - Plant[K120] - Floor[A] - Resource Group[2105] - Resource[10006325] - SKU[5142871]: Constraint of human capacity is applied.
-Demand[FP_0001217] - Plant[K120] - Floor[A] - Resource Group[2105] - Resource[10006325] - SKU[5142867]: Constraint of human capacity is applied.
-Demand[FP_0001246] - Plant[K120] - Floor[A] - Resource Group[2105] - Resource[10015408] - SKU[5142870]: Constraint of human capacity is applied.
-Demand[FP_0001247] - Plant[K120] - Floor[A] - Resource Group[2105] - Resource[10015408] - SKU[5142870]: Constraint of human capacity is applied.
-Demand[FP_0001251@FP_0000171] - Plant[K120] - Floor[A] - Resource Group[2105] - Resource[10015408] - SKU[5107605]: Constraint of human capacity is applied.
-Demand[FP_0001251] - Plant[K120] - Floor[A] - Resource Group[2105] - Resource[10015408] - SKU[5142870]: Constraint of human capacity is applied.
-Demand[FP_0001253] - Plant[K120] - Floor[A] - Resource Group[2105] - Resource[10006325] - SKU[5142871]: Constraint of human capacity is applied.
+Plant[K120] - Demand[SP_0000173] - Resource Group[2104] -Resource[10012789] - SKU[5106372] : Simultaneous production is added.
+Plant[K120] - Demand[SP_0000176] - Resource Group[2104] -Resource[10010023] - SKU[5106372] : Simultaneous production is added.
+Plant[K120] - Demand[SP_0000176] - Resource Group[2104] -Resource[10012789] - SKU[5106372] : Simultaneous production is added.
+Plant[K120] - Demand[SP_0000180] - Resource Group[2104] -Resource[10012789] - SKU[5106372] : Simultaneous production is added.

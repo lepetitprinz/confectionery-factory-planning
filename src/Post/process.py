@@ -278,7 +278,7 @@ class Process(object):
     def apply_mold_cstr(self, data):
         mold_cstr = Mold(
             plant=self._plant,
-            cstr=self._cstr_mst,
+            data=self._data,
             res_dur=self._res_duration,
             mold_cstr=self.mold_capa_cstr,
             res_to_res_grp=self._res_to_res_grp
@@ -481,7 +481,10 @@ class Process(object):
     def _set_item_res_capa_rate(self, data):
         capa_rate_list = []
         for item_cd, res_cd in zip(data[self._item.sku], data[self._res.res]):
-            capa_rate = self._res_duration[item_cd].get(res_cd, self._item_avg_duration[item_cd])
+            if item_cd in self._res_duration:
+                capa_rate = self._res_duration[item_cd].get(res_cd, self._item_avg_duration[item_cd])
+            else:    # Todo: Exception
+                capa_rate = 20
             capa_rate_list.append(capa_rate)
 
         data['capa_rate'] = capa_rate_list

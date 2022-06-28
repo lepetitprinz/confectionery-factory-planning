@@ -176,6 +176,7 @@ class Pipeline(object):
             for plant in prep_data[self.key.dmd][self.key.dmd_list]:
                 print(f"\nPost process: plant {plant}")
                 if len(plant_model[plant]['model'].act) > 0:
+                # if plant == 'K130':
                     pp = Process(
                         io=self.io,
                         cfg=self.cfg,

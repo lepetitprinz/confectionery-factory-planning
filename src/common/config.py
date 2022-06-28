@@ -18,7 +18,8 @@ apply_plant = ['K110', 'K120', 'K130', 'K140', 'K170']
 work_day = 7
 time_uom = 'sec'
 time_multiple = 60
-schedule_weeks = 52     # 6 month
+# schedule_weeks = 52     # 6 month
+schedule_weeks = 104     # 6 month
 plant_start_hour = 0
 sec_of_day = 86400
 
@@ -183,10 +184,10 @@ make_span = True
 optput_flag = True
 max_iteration = 10 ** 20
 time_limit = {
-    'K110': 60,
-    'K120': 60,
-    'K130': 60,
-    'K140': 60,
-    'K150': 60,
-    'K170': 60,
+    'K110': 90,
+    'K120': 90,
+    'K130': 90,
+    'K140': 90,
+    'K150': 90,
+    'K170': 90,
 }

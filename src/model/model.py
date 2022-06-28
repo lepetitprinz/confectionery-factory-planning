@@ -596,15 +596,15 @@ class OptSeq(object):
                     res = list(mode.requirement.keys())[0][0]
                     act_mode_res_list.add(res)
 
-        # if len(act_mode_res_list - res_list) > 0:
-        #     raise ValueError(f"Infeasible Setting")
-        #
-        # elif len(res_list - act_mode_res_list) > 0:
-        #     res_filter_list = list(res_list - act_mode_res_list)
-        #
-        #     for resource in model.res[:]:
-        #         if resource.name in res_filter_list:
-        #             model.res.remove(resource)
+        if len(act_mode_res_list - res_list) > 0:
+            raise ValueError(f"Infeasible Setting")
+
+        elif len(res_list - act_mode_res_list) > 0:
+            res_filter_list = list(res_list - act_mode_res_list)
+
+            for resource in model.res[:]:
+                if resource.name in res_filter_list:
+                    model.res.remove(resource)
 
         return model
 

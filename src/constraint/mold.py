@@ -8,7 +8,7 @@ from typing import Tuple, List
 
 
 class Mold(object):
-    def __init__(self, plant, cstr, res_dur, mold_cstr, res_to_res_grp):
+    def __init__(self, plant, data, res_dur, mold_cstr, res_to_res_grp):
         # Name instance attribute
         self._key = Key()
         self._item = Item()
@@ -16,30 +16,36 @@ class Mold(object):
         self._res = Resource()
         self._cstr = Constraint()
 
-        self.plant = plant
-        self.mold_apply_res_grp = []
+        self._plant = plant
+        self._mold_apply_res_grp = []
 
         # Dataset & hash map
-        self.cstr_mst = cstr
-        self.res_dur = res_dur
-        self.res_to_capa = {}
-        self.res_day_capa = {}
-        self.res_to_res_grp = res_to_res_grp
+        self._item_mst = data[self._key.item]
+        self._cstr_mst = data[self._key.cstr]
+        self._res_dur = res_dur
+        self._res_to_capa = {}
+        self._res_day_capa = {}
+        self._res_to_res_grp = res_to_res_grp
 
         # Mold constraint instance attribute
+        self.weight_conv_map = {'G': 0.001, 'KG': 1, 'TON': 1000}
         self.mold_res = mold_cstr[self._key.mold_res].get(plant, None)
         self.mold_capa = mold_cstr[self._key.mold_capa].get(plant, None)
 
         # Time instance attribute
         self.work_day = config.work_day    # 6 days: Monday ~ Friday
         self.sec_of_day = config.sec_of_day    # Seconds of 1 day
+        self.day_multiple = 3
         self.time_multiple = config.time_multiple    # Minute -> Seconds
         self.time_interval = []
         self.schedule_weeks = config.schedule_weeks
 
+        # Column information
+        self._col_item_mst = [self._item.sku, self._item.weight, self._item.weight_uom]
+
     def apply(self, data: pd.DataFrame):
         # Preprocess the dataset
-        self.preprocess()
+        data = self.preprocess(data=data)
 
         # Classify constraints appliance
         apply_dmd, non_apply_dmd = self.classify_cstr_apply(data=data)
@@ -54,7 +60,7 @@ class Mold(object):
             apply_dmd = self.add_weight(data=apply_dmd)
 
             mold_res_day = apply_dmd.groupby(by=self._cstr.mold_res).max()['day'].reset_index()
-            mold_res_day['day'] = mold_res_day['day'].values * 2
+            mold_res_day['day'] = mold_res_day['day'].values * self.day_multiple
 
             result = pd.DataFrame()
             for mold_res in mold_res_day[self._cstr.mold_res]:
@@ -65,13 +71,14 @@ class Mold(object):
 
             result = self.update_day(data=result)
             result = pd.concat([result, non_apply_dmd], axis=0).reset_index(drop=True)
-            result = result.drop(columns=[self._dmd.prod_qty, self._dmd.duration, self._cstr.mold_res, 'mold_weight',
-                                          'capa_use_rate',  'tot_weight', 'day'])
+            result = result.drop(columns=[self._dmd.prod_qty, self._dmd.duration, self._cstr.mold_res,
+                                          self._item.weight, 'capa_use_rate',  'tot_weight', 'day'])
 
             return result
 
     def apply_time_move(self, data, mold_res, day):
         while self.check_daily_capa_excess(data=data, mold_res=mold_res, day=day):
+            print(f'resource: {mold_res}, day: {day}')
             move_dmd, excess_capa = self.decide_which_dmd_move(
                 data=data, mold_res=mold_res, day=day
             )
@@ -150,6 +157,7 @@ class Mold(object):
             bf_dmd[self._dmd.prod_qty] = round(data[self._dmd.prod_qty] * bf_rate)
             bf_dmd[self._dmd.duration] = round(data[self._dmd.duration] * bf_rate)
             bf_dmd[self._dmd.start_time] = bf_dmd[self._dmd.end_time] - bf_dmd[self._dmd.duration]
+            bf_dmd['day'] = self.update_day(data=bf_dmd)
 
             # Demand (after)
             af_capa = excess_capa
@@ -157,15 +165,16 @@ class Mold(object):
             af_dmd[self._dmd.prod_qty] = round(data[self._dmd.prod_qty] * af_rate)
             af_dmd[self._dmd.duration] = round(data[self._dmd.duration] * af_rate)
             # af_dmd[self._dmd.start_time] = self.res_day_capa[af_dmd[self._res.res]][self.calc_next_day_bak(day)][0]
-            af_dmd[self._dmd.start_time] = self.calc_next_day(res=af_dmd[self._res.res], day=day)
+            af_dmd[self._dmd.start_time] = self.calc_next_day(res=af_dmd[self._res.res], day=bf_dmd['day'])
             af_dmd[self._dmd.end_time] = af_dmd[self._dmd.start_time] + af_dmd[self._dmd.duration]
-
-            move_duration = bf_dmd[self._dmd.start_time] - data[self._dmd.start_time]
+            af_dmd['day'] = self.update_day(data=af_dmd)
+            move_duration = af_dmd[self._dmd.end_time] - bf_dmd[self._dmd.end_time]
         else:
             bf_dmd = pd.DataFrame()
             # af_dmd[self._dmd.start_time] = self.res_day_capa[data[self._res.res]][self.calc_next_day_bak(day)][0]
             af_dmd[self._dmd.start_time] = self.calc_next_day(res=af_dmd[self._res.res], day=day)
             af_dmd[self._dmd.end_time] = af_dmd[self._dmd.start_time] + data[self._dmd.duration]
+            af_dmd['day'] = self.update_day(data=af_dmd)
             move_duration = af_dmd[self._dmd.start_time] - data[self._dmd.start_time]
 
         return bf_dmd, af_dmd, move_duration
@@ -177,7 +186,7 @@ class Mold(object):
         return bf_rate, 1 - bf_rate
 
     def calc_next_day(self, res: str, day: int) -> int:
-        res_day_capa_list = self.res_day_capa[res]
+        res_day_capa_list = self._res_day_capa[res]
         if len(res_day_capa_list) == 7:
             next_day = day + 1
         elif len(res_day_capa_list) == 6:
@@ -194,17 +203,6 @@ class Mold(object):
                 next_day = day + 1
 
         return res_day_capa_list[next_day][0]
-
-    @staticmethod
-    def calc_next_day_bak(day):
-        if day % 7 == 5:
-            next_day = day + 2
-        elif day % 7 == 4:
-            next_day = day + 3
-        else:
-            next_day = day + 1
-
-        return next_day
 
     def decide_which_dmd_move(self, data: pd.DataFrame, mold_res: str, day: int) -> Tuple[pd.Series, float]:
         res_data = data[(data[self._cstr.mold_res] == mold_res) & (data['day'] == day)].copy()
@@ -243,8 +241,11 @@ class Mold(object):
 
         return flag
 
-    def update_day(self, data: pd.DataFrame) -> pd.DataFrame:
-        data['day'] = [self.check_day(time=stime) for stime in data[self._dmd.start_time]]
+    def update_day(self, data) -> pd.DataFrame:
+        if isinstance(data, pd.DataFrame):
+            data['day'] = [self.check_day(time=stime) for stime in data[self._dmd.start_time]]
+        elif isinstance(data, pd.Series):
+            data = self.check_day(time=data[self._dmd.end_time])
 
         return data
 
@@ -257,7 +258,7 @@ class Mold(object):
         applied_data = pd.DataFrame()
 
         time_start = 0
-        res_capa_list = self.res_to_capa[res]
+        res_capa_list = self._res_to_capa[res]
         data = data.sort_values(by=self._dmd.start_time)
         for idx, start_time, end_time in zip(data.index, data[self._dmd.start_time], data[self._dmd.end_time]):
             if time_start > start_time:
@@ -273,7 +274,11 @@ class Mold(object):
                     running_time = end_time - start_time
 
                     if running_time <= capa_end - start_time:
-                        split_rate = running_time / dmd[self._dmd.duration]
+                        dmd[self._dmd.duration] = end_time - start_time
+                        if dmd[self._dmd.duration] != 0:
+                            split_rate = running_time / dmd[self._dmd.duration]
+                        else:
+                            split_rate = 0
                         dmd[self._dmd.prod_qty] = round(dmd[self._dmd.prod_qty] * split_rate)
                         dmd['tot_weight'] = round(dmd['tot_weight'] * split_rate)
 
@@ -302,13 +307,14 @@ class Mold(object):
     def add_weight(self, data: pd.DataFrame) -> pd.DataFrame:
         data[self._dmd.duration] = data[self._dmd.end_time] - data[self._dmd.start_time]
         data['capa_use_rate'] = [    # Capa use rate
-            self.res_dur[sku][res] for sku, res in zip(data[self._item.sku], data[self._res.res])
+            self._res_dur[sku][res] for sku, res in zip(data[self._item.sku], data[self._res.res])
         ]
 
         # Calculate Production quantity
         data[self._dmd.prod_qty] = data[self._dmd.duration] / data['capa_use_rate']
         data[self._dmd.prod_qty] = np.where(data[self._dmd.dmd].str.contains('@'), 0, data[self._dmd.prod_qty])
-        data['tot_weight'] = data['mold_weight'] * np.floor(data[self._dmd.prod_qty])
+        data['tot_weight'] = data[self._item.weight] * np.floor(data[self._dmd.prod_qty])
+        # data['tot_weight'] = data['mold_weight'] * np.floor(data[self._dmd.prod_qty])
         data['tot_weight'] = data['tot_weight'].astype(int)
 
         # Change job change
@@ -317,18 +323,47 @@ class Mold(object):
 
         return data
 
-    def preprocess(self) -> None:
+    def preprocess(self, data: pd.DataFrame) -> pd.DataFrame:
+        # Preprocess item master
+        item = self.prep_item()
+
         # Preprocess mold data
         self.prep_mold()
 
         # route = self.prep_route()
         self.make_daily_time_interval()
 
-        self.set_res_capacity(data=self.cstr_mst[self._key.res_avail_time])
+        self.set_res_capacity(data=self._cstr_mst[self._key.res_avail_time])
+
+        data = self.add_item_info(data=data, item=item)
+
+        return data
+
+    def add_item_info(self, data: pd.DataFrame, item: pd.DataFrame) -> pd.DataFrame:
+        merged = pd.merge(data, item, on=self._item.sku, how='left')
+
+        return merged
+
+    def prep_item(self):
+        # Filter columns
+        item = self._item_mst[self._col_item_mst].copy()
+
+        item[self._item.sku] = item[self._item.sku].astype(str)
+        item[self._item.weight] = item[self._item.weight].astype(float)
+        item[self._item.weight_uom] = item[self._item.weight_uom].fillna('G')
+
+        item = item.dropna(subset=[self._item.weight])
+        item[self._item.weight] = np.round([weight * self.weight_conv_map[uom] for weight, uom in zip(
+                                   item[self._item.weight], item[self._item.weight_uom])], 4)
+
+        item = item.drop(columns=[self._item.weight_uom])
+        item = item.drop_duplicates()
+
+        return item
 
     def prep_mold(self):
-        self.mold_apply_res_grp = list(set([self.res_to_res_grp[res] for res in self.mold_res
-                                            if res in self.res_to_res_grp]))
+        self._mold_apply_res_grp = list(set([self._res_to_res_grp[res] for res in self.mold_res
+                                             if res in self._res_to_res_grp]))
 
     def make_daily_time_interval(self) -> None:
         self.time_interval = [(i, i * self.sec_of_day, (i + 1) * self.sec_of_day) for i in range(self.schedule_weeks)
@@ -344,18 +379,14 @@ class Mold(object):
                 mold_res_weight = sku_exist.get(sku, None)
                 if mold_res_weight is None:
                     flag.append(False)
-                elif np.isnan(mold_res_weight[1]):
-                    flag.append(False)
                 else:
                     flag.append(True)
-                    mold_res.append(mold_res_weight[0])
-                    weight.append(mold_res_weight[1])
+                    mold_res.append(mold_res_weight)
         data['apply_flag'] = flag
 
         non_apply_dmd = data[~data['apply_flag']].copy()
         apply_dmd = data[data['apply_flag']].copy()
         apply_dmd[self._cstr.mold_res] = mold_res
-        apply_dmd['mold_weight'] = weight
 
         apply_dmd = apply_dmd.drop(columns='apply_flag')
         non_apply_dmd = non_apply_dmd.drop(columns='apply_flag')
@@ -376,7 +407,7 @@ class Mold(object):
     def add_timeline_day(self, row: pd.Series, splitted: list) -> List[pd.Series]:
         stime = row[self._dmd.start_time]
         etime = row[self._dmd.end_time]
-        for day, (day_start, day_end) in enumerate(self.res_to_capa[row[self._res.res]]):
+        for day, (day_start, day_end) in enumerate(self._res_to_capa[row[self._res.res]]):
             if stime >= day_end:
                 continue
             else:
@@ -388,12 +419,13 @@ class Mold(object):
 
     def set_res_capacity(self, data: pd.DataFrame) -> None:
         # Choose current plant
-        data = data[data[self._res.plant] == self.plant]
+        data = data[data[self._res.plant] == self._plant]
 
         capa_col_list = []
         for i in range(self.work_day):
             for kind in ['d', 'n']:
                 capa = self._res.res_capa + str(i + 1) + '_' + kind
+                data[capa] = np.where(data[capa] > 720, 720, data[capa]).copy()
                 capa_col_list.append(capa)
 
         # Filter not available capacity
@@ -422,8 +454,8 @@ class Mold(object):
                 res_to_capa[res] = days_capa_list
                 res_day_capa[res] = days_capa_dict
 
-        self.res_to_capa = res_to_capa
-        self.res_day_capa = res_day_capa
+        self._res_to_capa = res_to_capa
+        self._res_day_capa = res_day_capa
 
     @staticmethod
     def connect_continuous_capa(data: list) -> list:
