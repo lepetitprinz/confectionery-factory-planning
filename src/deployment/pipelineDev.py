@@ -150,7 +150,7 @@ class Pipeline(object):
                     print('\n============================================')
                     print(f" - Optimize the OtpSeq model: {plant}")
                     print('============================================')
-                # opt_seq.optimize(model=model)
+                    opt_seq.optimize(model=model)
 
                 # Save original result
                 # opt_seq.save_org_result()

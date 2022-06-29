@@ -78,7 +78,7 @@ class Mold(object):
 
     def apply_time_move(self, data, mold_res, day):
         while self.check_daily_capa_excess(data=data, mold_res=mold_res, day=day):
-            print(f'resource: {mold_res}, day: {day}')
+            # print(f'resource: {mold_res}, day: {day}')
             move_dmd, excess_capa = self.decide_which_dmd_move(
                 data=data, mold_res=mold_res, day=day
             )

@@ -130,7 +130,7 @@ class OptSeq(object):
                         pkg_sku[pkg] = [sku]
             brand_pkg_sku_map[brand] = pkg_sku
 
-        self.brand_pkg_sku_map = brand_pkg_sku_map
+        self._brand_pkg_sku_map = brand_pkg_sku_map
 
     def _set_res_to_res_grp(self) -> None:
         res_grp = self._res_grp.copy()
@@ -189,6 +189,7 @@ class OptSeq(object):
                     capa_days = self._res_capa_days.get(resource, None)
                     if capa_days:
                         add_res = self._add_res_capacity(res=add_res, capa_days=capa_days)
+                        model_res[resource] = add_res
                     else:
                         # Remove resource candidate from resource group
                         res_grp_dict[res_grp].remove(resource)
@@ -196,8 +197,8 @@ class OptSeq(object):
                 else:
                     # Add infinite capacity resource
                     add_res = model.addResource(name=resource, capacity={(0, "inf"): 1})
-
-                model_res[resource] = add_res
+                    model_res[resource] = add_res
+                # model_res[resource] = add_res
 
             if len(model_res) != 0:
                 model_res_grp[res_grp] = model_res
@@ -402,6 +403,7 @@ class OptSeq(object):
         if len(apply_dmd) > 0:
             model, activity = self._add_sim_prod_act(
                 model=model,
+                activity=activity,
                 dmd_list=dmd_list,
                 apply_dmd=apply_dmd,
                 res_grp_dict=res_grp_dict,
@@ -409,26 +411,79 @@ class OptSeq(object):
 
         return model, activity
 
-    def _add_sim_prod_act(self, model: Model, dmd_list: list, apply_dmd: list, res_grp_dict: dict, model_res: dict):
-        for dmd_id, sku, res_grp, qty, due_date in apply_dmd:
+    def _add_sim_prod_act(self, model: Model, activity: dict, dmd_list: list, apply_dmd: list, res_grp_dict: dict,
+                          model_res: dict):
+        for dmd, sku, res_grp, qty, due_date in apply_dmd:
             # Available package of simultaneously making
             brand = self._sku_to_brand[sku]
             sim_pkg = self._sim_prod_cstr_nec[res_grp][brand][self._sku_to_pkg[sku]]
 
             # Select SKU to be made
-            sku = self._select_sku_to_be_made(brand=brand, pkg=sim_pkg)
+            sim_prod_sku = self._select_sku_to_be_made(brand=brand, pkg=sim_pkg)
 
             # Search SKU if it is in other demand
-            if sku is not None:
-                sku_in_other_dmd = self._search_sku_in_other_dmd(dmd_list=dmd_list, sku=sku)
+            if sim_prod_sku is not None:
+                sku_in_other_dmd = self._search_sku_in_other_dmd(dmd_list=dmd_list, sku=sim_prod_sku)
                 if len(sku_in_other_dmd) > 0:
                     print('!!!')
-            else:
-                self._add_new_act(model=model, dmd=[dmd_id, sku, res_grp, qty, due_date], model_res=model_res)
+                else:
+                    model, activity = self._add_new_act(
+                        model=model,
+                        activity=activity,
+                        sp_dmd=[dmd, sim_prod_sku, res_grp, qty, due_date],
+                        sku=sku,
+                        model_res=model_res,
+                        res_grp_dict=res_grp_dict
+                    )
 
-    def _add_new_act(self, model: Model, dmd: list, model_res: dict):
-        pass
-        abc
+            else:
+                model = self._remove_sim_prod_imps_activity(
+                    model=model,
+                    activity=activity,
+                    act_name=util.generate_model_name(name_list=[dmd, sku, res_grp]))
+
+        return model, activity
+
+    def _remove_sim_prod_imps_activity(self, model: Model, activity: dict, act_name):
+        model.act.remove(activity[act_name])
+
+        return model
+
+    def _add_new_act(self, model: Model, activity: dict, sp_dmd: list, sku, model_res: dict, res_grp_dict):
+        dmd_id, item_cd, res_grp_cd, qty, due_date = sp_dmd
+        sp_dmd_id = 'SP' + dmd_id[2:]
+        fp_act_name = util.generate_model_name(name_list=[dmd_id, sku, res_grp_cd])
+        sp_act_name = util.generate_model_name(name_list=[sp_dmd_id, item_cd, res_grp_cd])
+
+        activity[sp_act_name] = model.addActivity(
+            name=f'Act[{sp_act_name}]',
+            duedate=due_date,
+            weight=1
+        )
+
+        activity[sp_act_name] = self._set_mode(
+            act=activity[sp_act_name],
+            dmd_id=dmd_id,
+            item_cd=item_cd,
+            qty=qty,
+            res_list=res_grp_dict[res_grp_cd],
+            model_res=model_res[res_grp_cd]
+        )
+
+        model = self.add_sim_prod_temporal(
+            model=model,
+            fp_act=activity[fp_act_name],
+            sp_act=activity[sp_act_name],
+        )
+
+        return model, activity
+
+    @staticmethod
+    def add_sim_prod_temporal(model: Model, fp_act: Activity, sp_act: Activity) -> Model:
+        model.addTemporal(pred=fp_act, succ=sp_act, tempType='SS', delay=0)
+        model.addTemporal(pred=sp_act, succ=fp_act, tempType='SS', delay=0)
+
+        return model
 
     @staticmethod
     def _search_sku_in_other_dmd(dmd_list: list, sku: str):

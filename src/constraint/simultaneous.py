@@ -167,6 +167,9 @@ class Necessary(object):
         return apply_dmd, non_apply_dmd
 
     def _find_and_make_sim_product(self, apply_dmd_df: pd.DataFrame, all_dmd: pd.DataFrame) -> pd.DataFrame:
+        # Reorder applicable demand
+        apply_dmd_df = apply_dmd_df.sort_values(by=[self.dmd.dmd, self.dmd.start_time])
+
         # Search on each demand
         for idx, dmd in apply_dmd_df.iterrows():
             # Available package of simultaneously making
@@ -186,6 +189,9 @@ class Necessary(object):
                     )
                 else:
                     all_dmd = self._arrange_sku_in_timeline(dmd=dmd, all_dmd=all_dmd, sku=sku)
+            else:
+                # Remove demand if alternative sku does not exist
+                all_dmd = all_dmd[all_dmd[self.dmd.dmd] != dmd[self.dmd.dmd]].copy()
 
         return all_dmd
 
@@ -247,17 +253,26 @@ class Necessary(object):
             non_move_dmd = res_dmd[res_dmd[self.dmd.end_time] <= apply_start].copy()
 
             # Move timeline
-            move_dmd = self._move_with_fixed_or_not(data=move_dmd, apply_end=apply_end)
+            move_dmd = self._move_timeline(data=move_dmd, duration=apply_end - apply_start)
+            # move_dmd = self._move_with_fixed_or_not(data=move_dmd, apply_end=apply_end)
 
             # Split
             move_dmd = self._apply_res_capa_on_timeline(data=move_dmd, res=confirm_res)
             # move_dmd = move_dmd.append(new_dmd).sort_values(by=self.dmd.start_time)
 
+            move_dmd = move_dmd.append(new_dmd)
+
             res_dmd = pd.concat([non_move_dmd, move_dmd], axis=0, ignore_index=True).reset_index(drop=True)
             all_dmd = pd.concat([non_res_dmd, res_dmd], axis=0, ignore_index=True).reset_index(drop=True)
-            all_dmd = all_dmd.append(new_dmd)
+            # all_dmd = all_dmd.append(new_dmd)
 
         return all_dmd
+
+    def _move_timeline(self, data: pd.DataFrame, duration: int) -> pd.DataFrame:
+        data[self.dmd.start_time] = data[self.dmd.start_time] + duration
+        data[self.dmd.end_time] = data[self.dmd.end_time] + duration
+
+        return data
 
     def _move_with_fixed_or_not(self, data: pd.DataFrame, apply_end):
         data[self.dmd.duration] = data[self.dmd.end_time] - data[self.dmd.start_time]
@@ -434,6 +449,7 @@ class Necessary(object):
 
         # Sort candidate demands bu demand start time
         cand_dmd = cand_dmd.sort_values(by=self.dmd.start_time)
+
 
     @staticmethod
     def connect_continuous_capa(data: list):
