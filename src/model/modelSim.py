@@ -182,6 +182,8 @@ class OptSeq(object):
         for res_grp, res_list in res_grp_list.items():
             model_res = {}
             for resource in res_list[:]:
+                if resource == '10000039':
+                    print("")
                 # Add available time of each resource
                 add_res = model.addResource(name=resource)
 
@@ -192,6 +194,7 @@ class OptSeq(object):
                         model_res[resource] = add_res
                     else:
                         # Remove resource candidate from resource group
+                        model.res.remove(add_res)
                         res_grp_dict[res_grp].remove(resource)
 
                 else:
@@ -241,7 +244,7 @@ class OptSeq(object):
                 res.addCapacity(start_time, end_time, 1)
 
         # Exception for over demand
-        res.addCapacity((day+1) * self._sec_of_day, 'inf', 1)
+        res.addCapacity((day + 1) * self._sec_of_day, 'inf', 1)
 
         return res
 
@@ -257,8 +260,8 @@ class OptSeq(object):
                 # Define activities
                 activity[act_name] = model.addActivity(
                     name=f'Act[{act_name}]',
-                    duedate=due_date,    # duedate='inf',
-                    weight=1,            # Penalty per unit time when work completion time is rate for delivery
+                    duedate=due_date,  # duedate='inf',
+                    weight=1,  # Penalty per unit time when work completion time is rate for delivery
                 )
 
                 # Set modes
@@ -289,10 +292,10 @@ class OptSeq(object):
         # Simultaneous production constraint
         if self._cstr_cfg['apply_sim_prod_cstr']:
             # Possible production
-            model, activity = self._check_and_add_sim_prod_act(
+            model, activity = self._apply_sim_prod_cstr(
                 model=model,
                 activity=activity,
-                dmd_list=dmd_list,
+                all_dmd=dmd_list,
                 res_grp_dict=res_grp_dict,
                 model_res=model_res
             )
@@ -368,8 +371,8 @@ class OptSeq(object):
             sku1, res_grp1 = activity1.split('@')[1:]
             sku2, res_grp2 = activity2.split('@')[1:]
 
-            virtual_res_name = res_grp1 + '@' + self._sku_to_brand[sku1] + '@' + self._sku_to_pkg[sku1] + '_'\
-                               + self._sku_to_pkg[sku2]
+            virtual_res_name = res_grp1 + '@' + self._sku_to_brand[sku1] + '@' + self._sku_to_pkg[sku1] + '_' + \
+                               self._sku_to_pkg[sku2]
             virtual_res = model.addResource(name=virtual_res_name, capacity={(0, "inf"): 1})
 
             for mode in activity1.modes:
@@ -391,29 +394,29 @@ class OptSeq(object):
 
     def _add_virtual_res_on_mode(self, mode, res, duration):
         mode = self._add_resource(
-                    mode=mode,
-                    resource=res,
-                    duration=duration
-                )
+            mode=mode,
+            resource=res,
+            duration=duration
+        )
 
         return mode
 
-    def _check_and_add_sim_prod_act(self, model, activity, dmd_list, res_grp_dict, model_res):
-        apply_dmd = self._classify_sim_prod_possible_dmd(data=dmd_list)
-        if len(apply_dmd) > 0:
+    def _apply_sim_prod_cstr(self, model, activity, all_dmd, res_grp_dict, model_res):
+        possible_dmd = self._classify_sim_prod_possible_dmd(data=all_dmd)
+        if len(possible_dmd) > 0:
             model, activity = self._add_sim_prod_act(
                 model=model,
                 activity=activity,
-                dmd_list=dmd_list,
-                apply_dmd=apply_dmd,
+                all_dmd=all_dmd,
+                possible_dmd=possible_dmd,
                 res_grp_dict=res_grp_dict,
                 model_res=model_res)
 
         return model, activity
 
-    def _add_sim_prod_act(self, model: Model, activity: dict, dmd_list: list, apply_dmd: list, res_grp_dict: dict,
+    def _add_sim_prod_act(self, model: Model, activity: dict, all_dmd: list, possible_dmd: list, res_grp_dict: dict,
                           model_res: dict):
-        for dmd, sku, res_grp, qty, due_date in apply_dmd:
+        for dmd, sku, res_grp, qty, due_date in possible_dmd:
             # Available package of simultaneously making
             brand = self._sku_to_brand[sku]
             sim_pkg = self._sim_prod_cstr_nec[res_grp][brand][self._sku_to_pkg[sku]]
@@ -423,20 +426,26 @@ class OptSeq(object):
 
             # Search SKU if it is in other demand
             if sim_prod_sku is not None:
-                sku_in_other_dmd = self._search_sku_in_other_dmd(dmd_list=dmd_list, sku=sim_prod_sku)
+                sku_in_other_dmd = self._search_sku_in_other_dmd(all_dmd=all_dmd, sku=sim_prod_sku)
                 if len(sku_in_other_dmd) > 0:
-                    print('!!!')
+                    model, activity = self._correct_other_act(
+                        model=model,
+                        activity=activity,
+                        org_dmd=[dmd, sku, res_grp, qty, due_date],
+                        sp_dmd=sku_in_other_dmd
+                    )
                 else:
-                    model, activity = self._add_new_act(
+                    model, activity = self._add_sim_act(
                         model=model,
                         activity=activity,
                         sp_dmd=[dmd, sim_prod_sku, res_grp, qty, due_date],
-                        sku=sku,
+                        org_sku=sku,
                         model_res=model_res,
                         res_grp_dict=res_grp_dict
                     )
 
             else:
+                # remove simultaneous product
                 model = self._remove_sim_prod_imps_activity(
                     model=model,
                     activity=activity,
@@ -444,30 +453,106 @@ class OptSeq(object):
 
         return model, activity
 
-    def _remove_sim_prod_imps_activity(self, model: Model, activity: dict, act_name):
+    def _correct_other_act(self, model: Model, activity: dict, org_dmd, sp_dmd):
+        org_dmd_id, org_sku, org_res_grp, org_qty, org_due_date = org_dmd
+
+        # Choose sim production activity
+        sp_dmd = sorted(sp_dmd, key=lambda x: x[3], reverse=True)[0]
+        sp_dmd_id, sp_sku, sp_res_grp, sp_qty, sp_due_date = sp_dmd
+
+        org_act_name = util.generate_model_name(name_list=[org_dmd_id, org_sku, org_res_grp])
+        sp_act_name = util.generate_model_name(name_list=[sp_dmd_id, sp_sku, sp_res_grp])
+
+        org_act = activity[org_act_name]
+        sp_act = activity[sp_act_name]
+
+        org_res_dur = self._get_mode_res_dur(act=org_act)
+        sp_res_dur = self._get_mode_res_dur(act=sp_act)
+        duration = max(org_res_dur + sp_res_dur)
+
+        model = self._update_act_res_duration(model=model, act_list=[org_act_name, sp_act_name], duration=duration)
+
+        model = self.add_sim_prod_temporal(
+            model=model,
+            fp_act=org_act,
+            sp_act=sp_act,
+        )
+
+        return model, activity
+
+    @staticmethod
+    def _update_act_res_duration(model: Model, act_list: list, duration: int):
+        for activity in model.act:
+            act_name = activity.name
+            act_name = act_name[act_name.index('[') + 1: act_name.index(']')]
+
+            if act_name in act_list:
+                for mode in activity.modes:
+                    mode.duration = duration
+                    mode.breakable = {(0, duration): 'inf'}
+                    for key, val in mode.requirement.items():
+                        mode.requirement[key] = {(0, duration): 1}
+
+        return model
+
+    @staticmethod
+    def _get_mode_res(act: Activity):
+        res_list = []
+        for mode in act.modes:
+            resource = mode.name.split('@')[2][:-1]
+            res_list.append(resource)
+
+        return res_list
+
+    @staticmethod
+    def _get_mode_res_dur(act: Activity):
+        res_dur = []
+        for mode in act.modes:
+            duration = mode.duration
+            res_dur.append(duration)
+
+        return res_dur
+
+    @staticmethod
+    def _remove_sim_prod_imps_activity(model: Model, activity: dict, act_name):
         model.act.remove(activity[act_name])
 
         return model
 
-    def _add_new_act(self, model: Model, activity: dict, sp_dmd: list, sku, model_res: dict, res_grp_dict):
+    def _add_sim_act(self, model: Model, activity: dict, sp_dmd: list, org_sku, model_res: dict, res_grp_dict):
         dmd_id, item_cd, res_grp_cd, qty, due_date = sp_dmd
         sp_dmd_id = 'SP' + dmd_id[2:]
-        fp_act_name = util.generate_model_name(name_list=[dmd_id, sku, res_grp_cd])
+        fp_act_name = util.generate_model_name(name_list=[dmd_id, org_sku, res_grp_cd])
         sp_act_name = util.generate_model_name(name_list=[sp_dmd_id, item_cd, res_grp_cd])
 
+        # Add the activity of simultaneous production
         activity[sp_act_name] = model.addActivity(
             name=f'Act[{sp_act_name}]',
             duedate=due_date,
             weight=1
         )
 
+        # remove resource used in original
+        org_res_list = self._get_mode_res(act=activity[fp_act_name])
+
+        res_list = res_grp_dict[res_grp_cd]
+        if len(org_res_list) > 1:
+            model, fix_res, org_dur = self._fix_act_mode_res(model=model, act_name=fp_act_name)
+            res_list.remove(fix_res)
+        else:
+            if org_res_list[0] in res_list:
+                res_list.remove(org_res_list[0])
+            org_dur = self._get_mode_res_dur(act=activity[fp_act_name])[0]
+
         activity[sp_act_name] = self._set_mode(
             act=activity[sp_act_name],
             dmd_id=dmd_id,
             item_cd=item_cd,
             qty=qty,
-            res_list=res_grp_dict[res_grp_cd],
-            model_res=model_res[res_grp_cd]
+            res_list=res_list,
+            model_res=model_res[res_grp_cd],
+            sim_mode=True,
+            org_dur=org_dur
         )
 
         model = self.add_sim_prod_temporal(
@@ -478,6 +563,13 @@ class OptSeq(object):
 
         return model, activity
 
+    def _fix_act_mode_res(self, model: Model, act_name):
+        for actitivty in model.act:
+            if actitivty.name == 'Act[' + act_name + ']':
+                pass
+
+        return model
+
     @staticmethod
     def add_sim_prod_temporal(model: Model, fp_act: Activity, sp_act: Activity) -> Model:
         model.addTemporal(pred=fp_act, succ=sp_act, tempType='SS', delay=0)
@@ -486,9 +578,9 @@ class OptSeq(object):
         return model
 
     @staticmethod
-    def _search_sku_in_other_dmd(dmd_list: list, sku: str):
+    def _search_sku_in_other_dmd(all_dmd: list, sku: str):
         sku_in_dmd = []
-        for dmd in dmd_list:
+        for dmd in all_dmd:
             if sku in dmd[1]:
                 sku_in_dmd.append(dmd)
 
@@ -512,7 +604,7 @@ class OptSeq(object):
         # Todo: need to revise
         return sku_list[0]
 
-    def _classify_sim_prod_possible_dmd(self, data: list) -> List[str]:
+    def _classify_sim_prod_possible_dmd(self, data: list) -> List[list]:
         apply_dmd = []
         for dmd_id, sku, res_grp, qty, due_date in data:
             cstr_res_grp = self._sim_prod_cstr_nec.get(res_grp, None)
@@ -591,17 +683,24 @@ class OptSeq(object):
         return act
 
     # Set work processing method
-    def _set_mode(self, act: Activity, dmd_id: str, item_cd: str, qty: int, res_list: list, model_res: dict):
+    def _set_mode(self, act: Activity, dmd_id: str, item_cd: str, qty: int, res_list: list, model_res: dict,
+                  sim_mode=False, org_dur=None):
+
         for resource in res_list:
-            # Calculate the duration (the working time of the mode)
-            duration_per_unit = self._get_duration_per_unit(item_cd=item_cd, res_cd=resource)
+            duration = None
+            if not sim_mode:
+                # Calculate the duration (the working time of the mode)
+                duration_per_unit = self._get_duration_per_unit(item_cd=item_cd, res_cd=resource)
 
-            if duration_per_unit is not None:
-                duration = int(qty * duration_per_unit)
+                if duration_per_unit is not None:
+                    duration = int(qty * duration_per_unit)
 
-                if duration <= 0:
-                    raise ValueError(f"Duration is not positive integer: item: {item_cd} resource: {resource}")
+                    if duration <= 0:
+                        raise ValueError(f"Duration is not positive integer: item: {item_cd} resource: {resource}")
+            else:
+                duration = org_dur
 
+            if duration is not None:
                 # Make each mode (set each available resource)
                 mode = Mode(name=f'Mode[{dmd_id}@{item_cd}@{resource}]', duration=duration)
 
@@ -615,31 +714,10 @@ class OptSeq(object):
                     duration=duration
                 )
 
-                # if self._cstr_cfg['apply_sim_prod_cstr']:
-                #     mode = self._add_virtual_res_on_mode(
-                #         mode=mode,
-                #         resource=resource,
-                #         model_res=model_res,
-                #         duration=duration
-                #     )
-
                 # add mode list to activity
                 act.addModes(mode)
 
         return act
-
-    # Simultaneous constraint: Add virtual resource
-    # def _add_virtual_res_on_mode(self, mode, resource, model_res, duration):
-    #     virtual_dict = model_res.get('virtual', None)
-    #     if virtual_dict:
-    #         virtual_res = virtual_dict.get(resource, None)
-    #         mode = self._add_resource(
-    #             mode=mode,
-    #             resource=virtual_res,
-    #             duration=duration
-    #         )
-    #
-    #     return mode
 
     # Add the specified resource which amount required when executing the mode
     @staticmethod

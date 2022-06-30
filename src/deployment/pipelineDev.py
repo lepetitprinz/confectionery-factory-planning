@@ -153,7 +153,7 @@ class Pipeline(object):
                     opt_seq.optimize(model=model)
 
                 # Save original result
-                # opt_seq.save_org_result()
+                opt_seq.save_org_result()
 
             if self.cfg['exec']['save_step_yn']:
                 self.io.save_object(data=plant_model, path=self.path['model'], data_type='binary')

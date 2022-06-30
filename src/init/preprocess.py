@@ -453,6 +453,10 @@ class Preprocess(object):
         elif method == 'min':
             # Fill na
             data[self._res.min_lot] = data[self._res.min_lot].fillna(self._default_min_lot)
+
+            # Filter demand based on minimum lot quantity
+            data = data[data[self._dmd.qty] >= data[self._res.min_lot] / 2].copy()
+
             qty_revised = []
             for min_lot, qty in zip(data[self._res.min_lot], data[self._dmd.qty]):
                 if qty < min_lot:

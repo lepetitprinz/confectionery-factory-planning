@@ -7,4 +7,3 @@ query = Query()
 data = io.load_from_db(sql=query.sql_calendar())
 
 print("")
-

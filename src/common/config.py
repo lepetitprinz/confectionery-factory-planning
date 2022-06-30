@@ -18,8 +18,8 @@ apply_plant = ['K110', 'K120', 'K130', 'K140', 'K170']
 work_day = 7
 time_uom = 'sec'
 time_multiple = 60
+# schedule_weeks = 52     # 6 month
 schedule_weeks = 52     # 6 month
-# schedule_weeks = 104     # 6 month
 plant_start_hour = 0
 sec_of_day = 86400
 
@@ -173,9 +173,6 @@ col_use_m_capa = 'used_man_capa'
 col_use_w_capa = 'used_woman_capa'
 col_avail_m_capa = 'avail_man_capa'
 col_avail_w_capa = 'avail_woman_capa'
-
-# Constraint configuration
-prod_qty_multiple = 10
 
 #########################################################
 # OptSeq Model

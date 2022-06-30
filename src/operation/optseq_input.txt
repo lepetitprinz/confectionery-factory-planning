@@ -17444,21 +17444,21 @@ activity Act[FP_0000565@5139922@1108]
 activity Act[FP_0000427@5127936@1208] 
  duedate 518400  
  weight 1  
- mode  duration 28000  
- 10000698 interval 0 28000 requirement 1  
- break interval 0 28000   
+ mode  duration 229284  
+ 10000698 interval 0 229284 requirement 1  
+ break interval 0 229284   
 activity Act[FP_0000533@5130000@1208] 
  duedate 1123200  
  weight 1  
- mode  duration 212576  
- 10000698 interval 0 212576 requirement 1  
- break interval 0 212576   
+ mode  duration 229284  
+ 10000698 interval 0 229284 requirement 1  
+ break interval 0 229284   
 activity Act[FP_0000536@5130000@1208] 
  duedate 1728000  
  weight 1  
- mode  duration 32760  
- 10000698 interval 0 32760 requirement 1  
- break interval 0 32760   
+ mode  duration 229284  
+ 10000698 interval 0 229284 requirement 1  
+ break interval 0 229284   
 activity Act[FP_0000455@5129181@X110_01] 
  duedate 1123200  
  weight 1  
@@ -17510,21 +17510,21 @@ activity Act[FP_0000939@5142056@X175_01]
 activity Act[FP_0000132@5107270@1207] 
  duedate 518400  
  weight 1  
- mode  duration 76800  
- 10008980 interval 0 76800 requirement 1  
- break interval 0 76800   
+ mode  duration 541472  
+ 10008980 interval 0 541472 requirement 1  
+ break interval 0 541472   
 activity Act[FP_0000135@5107270@1207] 
  duedate 1123200  
  weight 1  
- mode  duration 200736  
- 10008980 interval 0 200736 requirement 1  
- break interval 0 200736   
+ mode  duration 541472  
+ 10008980 interval 0 541472 requirement 1  
+ break interval 0 541472   
 activity Act[FP_0000138@5107270@1207] 
  duedate 1728000  
  weight 1  
- mode  duration 38720  
- 10008980 interval 0 38720 requirement 1  
- break interval 0 38720   
+ mode  duration 541472  
+ 10008980 interval 0 541472 requirement 1  
+ break interval 0 541472   
 activity Act[FP_0000512@5129899@1207] 
  duedate 518400  
  weight 1  
@@ -17666,21 +17666,21 @@ activity Act[FP_0000188@5108116@1207]
 activity Act[FP_0000126@5107266@1207] 
  duedate 1123200  
  weight 1  
- mode  duration 425152  
- 10008980 interval 0 425152 requirement 1  
- break interval 0 425152   
+ mode  duration 541472  
+ 10008980 interval 0 541472 requirement 1  
+ break interval 0 541472   
 activity Act[FP_0000128@5107266@1207] 
  duedate 1728000  
  weight 1  
- mode  duration 86944  
- 10008980 interval 0 86944 requirement 1  
- break interval 0 86944   
+ mode  duration 541472  
+ 10008980 interval 0 541472 requirement 1  
+ break interval 0 541472   
 activity Act[FP_0000123@5107266@1207] 
  duedate 518400  
  weight 1  
- mode  duration 38720  
- 10008980 interval 0 38720 requirement 1  
- break interval 0 38720   
+ mode  duration 541472  
+ 10008980 interval 0 541472 requirement 1  
+ break interval 0 541472   
 activity Act[FP_0000503@5129898@1207] 
  duedate 518400  
  weight 1  
@@ -18074,21 +18074,21 @@ activity Act[FP_0000230@5108877@1108]
 activity Act[SP_0000141@5126200@1208] 
  duedate 1123200  
  weight 1  
- mode  duration 178332  
- 10000698 interval 0 178332 requirement 1  
- break interval 0 178332   
+ mode  duration 229284  
+ 10000698 interval 0 229284 requirement 1  
+ break interval 0 229284   
 activity Act[SP_0000143@5126200@1208] 
  duedate 1728000  
  weight 1  
- mode  duration 135716  
- 10000698 interval 0 135716 requirement 1  
- break interval 0 135716   
+ mode  duration 174492  
+ 10000698 interval 0 174492 requirement 1  
+ break interval 0 174492   
 activity Act[SP_0001385@5108853@1324] 
  duedate 1123200  
  weight 1  
- mode  duration 26400  
- 10002266 interval 0 26400 requirement 1  
- break interval 0 26400   
+ mode  duration 37200  
+ 10002266 interval 0 37200 requirement 1  
+ break interval 0 37200   
 activity Setup[FP_0000225@5108875@1108@10008899] 
  autoselect  
  Mode_setup[FP_0000291@5124351@1108|FP_0000225@5108875@1108|10008899]  
@@ -20585,8 +20585,26 @@ temporal Act[FP_0000141@5107315@1208] Act[SP_0000141@5126200@1208]  type SS dela
 temporal Act[SP_0000141@5126200@1208] Act[FP_0000141@5107315@1208]  type SS delay 0  
 temporal Act[FP_0000143@5107315@1208] Act[SP_0000143@5126200@1208]  type SS delay 0  
 temporal Act[SP_0000143@5126200@1208] Act[FP_0000143@5107315@1208]  type SS delay 0  
+temporal Act[FP_0000427@5127936@1208] Act[FP_0000141@5107315@1208]  type SS delay 0  
+temporal Act[FP_0000141@5107315@1208] Act[FP_0000427@5127936@1208]  type SS delay 0  
+temporal Act[FP_0000533@5130000@1208] Act[FP_0000141@5107315@1208]  type SS delay 0  
+temporal Act[FP_0000141@5107315@1208] Act[FP_0000533@5130000@1208]  type SS delay 0  
+temporal Act[FP_0000536@5130000@1208] Act[FP_0000141@5107315@1208]  type SS delay 0  
+temporal Act[FP_0000141@5107315@1208] Act[FP_0000536@5130000@1208]  type SS delay 0  
+temporal Act[FP_0000132@5107270@1207] Act[FP_0000507@5129898@1207]  type SS delay 0  
+temporal Act[FP_0000507@5129898@1207] Act[FP_0000132@5107270@1207]  type SS delay 0  
+temporal Act[FP_0000135@5107270@1207] Act[FP_0000507@5129898@1207]  type SS delay 0  
+temporal Act[FP_0000507@5129898@1207] Act[FP_0000135@5107270@1207]  type SS delay 0  
+temporal Act[FP_0000138@5107270@1207] Act[FP_0000507@5129898@1207]  type SS delay 0  
+temporal Act[FP_0000507@5129898@1207] Act[FP_0000138@5107270@1207]  type SS delay 0  
 temporal Act[FP_0001385@5142987@1324] Act[SP_0001385@5108853@1324]  type SS delay 0  
 temporal Act[SP_0001385@5108853@1324] Act[FP_0001385@5142987@1324]  type SS delay 0  
+temporal Act[FP_0000126@5107266@1207] Act[FP_0000507@5129898@1207]  type SS delay 0  
+temporal Act[FP_0000507@5129898@1207] Act[FP_0000126@5107266@1207]  type SS delay 0  
+temporal Act[FP_0000128@5107266@1207] Act[FP_0000507@5129898@1207]  type SS delay 0  
+temporal Act[FP_0000507@5129898@1207] Act[FP_0000128@5107266@1207]  type SS delay 0  
+temporal Act[FP_0000123@5107266@1207] Act[FP_0000507@5129898@1207]  type SS delay 0  
+temporal Act[FP_0000507@5129898@1207] Act[FP_0000123@5107266@1207]  type SS delay 0  
 temporal Setup[FP_0000225@5108875@1108@10008899] Act[FP_0000225@5108875@1108]  type CS delay 0  
 temporal Act[FP_0000225@5108875@1108] Setup[FP_0000225@5108875@1108@10008899]  type SC delay 0  
 temporal Setup[FP_0000291@5124351@1108@10008899] Act[FP_0000291@5124351@1108]  type CS delay 0  

@@ -136,6 +136,7 @@ class OptSeq(object):
                         add_res = self._add_res_capacity(res=add_res, capa_days=capa_days)
                     else:
                         # Remove resource candidate from resource group
+                        model.res.remove(add_res)
                         res_grp_dict[res_grp].remove(resource)
 
                 else:

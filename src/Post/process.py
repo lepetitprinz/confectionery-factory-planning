@@ -853,6 +853,8 @@ class Process(object):
 
         data = data.drop(columns=['kind', 'capa_rate'])
 
+        data = data.fillna('-')
+
         # Delete previous result
         kwargs = {'fp_version': self.fp_version, 'fp_seq': self.fp_seq, 'plant_cd': self._plant}
         self.io.delete_from_db(sql=self.query.del_gantt_result(**kwargs))
@@ -896,6 +898,8 @@ class Process(object):
                      self._item.sku, self._item.sku_nm, self._item.item_type, self._post.from_time, self._post.to_time,
                      self._post.from_yymmdd, self._post.to_yymmdd, self._dmd.prod_qty, self._post.tot_m_capa,
                      self._post.tot_w_capa, self._post.use_m_capa, self._post.use_w_capa, self._post.res_use_capa]]
+
+        data = data.fillna('-')
 
         # Delete previous result
         kwargs = {'fp_version': self.fp_version, 'fp_seq': self.fp_seq, 'plant_cd': self._plant}

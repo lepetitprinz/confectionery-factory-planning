@@ -419,13 +419,13 @@ class Mold(object):
 
     def set_res_capacity(self, data: pd.DataFrame) -> None:
         # Choose current plant
-        data = data[data[self._res.plant] == self._plant]
+        data = data[data[self._res.plant] == self._plant].copy()
 
         capa_col_list = []
         for i in range(self.work_day):
             for kind in ['d', 'n']:
                 capa = self._res.res_capa + str(i + 1) + '_' + kind
-                data[capa] = np.where(data[capa] > 720, 720, data[capa]).copy()
+                data[capa] = np.where(data[capa] > 720, 720, data[capa])
                 capa_col_list.append(capa)
 
         # Filter not available capacity
