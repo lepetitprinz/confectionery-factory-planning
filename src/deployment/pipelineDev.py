@@ -127,7 +127,7 @@ class Pipeline(object):
                 )
 
                 # Initialize the each model of plant
-                if plant == 'K110':
+                if plant in ['K110', 'K120', 'K130', 'K140', 'K170']:
                     model, rm_act_list = opt_seq.init(
                         plant=plant,
                         dmd_list=prep_data[self.key.dmd][self.key.dmd_list][plant],

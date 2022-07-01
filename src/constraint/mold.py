@@ -175,7 +175,7 @@ class Mold(object):
             af_dmd[self._dmd.start_time] = self.calc_next_day(res=af_dmd[self._res.res], day=day)
             af_dmd[self._dmd.end_time] = af_dmd[self._dmd.start_time] + data[self._dmd.duration]
             af_dmd['day'] = self.update_day(data=af_dmd)
-            move_duration = af_dmd[self._dmd.start_time] - data[self._dmd.start_time]
+            move_duration = af_dmd[self._dmd.start_time] - data[self._dmd.end_time]
 
         return bf_dmd, af_dmd, move_duration
 

@@ -1,10 +1,11 @@
-import pandas as pd
 
 import common.util as util
 import common.config as config
 from common.name import Key, Item, Demand
 
 import os
+import pandas as pd
+from copy import deepcopy
 from itertools import permutations
 from typing import Dict, Tuple, List
 from optimize.optseq import Model, Mode, Parameters, Activity, Resource
@@ -79,6 +80,7 @@ class OptSeq(object):
         if self._cstr_cfg['apply_sim_prod_cstr']:
             self._sim_prod_cstr_nec = plant_data[self._key.cstr][self._key.sim_prod_cstr]['necessary'].get(plant, None)
             self._sim_prod_cstr_imp = plant_data[self._key.cstr][self._key.sim_prod_cstr]['impossible'].get(plant, None)
+            self._apply_dmd_list = []
 
     def init(self, plant: str, dmd_list: list, res_grp_dict: dict):
         # Step 0. Preprocessing
@@ -182,8 +184,6 @@ class OptSeq(object):
         for res_grp, res_list in res_grp_list.items():
             model_res = {}
             for resource in res_list[:]:
-                if resource == '10000039':
-                    print("")
                 # Add available time of each resource
                 add_res = model.addResource(name=resource)
 
@@ -292,13 +292,14 @@ class OptSeq(object):
         # Simultaneous production constraint
         if self._cstr_cfg['apply_sim_prod_cstr']:
             # Possible production
-            model, activity = self._apply_sim_prod_cstr(
-                model=model,
-                activity=activity,
-                all_dmd=dmd_list,
-                res_grp_dict=res_grp_dict,
-                model_res=model_res
-            )
+            if self._sim_prod_cstr_nec is not None:
+                model, activity = self._apply_sim_prod_cstr(
+                    model=model,
+                    activity=activity,
+                    all_dmd=dmd_list,
+                    res_grp_dict=res_grp_dict,
+                    model_res=model_res
+                )
 
             # Impossible production
             # model, activity = self._check_virtual_res_on_act(
@@ -428,6 +429,7 @@ class OptSeq(object):
             if sim_prod_sku is not None:
                 sku_in_other_dmd = self._search_sku_in_other_dmd(all_dmd=all_dmd, sku=sim_prod_sku)
                 if len(sku_in_other_dmd) > 0:
+                    self._apply_dmd_list.append(dmd)
                     model, activity = self._correct_other_act(
                         model=model,
                         activity=activity,
@@ -435,6 +437,7 @@ class OptSeq(object):
                         sp_dmd=sku_in_other_dmd
                     )
                 else:
+                    self._apply_dmd_list.append(dmd)
                     model, activity = self._add_sim_act(
                         model=model,
                         activity=activity,
@@ -459,6 +462,7 @@ class OptSeq(object):
         # Choose sim production activity
         sp_dmd = sorted(sp_dmd, key=lambda x: x[3], reverse=True)[0]
         sp_dmd_id, sp_sku, sp_res_grp, sp_qty, sp_due_date = sp_dmd
+        self._apply_dmd_list.append(sp_dmd_id)
 
         org_act_name = util.generate_model_name(name_list=[org_dmd_id, org_sku, org_res_grp])
         sp_act_name = util.generate_model_name(name_list=[sp_dmd_id, sp_sku, sp_res_grp])
@@ -535,7 +539,7 @@ class OptSeq(object):
         # remove resource used in original
         org_res_list = self._get_mode_res(act=activity[fp_act_name])
 
-        res_list = res_grp_dict[res_grp_cd]
+        res_list = deepcopy(res_grp_dict[res_grp_cd])
         if len(org_res_list) > 1:
             model, fix_res, org_dur = self._fix_act_mode_res(model=model, act_name=fp_act_name)
             res_list.remove(fix_res)
@@ -549,7 +553,7 @@ class OptSeq(object):
             dmd_id=dmd_id,
             item_cd=item_cd,
             qty=qty,
-            res_list=res_list,
+            res_list=res_list[:1],
             model_res=model_res[res_grp_cd],
             sim_mode=True,
             org_dur=org_dur
@@ -577,11 +581,10 @@ class OptSeq(object):
 
         return model
 
-    @staticmethod
-    def _search_sku_in_other_dmd(all_dmd: list, sku: str):
+    def _search_sku_in_other_dmd(self, all_dmd: list, sku: str):
         sku_in_dmd = []
         for dmd in all_dmd:
-            if sku in dmd[1]:
+            if (sku in dmd[1]) & (dmd[0] not in self._apply_dmd_list):
                 sku_in_dmd.append(dmd)
 
         return sku_in_dmd
