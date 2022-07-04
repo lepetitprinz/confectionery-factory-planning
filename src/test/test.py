@@ -1,9 +1,22 @@
-from dao.io import DataIO
-from common.sql import Query
+n = int(input())
+cnt = 0
+positions = []
 
-io = DataIO()
-query = Query()
+def check_loc(n, i, positions):
+    row = list(range(n))
+    for x, y in positions:
+        if x in row:
+            row.remove(x)
+        for loc in make_diagonal(n, i, (x, y)):
+            if loc in row:
+                row.remove(loc)
 
-data = io.load_from_db(sql=query.sql_calendar())
+    return row
 
-print("")
+def make_diagonal(n, i, coordinate):
+    location = []
+    for add in [i, -i]:
+        if 0 <= coordinate + add < n:
+            location.append(coordinate + add)
+
+    return location

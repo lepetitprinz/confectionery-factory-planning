@@ -84,6 +84,7 @@ class Query(object):
                      WHERE FP_VRSN_ID = '{kwargs['fp_vrsn_id']}'
                        AND FP_VRSN_SEQ = '{kwargs['fp_vrsn_seq']}'
                        AND REQ_FP_QTY > 0
+                       AND USE_YN = 'Y'
                    ) DMD
              INNER JOIN (
                          SELECT ITEM_CD
@@ -206,6 +207,7 @@ class Query(object):
                AND FP_VRSN_SEQ = '{kwargs['fp_vrsn_seq']}'
                AND LEFT(YYMMDD, 4) = '{kwargs['yy']}'
                AND WEEK = '{kwargs['week']}'
+--                 AND WEEK = 'W26'   
         """
         return sql
 
@@ -307,7 +309,7 @@ class Query(object):
               FROM M4E_O402010
              WHERE FP_VRSN_ID = '{kwargs['fp_version']}'
                AND FP_VRSN_SEQ = '{kwargs['fp_seq']}'
-               AND FP_KEY IN {kwargs['fp_key']}
+               AND PLANT_CD = '{kwargs['plant_cd']}'
         """
         return sql
 

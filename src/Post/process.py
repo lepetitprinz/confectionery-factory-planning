@@ -737,6 +737,7 @@ class Process(object):
         merged[self._dmd.prod_qty] = merged[self._dmd.prod_qty].fillna(0)
         merged[self._dmd.end_time] = merged[self._dmd.end_time].fillna('99991231')
 
+        merged[self._res.plant] = self._plant
         merged = self.add_version_info(data=merged, seq=seq)
 
         merged = merged.rename(columns={
@@ -746,7 +747,7 @@ class Process(object):
         kwargs = {
             self._post.fp_version: self.fp_version,
             self._post.fp_seq: self.fp_seq,
-            self._post.fp_key: tuple(merged[self._post.fp_key].tolist())
+            self._res.plant: self._plant
         }
         self.io.delete_from_db(sql=self.query.del_dmd_result(**kwargs))
 
@@ -768,7 +769,11 @@ class Process(object):
         data[self._post.item_type] = data[self._post.item_type].fillna('-')
         data[self._item.sku_nm] = data[self._item.sku_nm].fillna('-')
 
-        kwargs = {self._post.fp_version: self.fp_version, self._post.fp_seq: self.fp_seq, 'plant_cd': self._plant}
+        kwargs = {
+            self._post.fp_version: self.fp_version,
+            self._post.fp_seq: self.fp_seq,
+            self._res.plant: self._plant
+        }
         self.io.delete_from_db(sql=self.query.del_res_day_night_qty(**kwargs))
 
         # Save the result on DB
@@ -856,7 +861,11 @@ class Process(object):
         data = data.fillna('-')
 
         # Delete previous result
-        kwargs = {'fp_version': self.fp_version, 'fp_seq': self.fp_seq, 'plant_cd': self._plant}
+        kwargs = {
+            self._post.fp_version: self.fp_version,
+            self._post.fp_seq: self.fp_seq,
+            self._res.plant: self._plant
+        }
         self.io.delete_from_db(sql=self.query.del_gantt_result(**kwargs))
 
         # Save the result on DB
@@ -902,7 +911,11 @@ class Process(object):
         data = data.fillna('-')
 
         # Delete previous result
-        kwargs = {'fp_version': self.fp_version, 'fp_seq': self.fp_seq, 'plant_cd': self._plant}
+        kwargs = {
+            self._post.fp_version: self.fp_version,
+            self._post.fp_seq: self.fp_seq,
+            self._res.plant: self._plant
+        }
         self.io.delete_from_db(sql=self.query.del_human_capa_profile_dtl(**kwargs))
 
         # Save result

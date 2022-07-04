@@ -168,7 +168,7 @@ class Mold(object):
             af_dmd[self._dmd.start_time] = self.calc_next_day(res=af_dmd[self._res.res], day=bf_dmd['day'])
             af_dmd[self._dmd.end_time] = af_dmd[self._dmd.start_time] + af_dmd[self._dmd.duration]
             af_dmd['day'] = self.update_day(data=af_dmd)
-            move_duration = af_dmd[self._dmd.end_time] - bf_dmd[self._dmd.end_time]
+            move_duration = af_dmd[self._dmd.end_time] - af_dmd[self._dmd.start_time]
         else:
             bf_dmd = pd.DataFrame()
             # af_dmd[self._dmd.start_time] = self.res_day_capa[data[self._res.res]][self.calc_next_day_bak(day)][0]

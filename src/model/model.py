@@ -380,12 +380,13 @@ class OptSeq(object):
                         )
                 # Simultaneous production constraint
         if self._cstr_cfg['apply_sim_prod_cstr']:
-            # Impossible production
-            model, activity = self._check_virtual_res_on_act(
-                model=model,
-                activity=activity,
-                dmd_list=dmd_list
-            )
+            if self._sim_prod_cstr_imp is not None:
+                # Impossible production
+                model, activity = self._check_virtual_res_on_act(
+                    model=model,
+                    activity=activity,
+                    dmd_list=dmd_list
+                )
 
         model, rm_act_list = self._remove_empty_mode_from_model(model=model)
 
