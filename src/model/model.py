@@ -34,6 +34,13 @@ class OptSeq(object):
         self._item = Item()
         self._dmd = Demand()
 
+        # Item instance attribute
+        self._item_mst = plant_data[self._key.item]
+        self._sku_to_pkg = {}
+        self._sku_to_brand = {}
+        self._brand_pkg_sku_map = {}
+        self.col_item = [self._item.sku, self._item.brand, self._item.pkg]
+
         # Resource instance attribute
         self._res_grp = plant_data[self._key.res][self._key.res_grp][plant]
         self._res_to_res_grp = {}
@@ -70,17 +77,11 @@ class OptSeq(object):
         # Simultaneous production constraint
         if self._cstr_cfg['apply_sim_prod_cstr']:
             # self._sim_prod_cstr_imp = plant_data[self._key.cstr][self._key.sim_prod_cstr]['impossible'].get(plant, None)
-            self._sim_prod_cstr_imp = plant_data[self._key.cstr][self._key.sim_prod_cstr].get(plant, None)
-            self._sku_to_pkg = {}
-            self._sku_to_brand = {}
-
-        # Mold capacity constraint
-        # if self._cstr_cfg['apply_mold_capa_cstr']:
-        #     self._mold_res = plant_data[self._key.cstr][self._key.mold_cstr][self._key.mold_res].get(plant, None)
-        #     self._mold_capa = plant_data[self._key.cstr][self._key.mold_cstr][self._key.mold_capa].get(plant, None)
+            self._sim_prod_cstr_imp = plant_data[self._key.cstr][self._key.sim_prod_cstr]['impossible'].get(plant, None)
 
     def init(self, plant: str, dmd_list: list, res_grp_dict: dict):
         # Step 0. Preprocessing
+        self._preprocess()
         self._set_res_to_res_grp()
 
         # Step 1. Instantiate the model
@@ -108,6 +109,46 @@ class OptSeq(object):
         model = self._set_model_parameter(model=model)
 
         return model, rm_act_list
+
+    def _preprocess(self):
+        self._set_res_to_res_grp()
+        self._set_brand_pkg_sku_map()
+        self._set_sku_to_brand_and_pkg()
+
+    def _set_sku_to_brand_and_pkg(self) -> None:
+        item = self._item_mst.copy()
+        item = item[self.col_item]
+
+        # Convert data type
+        item[self._item.sku] = item[self._item.sku].astype(str)
+        item[self._item.pkg] = item[self._item.pkg].astype(str)
+
+        # Make sku to sku information hash map
+        sku_to_pkg = {}
+        sku_to_brand = {}
+        for sku, brand, pkg in zip(item[self._item.sku], item[self._item.brand], item[self._item.pkg]):
+            sku_to_pkg[sku] = pkg
+            sku_to_brand[sku] = brand
+
+        self._sku_to_pkg = sku_to_pkg
+        self._sku_to_brand = sku_to_brand
+
+    def _set_brand_pkg_sku_map(self) -> None:
+        item = self._item_mst.copy()
+        item = item[self.col_item]
+
+        brand_pkg_sku_map = {}
+        for brand, brand_df in item.groupby(by=self._item.brand):
+            pkg_sku = {}
+            for pkg, pkg_df in brand_df.groupby(by=self._item.pkg):
+                for sku in pkg_df[self._item.sku]:
+                    if pkg in pkg_sku:
+                        pkg_sku[pkg].append(sku)
+                    else:
+                        pkg_sku[pkg] = [sku]
+            brand_pkg_sku_map[brand] = pkg_sku
+
+        self._brand_pkg_sku_map = brand_pkg_sku_map
 
     @staticmethod
     def _get_res_to_dmd_list(model: Model):
@@ -204,16 +245,17 @@ class OptSeq(object):
                 if len(pkg_list) > 1:
                     for pkg in pkg_list:
                         pkg_dmd = brand_df[brand_df[self._item.pkg] == pkg]
-                        non_pkg_dmd = brand_df[~brand_df[self._item.pkg] == pkg]
+                        non_pkg_dmd = brand_df[brand_df[self._item.pkg] != pkg]
 
-                        act1 = util.generate_model_name(
-                            name_list=[pkg_dmd[self._dmd.dmd], pkg_dmd[self._item.sku], pkg_dmd['res_grp_cd']])
-                        act2 = util.generate_model_name(
-                            name_list=[non_pkg_dmd[self._dmd.dmd], non_pkg_dmd[self._item.sku],
-                                       non_pkg_dmd['res_grp_cd']]
-                        )
-                        if (act1, act2) not in pair:
-                            pair.append((act1, act2))
+                        for i, row1 in pkg_dmd.iterrows():
+                            for j, row2 in non_pkg_dmd.iterrows():
+                                act1 = util.generate_model_name(
+                                    name_list=[row1[self._dmd.dmd], row1[self._item.sku], row1['res_grp_cd']])
+                                act2 = util.generate_model_name(
+                                    name_list=[row2[self._dmd.dmd], row2[self._item.sku], row2['res_grp_cd']])
+                                p = sorted([act1, act2])
+                                if p not in pair:
+                                    pair.append(p)
 
         return pair
 
@@ -230,11 +272,10 @@ class OptSeq(object):
         for act1, act2 in dmd_pair:
             activity1 = activity[act1]
             activity2 = activity[act2]
-            sku1, res_grp1 = activity1.split('@')[1:]
-            sku2, res_grp2 = activity2.split('@')[1:]
+            act1_name = activity1.name[activity1.name.index('[')+1: activity1.name.index('@')]
+            act2_name = activity2.name[activity2.name.index('[')+1: activity2.name.index('@')]
 
-            virtual_res_name = res_grp1 + '@' + self._sku_to_brand[sku1] + '@' + self._sku_to_pkg[sku1] + '_' + \
-                               self._sku_to_pkg[sku2]
+            virtual_res_name = 'VR[' + act1_name + '_' + act2_name + ']'
             virtual_res = model.addResource(name=virtual_res_name, capacity={(0, "inf"): 1})
 
             for mode in activity1.modes:
@@ -248,7 +289,6 @@ class OptSeq(object):
                 self._add_virtual_res_on_mode(
                     mode=mode,
                     res=virtual_res,
-                    # res=list(mode.requirement.keys())[0][0],
                     duration=mode.duration
                 )
 
@@ -338,6 +378,14 @@ class OptSeq(object):
                             due_date=due_date,
                             model_res=model_res,
                         )
+                # Simultaneous production constraint
+        if self._cstr_cfg['apply_sim_prod_cstr']:
+            # Impossible production
+            model, activity = self._check_virtual_res_on_act(
+                model=model,
+                activity=activity,
+                dmd_list=dmd_list
+            )
 
         model, rm_act_list = self._remove_empty_mode_from_model(model=model)
 
@@ -431,13 +479,13 @@ class OptSeq(object):
                     duration=duration
                 )
 
-                if self._cstr_cfg['apply_sim_prod_cstr']:
-                    mode = self._add_virtual_res_on_mode(
-                        mode=mode,
-                        resource=resource,
-                        model_res=model_res,
-                        duration=duration
-                    )
+                # if self._cstr_cfg['apply_sim_prod_cstr']:
+                #     mode = self._add_virtual_res_on_mode(
+                #         mode=mode,
+                #         resource=resource,
+                #         model_res=model_res,
+                #         duration=duration
+                #     )
 
                 # add mode list to activity
                 act.addModes(mode)
@@ -678,22 +726,22 @@ class OptSeq(object):
                     raise TypeError(f"Resource: {resource.name} contains non-int type.")
 
         # Compare resource & resource in the mode
-        act_mode_res_list = set()
-        for act in model.act:
-            for mode in act.modes:
-                if mode.duration != 0:
-                    res = list(mode.requirement.keys())[0][0]
-                    act_mode_res_list.add(res)
+        # act_mode_res_list = set()
+        # for act in model.act:
+        #     for mode in act.modes:
+        #         if mode.duration != 0:
+        #             for key in mode.requirement:
+        #                 act_mode_res_list.add(key)
 
-        if len(act_mode_res_list - res_list) > 0:
-            raise ValueError(f"Infeasible Setting")
+        # if len(act_mode_res_list - res_list) > 0:
+        #     raise ValueError(f"Infeasible Setting")
 
-        elif len(res_list - act_mode_res_list) > 0:
-            res_filter_list = list(res_list - act_mode_res_list)
-
-            for resource in model.res[:]:
-                if resource.name in res_filter_list:
-                    model.res.remove(resource)
+        # if len(res_list - act_mode_res_list) > 0:
+        #     res_filter_list = list(res_list - act_mode_res_list)
+        #
+        #     for resource in model.res[:]:
+        #         if resource.name in res_filter_list:
+        #             model.res.remove(resource)
 
         return model
 
