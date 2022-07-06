@@ -4,7 +4,7 @@ import os
 import datetime
 
 fp_num = '01'
-fp_seq = '1'
+fp_seq = '4'
 
 base_path = {
     'root': os.path.join('..', '..'),
@@ -13,16 +13,16 @@ base_path = {
 
 cfg = {
     'exec': {
-        'save_step_yn': False,
-        'save_db_yn': False,
-        'save_graph_yn': False,
+        'save_step_yn': True,
+        'save_db_yn': True,
+        'save_graph_yn': True,
         'verbose': False,
     },
     'step': {
-        'cls_load': False,
+        'cls_load': True,
         'cls_cns': False,
-        'cls_prep': False,
-        'cls_model': False,
+        'cls_prep': True,
+        'cls_model': True,
         'cls_pp': True,
         'cls_save': False,
     },
@@ -32,7 +32,7 @@ cfg = {
         'apply_multi_lot_size': True,        # Multiple lot size
         'apply_human_capacity': True,        # Human Capacity
         'apply_sim_prod_cstr': True,         # Simultaneous Production Constraint
-        'apply_mold_capa_cstr': True,        # Mold Capacity Constraint
+        'apply_mold_capa_cstr': False,        # Mold Capacity Constraint
         'apply_res_available_time': True,    # Resource Capacity
     },
     'except': {

@@ -5,8 +5,8 @@ from init.initDev import Init
 from init.load import DataLoad
 from init.consistency import Consistency
 from init.preprocess import Preprocess
-from model.modelSim import OptSeq
-from Post.process import Process
+from model.model import OptSeq
+from Post.processDev import Process
 
 
 class Pipeline(object):
@@ -117,6 +117,7 @@ class Pipeline(object):
 
             # Model optimization by each plant
             for plant in prep_data[self.key.dmd][self.key.dmd_list]:
+            # for plant in ['K110']:
                 print(f" - Set the OtpSeq model: {plant}")
                 # Instantiate OptSeq class
                 opt_seq = OptSeq(
@@ -127,30 +128,29 @@ class Pipeline(object):
                 )
 
                 # Initialize the each model of plant
-                if plant in ['K110', 'K120', 'K130', 'K140', 'K170']:
-                    model, rm_act_list = opt_seq.init(
-                        plant=plant,
-                        dmd_list=prep_data[self.key.dmd][self.key.dmd_list][plant],
-                        res_grp_dict=prep_data[self.key.res][self.key.res_grp][plant]
-                    )
+                model, rm_act_list = opt_seq.init(
+                    plant=plant,
+                    dmd_list=prep_data[self.key.dmd][self.key.dmd_list][plant],
+                    res_grp_dict=prep_data[self.key.res][self.key.res_grp][plant]
+                )
 
-                    # Make activity to mode hash map
-                    act_mode_name_map = opt_seq.make_act_mode_map(model=model)
+                # Make activity to mode hash map
+                act_mode_name_map = opt_seq.make_act_mode_map(model=model)
 
-                    plant_model[plant] = {
-                        'model': model,
-                        'act_mode_name': act_mode_name_map,
-                        'rm_act_list': rm_act_list
-                    }
+                plant_model[plant] = {
+                    'model': model,
+                    'act_mode_name': act_mode_name_map,
+                    'rm_act_list': rm_act_list
+                }
 
-                    # Check and fix the model setting
-                    model = opt_seq.check_and_fix_model_setting(model=model)
+                # Check and fix the model setting
+                model = opt_seq.check_and_fix_model_setting(model=model)
 
-                    # Optimization
-                    print('\n============================================')
-                    print(f" - Optimize the OtpSeq model: {plant}")
-                    print('============================================')
-                    opt_seq.optimize(model=model)
+                # Optimization
+                print('\n============================================')
+                print(f" - Optimize the OtpSeq model: {plant}")
+                print('============================================')
+                opt_seq.optimize(model=model)
 
                 # Save original result
                 opt_seq.save_org_result()
@@ -177,6 +177,7 @@ class Pipeline(object):
             for plant in prep_data[self.key.dmd][self.key.dmd_list]:
                 print(f"\nPost process: plant {plant}")
                 if len(plant_model[plant]['model'].act) > 0:
+                # if plant == 'K120':
                     pp = Process(
                         io=self.io,
                         cfg=self.cfg,

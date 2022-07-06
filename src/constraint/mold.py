@@ -38,7 +38,7 @@ class Mold(object):
         self.day_multiple = 3
         self.time_multiple = config.time_multiple    # Minute -> Seconds
         self.time_interval = []
-        self.schedule_weeks = config.schedule_weeks
+        self.schedule_weeks = config.schedule_days
 
         # Column information
         self._col_item_mst = [self._item.sku, self._item.weight, self._item.weight_uom]
@@ -114,7 +114,7 @@ class Mold(object):
         time_moved_dmd = time_moved_dmd.append(dmd).reset_index(drop=True)
 
         if len(time_moved_dmd) > 0:
-            time_moved_dmd = self. apply_res_capa_on_timeline(data=time_moved_dmd, res=dmd[self._res.res])
+            time_moved_dmd = self.apply_res_capa_on_timeline(data=time_moved_dmd, res=dmd[self._res.res])
 
             time_moved_dmd = self.update_day(data=time_moved_dmd)
 

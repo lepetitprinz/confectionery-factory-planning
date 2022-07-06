@@ -83,6 +83,7 @@ class OptSeq(object):
         # Step 0. Preprocessing
         self._preprocess()
         self._set_res_to_res_grp()
+        dmd_list = sorted(dmd_list)
 
         # Step 1. Instantiate the model
         model = Model(name=plant)
@@ -727,22 +728,22 @@ class OptSeq(object):
                     raise TypeError(f"Resource: {resource.name} contains non-int type.")
 
         # Compare resource & resource in the mode
-        # act_mode_res_list = set()
-        # for act in model.act:
-        #     for mode in act.modes:
-        #         if mode.duration != 0:
-        #             for key in mode.requirement:
-        #                 act_mode_res_list.add(key)
+        act_mode_res_list = set()
+        for act in model.act:
+            for mode in act.modes:
+                if mode.duration != 0:
+                    for key in mode.requirement:
+                        act_mode_res_list.add(key[0])
 
-        # if len(act_mode_res_list - res_list) > 0:
-        #     raise ValueError(f"Infeasible Setting")
+        if len(act_mode_res_list - res_list) > 0:
+            raise ValueError(f"Infeasible Setting")
 
-        # if len(res_list - act_mode_res_list) > 0:
-        #     res_filter_list = list(res_list - act_mode_res_list)
-        #
-        #     for resource in model.res[:]:
-        #         if resource.name in res_filter_list:
-        #             model.res.remove(resource)
+        if len(res_list - act_mode_res_list) > 0:
+            res_filter_list = list(res_list - act_mode_res_list)
+
+            for resource in model.res[:]:
+                if resource.name in res_filter_list:
+                    model.res.remove(resource)
 
         return model
 

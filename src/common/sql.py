@@ -207,7 +207,6 @@ class Query(object):
                AND FP_VRSN_SEQ = '{kwargs['fp_vrsn_seq']}'
                AND LEFT(YYMMDD, 4) = '{kwargs['yy']}'
                AND WEEK = '{kwargs['week']}'
---                 AND WEEK = 'W26'   
         """
         return sql
 

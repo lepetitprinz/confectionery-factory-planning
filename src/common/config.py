@@ -18,6 +18,7 @@ apply_plant = ['K110', 'K120', 'K130', 'K140', 'K170']
 work_day = 7
 time_uom = 'sec'
 time_multiple = 60
+schedule_days = 182
 # schedule_weeks = 52     # 6 month
 schedule_weeks = 104     # 6 month
 plant_start_hour = 0
