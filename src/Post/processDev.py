@@ -3,7 +3,7 @@ import common.util as util
 from common.name import Key, Demand, Item, Resource, Constraint, Post
 from constraint.human import Human
 from constraint.simultaneous import Necessary
-from constraint.moldDev import Mold
+from constraint.mold import Mold
 
 from Post.save import Save
 from Post.plot import Gantt

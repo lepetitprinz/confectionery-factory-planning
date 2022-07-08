@@ -94,7 +94,8 @@ class Process(object):
             self.sim_prod_cstr = prep_data[self._key.cstr][self._key.sim_prod_cstr]['necessary'].get(plant, None)
 
         if self.cfg['cstr']['apply_mold_capa_cstr']:    # Mold capacity constraint
-            self.mold_capa_cstr = prep_data[self._key.cstr][self._key.mold_cstr]
+            if self._plant != 'K170':
+                self.mold_capa_cstr = prep_data[self._key.cstr][self._key.mold_cstr]
 
         # Path instance attribute
         self.save_path = os.path.join('..', '..', 'result')
@@ -141,8 +142,9 @@ class Process(object):
                 self.log.extend(log)
 
         if self.cfg['cstr']['apply_mold_capa_cstr']:
-            if self.mold_capa_cstr[self._key.mold_res].get(self._plant, None) is not None:
-                result = self.apply_mold_cstr(data=result)
+            if self._plant != 'K170':
+                if self.mold_capa_cstr[self._key.mold_res].get(self._plant, None) is not None:
+                    result = self.apply_mold_cstr(data=result)
 
         util.save_log(
             log=self.log,
@@ -238,13 +240,13 @@ class Process(object):
         # Get the best sequence result
         activity = self._get_best_activity()
 
-        result = self.conv_to_df(data=activity, kind='activity')
+        result = self._conv_to_df(data=activity, kind='activity')
 
         # Fill nan values
-        result = self.fill_na(data=result)
+        result = self._fill_na(data=result)
 
         # Correct the job change error
-        result = self.correct_job_change_error(data=result)
+        result = self._correct_job_change_error(data=result)
 
         return result
 
@@ -308,7 +310,7 @@ class Process(object):
 
         return solve_result
 
-    def correct_job_change_error(self, data) -> pd.DataFrame:
+    def _correct_job_change_error(self, data) -> pd.DataFrame:
         jc = data[data['kind'] == 'job_change'].copy()
         jc_dmd_list = [[idx, res] + dmd for idx, res, dmd in zip(
             jc.index,
@@ -671,12 +673,12 @@ class Process(object):
 
         return duration_day, duration_night
 
-    def fill_na(self, data: pd.DataFrame) -> pd.DataFrame:
+    def _fill_na(self, data: pd.DataFrame) -> pd.DataFrame:
         data[self._res.res] = data[self._res.res].fillna('UNDEFINED')
 
         return data
 
-    def conv_to_df(self, data: list, kind: str):
+    def _conv_to_df(self, data: list, kind: str):
         df = None
         if kind == 'activity':
             df = pd.DataFrame(data, columns=self._act_cols)

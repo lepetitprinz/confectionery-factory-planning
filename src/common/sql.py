@@ -13,7 +13,7 @@ class Query(object):
                  , ITEM_TYPE_CD
                  , ITEM_ATTR29_CD AS FLAVOR
                  , PKG_CTGRI_SUB_CD AS PKG
-                 , ITEM_ATTR16_CD AS WEIGHT
+                 , ITEM_ATTR17_CD AS WEIGHT
                  , ITEM_ATTR19_CD AS WEIGHT_UOM
               FROM M4E_I401080
              WHERE FP_VRSN_ID = '{kwargs['fp_vrsn_id']}'
@@ -289,11 +289,11 @@ class Query(object):
         sql = """
             SELECT ITEM_CD
                  , ITEM_TYPE_CD
-                 , ITEM_ATTR16_CD AS WEIGHT
+                 , ITEM_ATTR17_CD AS WEIGHT
                  , ITEM_ATTR19_CD AS WEIGHT_UOM
               FROM M4S_I002040
              WHERE USE_YN = 'Y'
-               AND ITEM_ATTR16_CD IS NOT NULL
+               AND ITEM_ATTR17_CD IS NOT NULL
                AND ITEM_TYPE_CD IN ('HAWA', 'FERT')
         """
         return sql
