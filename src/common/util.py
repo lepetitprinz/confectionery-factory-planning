@@ -81,3 +81,4 @@ def make_time_pair(data: list):
             pair.append(temp)
 
     return pair
+

@@ -4,6 +4,16 @@ class Query(object):
     # Master & Common Code Dataset
     #################################
     @staticmethod
+    def sql_fp_eng_version():
+        sql = """
+            SELECT FP_VRSN_ID AS FP_VERSION
+                 , FP_VRSN_SEQ AS FP_SEQ
+                 , FROM_YYMMDD AS START_DAY
+              FROM M4E_I401010
+        """
+        return sql
+
+    @staticmethod
     def sql_item_master(**kwargs):
         sql = f"""
             SELECT ENG_ITEM_CD AS ITEM_CD
@@ -173,6 +183,7 @@ class Query(object):
              WHERE FP_VRSN_ID = '{kwargs['fp_vrsn_id']}'
                AND FP_VRSN_SEQ = '{kwargs['fp_vrsn_seq']}'
                AND RES_CTIG_CD <> 'RES_CTGI_11'
+               AND RES_GRP_CD IS NOT NULL
         """
         return sql
 
@@ -280,7 +291,8 @@ class Query(object):
               FROM M4E_I401140
              WHERE RES_CTIG_CD = 'RES_CTGI_11'
                AND FP_VRSN_ID = '{kwargs['fp_vrsn_id']}'
-               AND FP_VRSN_SEQ = '{kwargs['fp_vrsn_seq']}'       
+               AND FP_VRSN_SEQ = '{kwargs['fp_vrsn_seq']}'
+               AND RES_GRP_CD IS NOT NULL       
         """
         return sql
 

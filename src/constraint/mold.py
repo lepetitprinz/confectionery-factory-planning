@@ -252,7 +252,7 @@ class Mold(object):
         new_dmd['weight'] = self._sku_weight_map[sku]
         new_dmd['tot_weight'] = weight
         new_dmd['capa_use_rate'] = self._res_dur[sku][res]
-        new_dmd[self._dmd.prod_qty] = round(new_dmd['tot_weight'] / new_dmd['weight'] , 3)
+        new_dmd[self._dmd.prod_qty] = round(new_dmd['tot_weight'] / new_dmd['weight'], 3)
         new_dmd[self._dmd.duration] = int(new_dmd[self._dmd.prod_qty] * new_dmd['capa_use_rate'])
         new_dmd[self._dmd.start_time] = self._res_day_capa[res][day][0]
         new_dmd[self._dmd.end_time] = new_dmd[self._dmd.start_time] + new_dmd[self._dmd.duration]
@@ -469,11 +469,11 @@ class Mold(object):
             dmd['tot_weight'] = weight
             dmd['capa_use_rate'] = self._res_dur[sku][res]
             dmd[self._dmd.prod_qty] = round(weight / self._sku_weight_map[sku], 3)
-            dmd[self._dmd.duration] = int(dmd[self._dmd.prod_qty] * dmd['capa_use_rate'] )
+            dmd[self._dmd.duration] = int(dmd[self._dmd.prod_qty] * dmd['capa_use_rate'])
 
             res_start_time = self._res_day_capa[res][day][0]
             dmd[self._dmd.start_time] = res_start_time + self.half_sec_of_day if time_idx == 'N' else res_start_time
-            dmd[self._dmd.end_time] += dmd[self._dmd.duration]
+            dmd[self._dmd.end_time] = dmd[self._dmd.start_time] + dmd[self._dmd.duration]
 
             choose_dmd.append(dmd)
 
@@ -619,21 +619,7 @@ class Mold(object):
         else:
             fix_af_dmd[self._dmd.start_time] = standard_time
         fix_af_dmd[self._dmd.end_time] = int(fix_af_dmd[self._dmd.start_time] + fix_af_dmd[self._dmd.duration])
-        # fix_af_dmd['day'] = fix_af_dmd['day'] + 1 if fix_af_dmd[self._post.time_idx] == 'N' else fix_af_dmd['day']
-        # fix_af_dmd[self._post.time_idx] = 'D' if fix_af_dmd[self._post.time_idx] == 'N' else 'N'
         fix_af_dmd['fixed'] = True
-
-        # dmd_df = data[data[self._dmd.dmd] == fix_tick[self._dmd.dmd]]
-        # if len(dmd_df) > 0:
-        #     for duration in dmd_df[self._dmd.duration]:
-        #         fix_af_dmd[self._dmd.end_time] += duration
-        #         fix_af_dmd[self._dmd.duration] += duration
-        #
-        # fix_af_dmd[self._dmd.prod_qty] = np.floor(fix_af_dmd[self._dmd.duration] / fix_af_dmd['capa_use_rate'])
-        # fix_af_dmd['tot_weight'] = fix_af_dmd[self._item.weight] * np.floor(fix_af_dmd[self._dmd.prod_qty])
-        # fix_af_dmd['tot_weight'] = fix_af_dmd['tot_weight'].astype(int)
-        #
-        # data = data.drop(index=dmd_df.index)
 
         return data, fix_bf_dmd, fix_af_dmd
 
@@ -718,7 +704,7 @@ class Mold(object):
         ]
 
         # Calculate Production quantity
-        data[self._dmd.prod_qty] = np.floor(data[self._dmd.duration] / data['capa_use_rate'])
+        data[self._dmd.prod_qty] = np.round(data[self._dmd.duration] / data['capa_use_rate'], 3)
         data[self._dmd.prod_qty] = np.where(data[self._dmd.dmd].str.contains('@'), 0, data[self._dmd.prod_qty])
         data['tot_weight'] = data[self._item.weight] * np.floor(data[self._dmd.prod_qty])
         # data['tot_weight'] = data['mold_weight'] * np.floor(data[self._dmd.prod_qty])
@@ -755,11 +741,12 @@ class Mold(object):
         res_dur = deepcopy(self._res_dur)
         res_sku_dur = {}
         for sku, res_dur_map in res_dur.items():
-            for res, duration in res_dur_map.items():
-                if res not in res_sku_dur:
-                    res_sku_dur[res] = [sku]
-                else:
-                    res_sku_dur[res].append(sku)
+            if sku[0] != '7':
+                for res, duration in res_dur_map.items():
+                    if res not in res_sku_dur:
+                        res_sku_dur[res] = [sku]
+                    else:
+                        res_sku_dur[res].append(sku)
 
         self._res_sku_dur = res_sku_dur
 
@@ -842,34 +829,54 @@ class Mold(object):
         # Slice timeline of half-item
         splited_list = []
         for i, row in data.iterrows():
-            add_day = self.add_timeline_day(row, splitted=[])
+            add_day = self.add_timeline_day(row)
             if add_day is not None:
                 splited_list.extend(add_day)
 
         data_splite = pd.DataFrame(splited_list)
+        data_splite = self.update_qty_weight(data=data_splite)
         data_splite = data_splite.reset_index(drop=True)
 
         return data_splite
 
-    def add_timeline_day(self, row: pd.Series, splitted: list) -> List[pd.Series]:
+    def add_timeline_day(self, row: pd.Series) -> List[pd.Series]:
+        splitted = []
         dmd_start = row[self._dmd.start_time]
         dmd_end = row[self._dmd.end_time]
-        # for day, (day_start, day_end) in enumerate(self._res_to_capa[row[self._res.res]]):
         for day, day_start, day_end in self.time_interval:
+            if dmd_end <= day_start:
+                break
             if dmd_start >= day_end:
                 continue
             else:
-                if dmd_end <= day_end:
-                    row['day'] = day
-                    rows = self.split_dmd_by_time_index(
-                        data=row,
-                        time=(dmd_start, dmd_end),
-                        day_time=(day_start, day_end)
-                    )
-                    for row in rows:
-                        splitted.append(row)
+                dmd = row.copy()
+                dmd['day'] = day
+                if dmd_end > day_end:
+                    if dmd_start >= day_start:
+                        time = (dmd_start, day_end)
+                    else:
+                        time = (day_start, day_end)
+                    # dmd_list = self.split_dmd_by_time_index(
+                    #     data=dmd,
+                    #     time=time,
+                    #     day_time=(day_start, day_end)
+                    # )
+                else:
+                    if dmd_start >= day_start:
+                        time = (dmd_start, dmd_end)
+                    else:
+                        time = (day_start, dmd_end)
 
-                    return splitted
+                dmd_list = self.split_dmd_by_time_index(
+                    data=dmd,
+                    time=time,
+                    day_time=(day_start, day_end)
+                )
+
+                for dmd_split in dmd_list:
+                    splitted.append(dmd_split)
+
+        return splitted
 
     def split_dmd_by_time_index(self, data: pd.Series, time: tuple, day_time: tuple) -> List[pd.Series]:
         split_row = []
@@ -877,11 +884,24 @@ class Mold(object):
         day_start, day_end = day_time
 
         if dmd_end <= day_start + self.half_sec_of_day:
-            data[self._post.time_idx] = 'D'
-            split_row.append(data)
+            split = data.copy()
+            split[self._post.time_idx] = 'D'
+            split[self._dmd.start_time] = dmd_start
+            split[self._dmd.end_time] = dmd_end
+            split[self._dmd.duration] = split[self._dmd.end_time] - split[self._dmd.start_time]
+
+            if data[self._dmd.duration] > 0:
+                split_rate = split[self._dmd.duration] / (data[self._dmd.duration])
+                split[self._dmd.prod_qty] = round(data[self._dmd.prod_qty] * split_rate, 3)
+                split['tot_weight'] = int(data['tot_weight'] * split_rate)
+
+                split_row.append(split)
         else:
             if dmd_start >= day_start + self.half_sec_of_day:
                 data[self._post.time_idx] = 'N'
+                data[self._dmd.start_time] = dmd_start
+                data[self._dmd.end_time] = dmd_end
+                data[self._dmd.duration] = data[self._dmd.end_time] - data[self._dmd.start_time]
                 split_row.append(data)
             else:
                 split_bf = data.copy()
@@ -890,9 +910,9 @@ class Mold(object):
                 split_bf[self._dmd.duration] = split_bf[self._dmd.end_time] - split_bf[self._dmd.start_time]
                 split_bf[self._post.time_idx] = 'D'
 
-                split_rate = split_bf[self._dmd.duration] / (data[self._dmd.end_time] - data[self._dmd.start_time])
-                split_bf[self._dmd.prod_qty] = int(data[self._dmd.prod_qty] * split_rate)
-                split_bf['tot_weight'] = int(data['tot_weight'] * split_rate)
+                split_bf_rate = split_bf[self._dmd.duration] / (data[self._dmd.duration])
+                split_bf[self._dmd.prod_qty] = round((data[self._dmd.prod_qty] * split_bf_rate), 3)
+                split_bf['tot_weight'] = int(data['tot_weight'] * split_bf_rate)
                 split_row.append(split_bf)
 
                 split_af = data.copy()
@@ -901,8 +921,9 @@ class Mold(object):
                 split_af[self._dmd.duration] = split_af[self._dmd.end_time] - split_af[self._dmd.start_time]
                 split_af[self._post.time_idx] = 'N'
 
-                split_af[self._dmd.prod_qty] = int(data[self._dmd.prod_qty] * (1 - split_rate))
-                split_af['tot_weight'] = int(data['tot_weight'] * (1 - split_rate))
+                split_af_rate = split_af[self._dmd.duration] / (data[self._dmd.duration])
+                split_af[self._dmd.prod_qty] = round(data[self._dmd.prod_qty] * split_af_rate, 3)
+                split_af['tot_weight'] = int(data['tot_weight'] * split_af_rate)
                 split_row.append(split_af)
 
         return split_row
@@ -1029,6 +1050,7 @@ class Mold(object):
                             revised_data = revised_data.append(res_df)
 
         revised_data[self._dmd.duration] = revised_data[self._dmd.end_time] - revised_data[self._dmd.start_time]
+        revised_data = self.update_qty_weight(data=revised_data)
         revised_data = revised_data.sort_values(by=self._dmd.dmd)
         revised_data = revised_data.reset_index(drop=True)
 
@@ -1046,3 +1068,11 @@ class Mold(object):
         common['tot_weight'] = weight
 
         return common
+
+    def update_qty_weight(self, data: pd.DataFrame) -> pd.DataFrame:
+        data[self._dmd.prod_qty] = np.round(data[self._dmd.duration] / data['capa_use_rate'], 3)
+        data[self._dmd.prod_qty] = np.where(data[self._dmd.dmd].str.contains('@'), 0, data[self._dmd.prod_qty])
+        data['tot_weight'] = data[self._dmd.prod_qty] * data[self._item.weight]
+        data['tot_weight'] = data['tot_weight'].astype(int)
+
+        return data

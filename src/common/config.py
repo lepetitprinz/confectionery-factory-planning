@@ -20,7 +20,7 @@ time_uom = 'sec'
 time_multiple = 60
 schedule_days = 182
 # schedule_weeks = 52     # 6 month
-schedule_weeks = 104     # 6 month
+schedule_weeks = 52     # 6 month
 plant_start_hour = 0
 sec_of_day = 86400
 

@@ -3,9 +3,6 @@ from deployment.pipeline import Pipeline
 import os
 import datetime
 
-fp_num = '02'
-fp_seq = '1'
-
 base_path = {
     'root': os.path.join('..', '..'),
     'save': os.path.join('..', '..', 'result', 'pipeline')
@@ -13,15 +10,15 @@ base_path = {
 
 cfg = {
     'exec': {
-        'save_step_yn': False,
-        'save_db_yn': False,
-        'save_graph_yn': False,
+        'save_step_yn': True,
+        'save_db_yn': True,
+        'save_graph_yn': True,
         'verbose': False,
     },
     'step': {
-        'cls_load': True,
+        'cls_load': False,
         'cls_cns': False,
-        'cls_prep': True,
+        'cls_prep': False,
         'cls_model': True,
         'cls_pp': True,
     },
@@ -45,8 +42,6 @@ print("Optimization Start: ", datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%
 pipeline = Pipeline(
     cfg=cfg,
     base_path=base_path,
-    fp_num=fp_num,
-    fp_seq=fp_seq
 )
 pipeline.run()
 

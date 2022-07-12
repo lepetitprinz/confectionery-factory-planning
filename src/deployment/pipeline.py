@@ -10,7 +10,7 @@ from Post.process import Process
 
 
 class Pipeline(object):
-    def __init__(self, cfg: dict, base_path: dict, fp_seq: str, fp_num='01'):
+    def __init__(self, cfg: dict, base_path: dict):
         self.io = DataIO()
         self.query = Query()
         self.key = Key()
@@ -21,8 +21,7 @@ class Pipeline(object):
         self.base_path = base_path
 
         # Plant information instance attribute
-        self.fp_seq = fp_seq
-        self.fp_num = fp_num
+        self.fp_seq = ''
         self.version = None
         self.fp_version = ''
 
@@ -40,8 +39,6 @@ class Pipeline(object):
             io=self.io,
             query=self.query,
             default_path=self.base_path,
-            fp_num=self.fp_num,
-            fp_seq=self.fp_seq
         )
         init.run()
 
@@ -49,6 +46,7 @@ class Pipeline(object):
         self.path = init.pipeline_path
         self.version = init.version
         self.calendar = init.calendar
+        self.fp_seq = init.fp_seq
         self.fp_version = init.fp_version
         self.plant_start_day = init.plant_start_day
         print("Initialization is finished.\n")
@@ -116,8 +114,8 @@ class Pipeline(object):
                 prep_data = self.io.load_object(path=self.path['prep_data'], data_type='binary')
 
             # Model optimization by each plant
-            for plant in prep_data[self.key.dmd][self.key.dmd_list]:
-            # for plant in ['K110']:
+            # for plant in prep_data[self.key.dmd][self.key.dmd_list]:
+            for plant in ['K120']:
                 print(f" - Set the OtpSeq model: {plant}")
                 # Instantiate OptSeq class
                 opt_seq = OptSeq(
@@ -177,7 +175,7 @@ class Pipeline(object):
             for plant in prep_data[self.key.dmd][self.key.dmd_list]:
                 print(f"\nPost process: plant {plant}")
                 # if len(plant_model[plant]['model'].act) > 0:
-                if plant != 'K170':
+                if plant in ['K120']:
                     pp = Process(
                         io=self.io,
                         cfg=self.cfg,

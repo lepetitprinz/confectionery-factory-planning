@@ -13,9 +13,9 @@ base_path = {
 
 cfg = {
     'exec': {
-        'save_step_yn': True,
-        'save_db_yn': True,
-        'save_graph_yn': True,
+        'save_step_yn': False,
+        'save_db_yn': False,
+        'save_graph_yn': False,
         'verbose': False,
     },
     'step': {
