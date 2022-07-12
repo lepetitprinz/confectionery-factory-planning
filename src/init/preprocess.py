@@ -399,7 +399,7 @@ class Preprocess(object):
             data = self._change_dmd_qty(data=data, method='multi')
 
         # Get plant list of demand list
-        dmd_plant_list = list(set(data[self._res.plant]))
+        dmd_plant_list = sorted(list(set(data[self._res.plant])))
 
         # Calculate the due date
         self._calc_due_date(data=data)

@@ -6,7 +6,7 @@ from init.load import DataLoad
 from init.consistency import Consistency
 from init.preprocess import Preprocess
 from model.model import OptSeq
-from Post.processDev import Process
+from Post.process import Process
 
 
 class Pipeline(object):
@@ -176,8 +176,8 @@ class Pipeline(object):
             # Post Process after optimization
             for plant in prep_data[self.key.dmd][self.key.dmd_list]:
                 print(f"\nPost process: plant {plant}")
-                if len(plant_model[plant]['model'].act) > 0:
-                # if plant == 'K120':
+                # if len(plant_model[plant]['model'].act) > 0:
+                if plant == 'K140':
                     pp = Process(
                         io=self.io,
                         cfg=self.cfg,

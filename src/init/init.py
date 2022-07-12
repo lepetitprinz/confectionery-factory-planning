@@ -44,7 +44,7 @@ class Init(object):
             seq=self.fp_num
         )
 
-        # fp_version = 'FP_2022W24.01'
+        fp_version = 'FP_2022W27.02'
         self.fp_version = fp_version
         self.version.set_version(fp_version=fp_version, fp_seq=self.fp_seq)
 

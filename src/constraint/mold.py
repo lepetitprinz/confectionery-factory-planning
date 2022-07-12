@@ -5,7 +5,7 @@ from common.name import Key, Demand, Item, Resource, Constraint, Post
 import numpy as np
 import pandas as pd
 from copy import deepcopy
-from typing import Tuple, List
+from typing import Tuple, List, Union
 
 
 class Mold(object):
@@ -25,6 +25,7 @@ class Mold(object):
         self._item_mst = data[self._key.item]
         self._cstr_mst = data[self._key.cstr]
         self._res_dur = res_dur
+        self._res_sku_dur = {}
         self._res_to_capa = {}
         self._res_day_capa = {}
         self._res_to_res_grp = res_to_res_grp
@@ -33,8 +34,10 @@ class Mold(object):
         # Mold constraint instance attribute
         self._mold_res = mold_cstr[self._key.mold_res].get(plant, None)
         self._mold_capa = mold_cstr[self._key.mold_capa].get(plant, None)
+        self._new_sku_dmd = []
         self._sku_weight_map = {}
         self._weight_conv_map = {'G': 0.001, 'KG': 1, 'TON': 1000}
+        self._sku_brand_pkg_map = {}
 
         # Time instance attribute
         self.work_day = config.work_day  # 6 days: Monday ~ Friday
@@ -47,7 +50,8 @@ class Mold(object):
         self.time_idx_map = {'D': 0, 'N': 1}
 
         # Column information
-        self._col_item_mst = [self._item.sku, self._item.weight, self._item.weight_uom]
+        self._col_item_weight = [self._item.sku, self._item.weight, self._item.weight_uom]
+        self._col_item_info = [self._item.sku, self._item.brand, self._item.pkg]
 
         self.prev_fix_dmd = None
 
@@ -72,13 +76,19 @@ class Mold(object):
 
             # Increase days since timeline would be moved backward
             mold_res_day['day'] = mold_res_day['day'].values * self.day_multiple
-
             result = pd.DataFrame()
             for mold_res in mold_res_day[self._cstr.mold_res]:
+                mold_result = pd.DataFrame()
+                self.prev_fix_dmd = None
                 mold_df = apply_dmd[apply_dmd[self._cstr.mold_res] == mold_res].copy()
-                for day in range(0, mold_res_day[mold_res_day[self._cstr.mold_res] == mold_res]['day'].values[0]):
+                mold_usable_days = self.calc_mold_usable_day(
+                    mold_res=mold_res,
+                    last_day=mold_res_day[mold_res_day[self._cstr.mold_res] == mold_res].squeeze()['day']
+                )
+                for day in mold_usable_days:
                     for time_idx in ['D', 'N']:
-                        if len(mold_df) > 0:
+                        if (len(mold_df) > 0) & (len(mold_df[(mold_df['day'] == day)
+                                                             & (mold_df[self._post.time_idx] == time_idx)]) > 0):
                             # Apply the constraint of mold resource
                             mold_df, fix_dmd = self.apply_mold_res_constraint(
                                 data=mold_df,
@@ -86,7 +96,9 @@ class Mold(object):
                                 day=day,
                                 time_idx=time_idx
                             )
-                            result = pd.concat([result, fix_dmd], axis=0)
+                            mold_result = pd.concat([mold_result, fix_dmd], axis=0)
+                            mold_result = mold_result.reset_index(drop=True)
+                result = pd.concat([result, mold_result], axis=0)
 
             result = pd.concat([result, non_apply_dmd], axis=0).reset_index(drop=True)
             result = result.drop(
@@ -95,6 +107,12 @@ class Mold(object):
             )
 
             return result
+
+    def calc_mold_usable_day(self, mold_res, last_day):
+        mold_avail_day = [i for i, capa in enumerate(self._mold_capa[mold_res]) if sum(capa) != 0]
+        usable_day = [i for i in range(last_day) if i % 7 in mold_avail_day]
+
+        return usable_day
 
     def apply_mold_res_constraint(self, data: pd.DataFrame, mold_res: str, day: int, time_idx: str) \
             -> Tuple[pd.DataFrame, pd.DataFrame]:
@@ -112,10 +130,12 @@ class Mold(object):
                 day=day,
                 time_idx=time_idx
             )
+        if len(data) > 0:
+            data = self.update_timeline_by_day_and_time_index(data=data)
 
         return data, fix_dmd
 
-    def choose_res_and_sku_to_make(self, data, day, time_idx, mold_capa):
+    def choose_res_and_sku_to_make(self, data, day, time_idx, mold_res, mold_capa):
         # Get resource group of mold resource
         res_grp = data[self._res.res_grp].values[0]
 
@@ -123,15 +143,15 @@ class Mold(object):
         day_time_dmd = data[(data['day'] == day) & (data[self._post.time_idx] == time_idx)]
 
         # Get available resource on each demand
-        dmd_avail_res = self.check_avail_dmd_list(res_grp=res_grp, day_time_dmd=day_time_dmd)
+        dmd_avail_res = self.check_avail_dmd_list_of_each_sku(res_grp=res_grp, day_time_dmd=day_time_dmd)
+
+        # Calculate total weight of demand (day / time index)
+        day_time_idx_dmd_weight = day_time_dmd['tot_weight'].sum()
+
+        # Calculate additional weight
+        additional_weight = mold_capa - day_time_idx_dmd_weight
 
         if len(dmd_avail_res) > 0:
-            # Calculate total weight of demand (day / time index)
-            day_time_idx_dmd_weight = day_time_dmd['tot_weight'].sum()
-
-            # Calculate additional weight
-            additional_weight = mold_capa - day_time_idx_dmd_weight
-
             over_weight_dmd, less_weight_dmd = self.check_additional_weight_on_avail_res(
                 dmd_avail_res=dmd_avail_res,
                 day_time_dmd=day_time_dmd,
@@ -151,10 +171,100 @@ class Mold(object):
                     data=less_weight_dmd,
                     additional_weight=additional_weight
                 )
-        else:
-            choose_dmd_list = []
 
-        return choose_dmd_list
+            choose_dmd_list = self.update_additional_dmd(dmd_list=choose_dmd_list)
+            choose_dmd = pd.DataFrame(choose_dmd_list)
+        else:
+            choose_dmd = self.find_other_sku_to_make(
+                res_grp=res_grp,
+                day_time_dmd=day_time_dmd,
+                day=day,
+                time_idx=time_idx,
+                mold_res=mold_res,
+                additional_weight=additional_weight
+            )
+
+        return choose_dmd
+
+    def find_other_sku_to_make(self, res_grp, day_time_dmd, day, time_idx, mold_res, additional_weight):
+        # Get all of resource set in resource group
+        all_res = set(self._res_grp_to_res[res_grp])
+
+        # get resource list that used now
+        day_time_dmd_res = set(day_time_dmd[self._res.res].copy())
+
+        prod_avail_res = all_res - day_time_dmd_res
+
+        avail_sku = []
+        for res in prod_avail_res:
+            sku = self._res_sku_dur.get(res, None)
+            if sku is not None:
+                avail_sku.append([res, sku])
+
+        if len(avail_sku) == 0:
+            print(f"Does not find any sku that can be made on available resource "
+                  f"(Mold Resource: {mold_res} Day: {day} Time index: {time_idx}).")
+
+        res_sku_max_weight = []
+        for res, sku_list in avail_sku:
+            for sku in sku_list:
+                max_duration = self.calc_max_duration_on_res(res=res, day=day, time_idx=time_idx)
+                if max_duration > 0:
+                    max_prod_qty = round(max_duration / self._res_dur[sku][res], 3)
+                    max_weight = int(max_prod_qty * self._sku_weight_map[sku])
+                    res_sku_max_weight.append([res, sku, max_weight])
+
+        res_sku_max_weight = sorted(res_sku_max_weight, key=lambda x: (-x[2], x[0], x[1]))
+
+        choose_dmd = day_time_dmd.copy()
+        avail_res = list(prod_avail_res)
+        for res, sku, max_weight in res_sku_max_weight:
+            if additional_weight > 0:
+                if res in avail_res:
+                    if max_weight > additional_weight:
+                        new_dmd = self.make_new_sku_dmd(
+                            res_grp=res_grp, res=res, sku=sku, day=day, time_idx=time_idx, mold_res=mold_res,
+                            weight=additional_weight)
+                        choose_dmd = choose_dmd.append(new_dmd, ignore_index=True)
+                        break
+                    else:
+                        new_dmd = self.make_new_sku_dmd(
+                            res_grp=res_grp, res=res, sku=sku, day=day, time_idx=time_idx, mold_res=mold_res,
+                            weight=max_weight)
+                        choose_dmd = choose_dmd.append(new_dmd, ignore_index=True)
+                        avail_res.remove(res)
+                        additional_weight -= max_weight
+
+        return choose_dmd
+
+    def make_new_sku_dmd(self, res_grp, res, sku, day, time_idx, mold_res, weight):
+        new_dmd = pd.Series()
+        new_dmd[self._res.res_grp] = res_grp
+        new_dmd[self._res.res] = res
+        new_dmd[self._item.sku] = sku
+        new_dmd[self._item.pkg] = self._sku_brand_pkg_map[sku][self._item.pkg]
+        new_dmd[self._item.brand] = self._sku_brand_pkg_map[sku][self._item.brand]
+        new_dmd['day'] = day
+        new_dmd['kind'] = 'demand'
+        new_dmd['fixed'] = True
+        new_dmd[self._cstr.mold_res] = mold_res
+        new_dmd[self._post.time_idx] = time_idx
+        new_dmd['weight'] = self._sku_weight_map[sku]
+        new_dmd['tot_weight'] = weight
+        new_dmd['capa_use_rate'] = self._res_dur[sku][res]
+        new_dmd[self._dmd.prod_qty] = round(new_dmd['tot_weight'] / new_dmd['weight'] , 3)
+        new_dmd[self._dmd.duration] = int(new_dmd[self._dmd.prod_qty] * new_dmd['capa_use_rate'])
+        new_dmd[self._dmd.start_time] = self._res_day_capa[res][day][0]
+        new_dmd[self._dmd.end_time] = new_dmd[self._dmd.start_time] + new_dmd[self._dmd.duration]
+
+        if len(self._new_sku_dmd) == 0:
+            dmd_id = 'EP_0000001'
+        else:
+            dmd_id = 'EP_' + str(int(self._new_sku_dmd[-1][3:]) + 1).zfill(7)
+        self._new_sku_dmd.append(dmd_id)
+        new_dmd[self._dmd.dmd] = dmd_id
+
+        return new_dmd
 
     def check_less_weight_possible_to_make(self, data, additional_weight) -> list:
         temp = {}
@@ -227,7 +337,7 @@ class Mold(object):
 
         return max_duration
 
-    def check_avail_dmd_list(self, res_grp, day_time_dmd):
+    def check_avail_dmd_list_of_each_sku(self, res_grp, day_time_dmd):
         # Get all of resource set in resource group
         all_res = set(self._res_grp_to_res[res_grp])
 
@@ -255,87 +365,119 @@ class Mold(object):
 
         # Case when previous fixed demand does not exist
         if self.prev_fix_dmd is None:
-            choose_dmd_list = self.choose_res_and_sku_to_make(
-                data=data, day=day, time_idx=time_idx, mold_capa=mold_capa
+            choose_dmd = self.choose_res_and_sku_to_make(
+                data=data, day=day, time_idx=time_idx, mold_res=mold_res, mold_capa=mold_capa
             )
-            choose_dmd_list = self.update_additional_dmd(dmd_list=choose_dmd_list)
-
         else:
             # Choose demand from previous fixed demand
             day_time_dmd = data[(data['day'] == day) & (data[self._post.time_idx] == time_idx)].copy()
+            data = data.drop(index=day_time_dmd.index)
             choose_dmd = self.choose_dmd_from_prev_fix_dmd(
                 data=day_time_dmd,
+                mold_res=mold_res,
                 mold_capa=mold_capa,
                 day=day,
                 time_idx=time_idx
             )
+            if len(choose_dmd) == 0:
+                print(f"Mold Resource {mold_res} cannot use all of capa in Day: {day} / Time-Index: {time_idx}.")
 
-            #
-            if isinstance(choose_dmd, pd.Series):
-                choose_dmd['tot_weight'] = mold_capa
-                choose_dmd[self._dmd.prod_qty] = round(choose_dmd['tot_weight'] / choose_dmd[self._item.weight], 3)
-                choose_dmd[self._dmd.duration] = int(choose_dmd[self._dmd.prod_qty] * choose_dmd['capa_use_rate'])
-                choose_dmd[self._dmd.end_time] = choose_dmd[self._dmd.start_time] + choose_dmd[self._dmd.duration]
-                choose_dmd_list = [choose_dmd]
-            elif isinstance(choose_dmd, pd.DataFrame):
-                pass
-            else:
-                raise TypeError
+            # for choose_dmd in choose_dmd_list:
+            #     data = data.drop(choose_dmd.name)
+            #     data = data.reset_index(drop=True)
 
-            for choose_dmd in choose_dmd_list:
-                data = data.drop(choose_dmd.name)
-                data = data.reset_index(drop=True)
+        return data, choose_dmd
 
-        return data, pd.DataFrame(choose_dmd_list)
-
-    def update_prev_fix_dmd(self):
-        pass
-
-    def choose_dmd_from_prev_fix_dmd(self, data, mold_capa, day, time_idx):
+    def choose_dmd_from_prev_fix_dmd(self, data, mold_res, mold_capa, day, time_idx) -> Union[pd.Series, pd.DataFrame]:
         # Case when previous fixed demand exist
         prev_fix_dmd = self.prev_fix_dmd.copy()
 
-        if isinstance(prev_fix_dmd, pd.Series):
-            choose_dmd = data[data[self._dmd.dmd] == prev_fix_dmd[self._dmd.dmd]].copy().squeeze()
-        elif isinstance(prev_fix_dmd, pd.DataFrame):
-            prev_fix_last = prev_fix_dmd[prev_fix_dmd[self._dmd.dmd].isin(data[self._dmd.dmd])].copy()
-            if len(prev_fix_last) > 0:
-                prev_fix_last = prev_fix_last[
-                    prev_fix_dmd[self._dmd.end_time] == prev_fix_last[self._dmd.end_time].max()
-                    ].squeeze().copy()
-                choose_dmd = data[data[self._dmd.dmd] == prev_fix_last[self._dmd.dmd]].copy().squeeze()
-            else:    # Todo: Developing
-                self.find_producible_res(
-                    data=data,
-                    prev_fix_dmd=prev_fix_dmd,
-                    day=day,
-                    time_idx=time_idx,
-                    mold_capa=mold_capa
-                )
-        else:
-            raise TypeError
+        choose_dmd = self.find_producible_res(
+            data=data,
+            prev_fix_dmd=prev_fix_dmd,
+            res_grp=prev_fix_dmd[self._res.res_grp].iloc[0],
+            day=day,
+            time_idx=time_idx,
+            mold_capa=mold_capa
+        )
+        data['fixed'] = True
+        choose_dmd = pd.concat([choose_dmd, data], axis=0)
+
+        #
+        if choose_dmd['tot_weight'].sum() < mold_capa:
+            print(f"Capa cannot be made from current resource status on Mold resource: "
+                  f"{mold_res} Day: {day} Time index: {time_idx} {mold_capa - choose_dmd['tot_weight'].sum()}")
 
         return choose_dmd
 
-    def find_producible_res(self, data, prev_fix_dmd, day, time_idx, mold_capa):
-        res_grp = data[self._res.res_grp].iloc[0]
+    def find_producible_res(self, data, prev_fix_dmd, res_grp, day, time_idx, mold_capa) -> pd.DataFrame:
+        # Get currently available resource
         all_res = set(self._res_grp_to_res[res_grp])
         use_res = set(data[self._res.res])
         avail_res = all_res - use_res
 
+        # Get the producible SKU candidate
         sku_set = set(data[self._item.sku]) | set(prev_fix_dmd[self._item.sku])
-        sku_res_list = [(sku, list(set(self._res_dur[sku].keys()) & avail_res)) for sku in list(sku_set)]
+        sku_res_list = [(sku, list(set(self._res_dur[sku].keys()) & avail_res)) for sku in list(sku_set)
+                        if len(list(set(self._res_dur[sku].keys()) & avail_res)) > 0]
 
         sku_res_weight = []
         for sku, res_list in sku_res_list:
             for res in res_list:
                 capa_use_rate = self._res_dur[sku][res]
                 max_duration = self.calc_max_duration_on_res(res=res, day=day, time_idx=time_idx)
-                max_qty = round(max_duration / capa_use_rate, 3)
-                max_weight = int(max_qty * self._sku_weight_map[sku])
-                sku_res_weight.append([sku, res, max_weight])
+                if max_duration > 0:
+                    max_qty = round(max_duration / capa_use_rate, 3)
+                    max_weight = int(max_qty * self._sku_weight_map[sku])
+                    sku_res_weight.append([sku, res, max_weight])
+
+        sku_res_weight = sorted(sku_res_weight, key=lambda x: x[2], reverse=True)
 
         additional_weight = mold_capa - data['tot_weight'].sum()
+        choose_res_sku = []
+        avail_res_list = list(avail_res)
+        for sku, res, weight in sku_res_weight:
+            if additional_weight > 0:
+                if res in avail_res_list:
+                    if weight > additional_weight:
+                        choose_res_sku.append([sku, res, additional_weight])
+                        avail_res_list.remove(res)
+                        break
+                    else:
+                        additional_weight -= weight
+                        choose_res_sku.append([sku, res, weight])
+                        avail_res_list.remove(res)
+            else:
+                break
+
+        choose_dmd = self.get_dmd_of_choose_res_sku(
+            data=pd.concat([data, prev_fix_dmd], axis=0),
+            choose_res_sku=choose_res_sku,
+            day=day,
+            time_idx=time_idx
+        )
+
+        return choose_dmd
+
+    def get_dmd_of_choose_res_sku(self, data, choose_res_sku: list, day, time_idx) -> pd.DataFrame:
+        choose_dmd = []
+        for sku, res, weight in choose_res_sku:
+            dmd = data[data[self._item.sku] == sku].iloc[0].copy()
+            dmd[self._res.res] = res
+            dmd['day'] = day
+            dmd[self._post.time_idx] = time_idx
+            dmd['tot_weight'] = weight
+            dmd['capa_use_rate'] = self._res_dur[sku][res]
+            dmd[self._dmd.prod_qty] = round(weight / self._sku_weight_map[sku], 3)
+            dmd[self._dmd.duration] = int(dmd[self._dmd.prod_qty] * dmd['capa_use_rate'] )
+
+            res_start_time = self._res_day_capa[res][day][0]
+            dmd[self._dmd.start_time] = res_start_time + self.half_sec_of_day if time_idx == 'N' else res_start_time
+            dmd[self._dmd.end_time] += dmd[self._dmd.duration]
+
+            choose_dmd.append(dmd)
+
+        return pd.DataFrame(choose_dmd)
 
     def update_additional_dmd(self, dmd_list: list):
         result = []
@@ -349,14 +491,16 @@ class Mold(object):
 
         return result
 
-    def move_timeline(self, data, fix_af_dmd, day, time_idx) -> pd.DataFrame:
-        fix_res_data = data[data[self._res.res] == fix_af_dmd[self._res.res]].copy()
-        other_data = data[data[self._res.res] != fix_af_dmd[self._res.res]].copy()
+    def move_timeline(self, data, fix_dmd_df, fix_af_dmd, day, time_idx) -> pd.DataFrame:
+        last_fix_res_data = data[data[self._res.res] == fix_af_dmd[self._res.res]].copy()
+        other_fix_res = set(fix_dmd_df[self._res.res]) - set([fix_af_dmd[self._res.res]])
+        other_fix_res_data = data[data[self._res.res].isin(other_fix_res)].copy()
+        other_data = data[~data[self._res.res].isin(fix_dmd_df[self._res.res])].copy()
 
-        # resource demand containing fixed resource
-        fix_res_move_time = fix_af_dmd[self._dmd.end_time] - fix_res_data[self._dmd.start_time].min()
-        fix_res_data[self._dmd.start_time] += fix_res_move_time
-        fix_res_data[self._dmd.end_time] += fix_res_move_time
+        # resource demand containing last fixed resource
+        fix_res_move_time = fix_af_dmd[self._dmd.end_time] - last_fix_res_data[self._dmd.start_time].min()
+        last_fix_res_data[self._dmd.start_time] += fix_res_move_time
+        last_fix_res_data[self._dmd.end_time] += fix_res_move_time
 
         # Outer demand
         base_time = self.time_interval[day][1]
@@ -364,6 +508,12 @@ class Mold(object):
             base_time += self.half_sec_of_day
         else:
             base_time += self.sec_of_day
+
+        # resource demand containing fixed resource (except last fixed resource)
+        fix_res_move_time = base_time - other_fix_res_data[self._dmd.start_time].min()
+        other_fix_res_data[self._dmd.start_time] += fix_res_move_time
+        other_fix_res_data[self._dmd.end_time] += fix_res_move_time
+
         other_move_data = pd.DataFrame()
         for res, res_df in other_data.groupby(self._res.res):
             other_res_move_time = base_time - res_df[self._dmd.start_time].min()
@@ -371,7 +521,8 @@ class Mold(object):
             res_df[self._dmd.end_time] += other_res_move_time
             other_move_data = pd.concat([other_move_data, res_df], axis=0)
 
-        result = pd.concat([fix_res_data, other_move_data], axis=0)
+        result = pd.concat([last_fix_res_data, other_fix_res_data, other_move_data], axis=0)
+        result = result.reset_index(drop=True)
 
         return result
 
@@ -382,7 +533,7 @@ class Mold(object):
 
         fix_dmd_df = pd.DataFrame()
         fix_af_dmd = None
-        while mold_capa != 0:
+        while mold_capa > 0:
             day_time_data = data[(data['day'] == day) & (data[self._post.time_idx] == time_idx)].copy()
             data, fix_bf_dmd, fix_af_dmd, mold_capa = self.decide_which_dmd_fix(
                 data=data,
@@ -391,7 +542,13 @@ class Mold(object):
             )
             fix_dmd_df = fix_dmd_df.append(fix_bf_dmd)
 
-        moved_dmd = self.move_timeline(data=data, fix_af_dmd=fix_af_dmd, day=day, time_idx=time_idx)
+        moved_dmd = self.move_timeline(
+            data=data,
+            fix_dmd_df=fix_dmd_df,
+            fix_af_dmd=fix_af_dmd,
+            day=day,
+            time_idx=time_idx
+        )
         moved_dmd = moved_dmd.append(fix_af_dmd)
         moved_dmd = moved_dmd.reset_index(drop=True)
         moved_dmd = self.apply_res_capa_on_timeline(data=moved_dmd)
@@ -453,7 +610,7 @@ class Mold(object):
 
         fix_af_dmd = fix_tick.copy()
         fix_af_dmd['tot_weight'] = fix_tick['tot_weight'] - mold_capa
-        fix_af_dmd[self._dmd.prod_qty] = fix_tick[self._dmd.prod_qty] * (1 - fix_rate)
+        fix_af_dmd[self._dmd.prod_qty] = round(fix_tick[self._dmd.prod_qty] * (1 - fix_rate), 3)
         fix_af_dmd[self._dmd.duration] = int(fix_tick[self._dmd.duration] * (1 - fix_rate))
 
         standard_time = self.time_interval[fix_tick['day']][self.time_idx_map[fix_tick[self._post.time_idx]] + 1]
@@ -466,17 +623,17 @@ class Mold(object):
         # fix_af_dmd[self._post.time_idx] = 'D' if fix_af_dmd[self._post.time_idx] == 'N' else 'N'
         fix_af_dmd['fixed'] = True
 
-        dmd_df = data[data[self._dmd.dmd] == fix_tick[self._dmd.dmd]]
-        if len(dmd_df) > 0:
-            for duration in dmd_df[self._dmd.duration]:
-                fix_af_dmd[self._dmd.end_time] += duration
-                fix_af_dmd[self._dmd.duration] += duration
-
-        fix_af_dmd[self._dmd.prod_qty] = np.floor(fix_af_dmd[self._dmd.duration] / fix_af_dmd['capa_use_rate'])
-        fix_af_dmd['tot_weight'] = fix_af_dmd[self._item.weight] * np.floor(fix_af_dmd[self._dmd.prod_qty])
-        fix_af_dmd['tot_weight'] = fix_af_dmd['tot_weight'].astype(int)
-
-        data = data.drop(index=dmd_df.index)
+        # dmd_df = data[data[self._dmd.dmd] == fix_tick[self._dmd.dmd]]
+        # if len(dmd_df) > 0:
+        #     for duration in dmd_df[self._dmd.duration]:
+        #         fix_af_dmd[self._dmd.end_time] += duration
+        #         fix_af_dmd[self._dmd.duration] += duration
+        #
+        # fix_af_dmd[self._dmd.prod_qty] = np.floor(fix_af_dmd[self._dmd.duration] / fix_af_dmd['capa_use_rate'])
+        # fix_af_dmd['tot_weight'] = fix_af_dmd[self._item.weight] * np.floor(fix_af_dmd[self._dmd.prod_qty])
+        # fix_af_dmd['tot_weight'] = fix_af_dmd['tot_weight'].astype(int)
+        #
+        # data = data.drop(index=dmd_df.index)
 
         return data, fix_bf_dmd, fix_af_dmd
 
@@ -577,6 +734,7 @@ class Mold(object):
         data['fixed'] = False
 
         self.set_res_grp_to_res()
+        self.set_res_sku_dur()
 
         # Preprocess item master
         item = self.prep_item()
@@ -592,6 +750,18 @@ class Mold(object):
         data = self.add_item_info(data=data, item=item)
 
         return data
+
+    def set_res_sku_dur(self):
+        res_dur = deepcopy(self._res_dur)
+        res_sku_dur = {}
+        for sku, res_dur_map in res_dur.items():
+            for res, duration in res_dur_map.items():
+                if res not in res_sku_dur:
+                    res_sku_dur[res] = [sku]
+                else:
+                    res_sku_dur[res].append(sku)
+
+        self._res_sku_dur = res_sku_dur
 
     def set_res_grp_to_res(self):
         res_to_res_grp = self._res_to_res_grp.copy()
@@ -611,7 +781,7 @@ class Mold(object):
 
     def prep_item(self):
         # Filter columns
-        item = self._item_mst[self._col_item_mst].copy()
+        item = self._item_mst[self._col_item_weight].copy()
 
         item[self._item.sku] = item[self._item.sku].astype(str)
         item[self._item.weight] = item[self._item.weight].astype(float)
@@ -625,6 +795,15 @@ class Mold(object):
         item = item.drop_duplicates()
 
         self._sku_weight_map = {sku: weight for sku, weight in zip(item[self._item.sku], item[self._item.weight])}
+
+        # Sku to brand / package
+        item_info = self._item_mst[self._col_item_info].copy()
+        item_info[self._item.sku] = item_info[self._item.sku].astype(str)
+        item_info[self._item.pkg] = item_info[self._item.pkg].astype(str)
+
+        self._sku_brand_pkg_map = {sku: {self._item.brand: brand, self._item.pkg: pkg} for sku, brand, pkg
+                                   in zip(item_info[self._item.sku], item_info[self._item.brand],
+                                          item_info[self._item.pkg])}
 
         return item
 
@@ -664,7 +843,8 @@ class Mold(object):
         splited_list = []
         for i, row in data.iterrows():
             add_day = self.add_timeline_day(row, splitted=[])
-            splited_list.extend(add_day)
+            if add_day is not None:
+                splited_list.extend(add_day)
 
         data_splite = pd.DataFrame(splited_list)
         data_splite = data_splite.reset_index(drop=True)

@@ -745,6 +745,8 @@ class Process(object):
         merged = merged.rename(columns={
             self._item.sku: self._post.eng_item, self._dmd.end_time: self._post.date, self._dmd.prod_qty: 'fp_qty'})
 
+        merged = merged.drop_duplicates()
+
         # Delete previous result
         kwargs = {
             self._post.fp_version: self.fp_version,
@@ -861,6 +863,7 @@ class Process(object):
         data = data.drop(columns=['kind', 'capa_rate'])
 
         data = data.fillna('-')
+        data = data.drop_duplicates()
 
         # Delete previous result
         kwargs = {
@@ -868,6 +871,7 @@ class Process(object):
             self._post.fp_seq: self.fp_seq,
             self._res.plant: self._plant
         }
+
         self.io.delete_from_db(sql=self.query.del_gantt_result(**kwargs))
 
         # Save the result on DB

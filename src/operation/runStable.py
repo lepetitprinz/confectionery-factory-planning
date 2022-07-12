@@ -19,10 +19,10 @@ cfg = {
         'verbose': False,
     },
     'step': {
-        'cls_load': False,
+        'cls_load': True,
         'cls_cns': False,
-        'cls_prep': False,
-        'cls_model': False,
+        'cls_prep': True,
+        'cls_model': True,
         'cls_pp': True,
     },
     'cstr': {

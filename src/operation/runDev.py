@@ -3,7 +3,7 @@ from deployment.pipelineDev import Pipeline
 import os
 import datetime
 
-fp_num = '01'
+fp_num = '02'
 fp_seq = '1'
 
 base_path = {
@@ -24,7 +24,6 @@ cfg = {
         'cls_prep': False,
         'cls_model': False,
         'cls_pp': True,
-        'cls_save': False,
     },
     'cstr': {
         'apply_job_change': True,            # Job Change
