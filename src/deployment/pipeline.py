@@ -114,8 +114,8 @@ class Pipeline(object):
                 prep_data = self.io.load_object(path=self.path['prep_data'], data_type='binary')
 
             # Model optimization by each plant
-            # for plant in prep_data[self.key.dmd][self.key.dmd_list]:
-            for plant in ['K120']:
+            for plant in prep_data[self.key.dmd][self.key.dmd_list]:
+            # for plant in ['K120']:
                 print(f" - Set the OtpSeq model: {plant}")
                 # Instantiate OptSeq class
                 opt_seq = OptSeq(
@@ -174,8 +174,8 @@ class Pipeline(object):
             # Post Process after optimization
             for plant in prep_data[self.key.dmd][self.key.dmd_list]:
                 print(f"\nPost process: plant {plant}")
-                # if len(plant_model[plant]['model'].act) > 0:
-                if plant in ['K120']:
+                if len(plant_model[plant]['model'].act) > 0:
+                # if plant in ['K120']:
                     pp = Process(
                         io=self.io,
                         cfg=self.cfg,

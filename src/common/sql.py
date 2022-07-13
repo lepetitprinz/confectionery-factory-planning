@@ -292,7 +292,6 @@ class Query(object):
              WHERE RES_CTIG_CD = 'RES_CTGI_11'
                AND FP_VRSN_ID = '{kwargs['fp_vrsn_id']}'
                AND FP_VRSN_SEQ = '{kwargs['fp_vrsn_seq']}'
-               AND RES_GRP_CD IS NOT NULL       
         """
         return sql
 

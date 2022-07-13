@@ -1,2 +1,0 @@
-Warning: Plant[K110] - SKU[5100182] - Resource Group[X102_01] doesn't have any resource duration data.
-Warning: Plant[K110] - SKU[5100183] - Resource Group[X102_01] doesn't have any resource duration data.

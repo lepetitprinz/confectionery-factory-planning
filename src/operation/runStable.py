@@ -19,7 +19,7 @@ cfg = {
         'cls_load': False,
         'cls_cns': False,
         'cls_prep': False,
-        'cls_model': True,
+        'cls_model': False,
         'cls_pp': True,
     },
     'cstr': {
