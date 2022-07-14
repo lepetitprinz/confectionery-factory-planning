@@ -3,6 +3,7 @@ class Query(object):
     #################################
     # Master & Common Code Dataset
     #################################
+    # Factory planning engine version data
     @staticmethod
     def sql_fp_eng_version():
         sql = """
@@ -13,6 +14,7 @@ class Query(object):
         """
         return sql
 
+    # Item master data (engine)
     @staticmethod
     def sql_item_master(**kwargs):
         sql = f"""
@@ -31,6 +33,7 @@ class Query(object):
         """
         return sql
 
+    # BOM route data
     @staticmethod
     def sql_bom_route(**kwargs):
         sql = f"""
@@ -46,6 +49,7 @@ class Query(object):
         """
         return sql
 
+    # Resource group (code/name)
     @staticmethod
     def sql_res_grp_nm():
         sql = """
@@ -57,6 +61,7 @@ class Query(object):
         """
         return sql
 
+    # Calendar data
     @staticmethod
     def sql_calendar():
         sql = f"""
@@ -72,6 +77,7 @@ class Query(object):
     #################################
     # Factory Planning Dataset
     #################################
+    # Demand data
     @staticmethod
     def sql_demand(**kwargs):
         sql = f"""
@@ -108,6 +114,7 @@ class Query(object):
         """
         return sql
 
+    # Resource & Halb capacity data
     @staticmethod
     def sql_res_grp(**kwargs):
         sql = f"""
@@ -126,6 +133,7 @@ class Query(object):
         """
         return sql
 
+    # Resource rate of capacity usage data
     @staticmethod
     def sql_item_res_dur(**kwargs):
         sql = f"""
@@ -145,6 +153,7 @@ class Query(object):
         """
         return sql
 
+    # Factory planning sequence list
     @staticmethod
     def sql_fp_seq_list(**kwargs):
         sql = f"""
@@ -159,6 +168,7 @@ class Query(object):
     #################################
     # Constraint
     #################################
+    # Resource available time
     @staticmethod
     def sql_res_avail_time(**kwargs):
         sql = f"""
@@ -187,6 +197,7 @@ class Query(object):
         """
         return sql
 
+    # Job change data
     @staticmethod
     def sql_job_change(**kwargs):
         sql = f"""
@@ -203,6 +214,7 @@ class Query(object):
         """
         return sql
 
+    # Human resource usage data
     @staticmethod
     def sql_res_human_usage(**kwargs):
         sql = f"""
@@ -221,6 +233,7 @@ class Query(object):
         """
         return sql
 
+    # Human resource capacity data
     @staticmethod
     def sql_res_human_capacity(**kwargs):
         sql = f"""
@@ -238,6 +251,7 @@ class Query(object):
         """
         return sql
 
+    # Human resource capacity data (weekly)
     @staticmethod
     def sql_res_human_capacity_weekly(**kwargs):
         sql = f"""
@@ -253,6 +267,7 @@ class Query(object):
         """
         return sql
 
+    # simultaneous production data (constraint)
     @staticmethod
     def sql_sim_prod_cstr(**kwargs):
         sql = f"""
@@ -269,6 +284,7 @@ class Query(object):
         """
         return sql
 
+    # Mold capacity data (constraint)
     @staticmethod
     def sql_mold_capacity(**kwargs):
         sql = f"""
@@ -295,23 +311,10 @@ class Query(object):
         """
         return sql
 
-    @staticmethod
-    def sql_item_weight():
-        sql = """
-            SELECT ITEM_CD
-                 , ITEM_TYPE_CD
-                 , ITEM_ATTR17_CD AS WEIGHT
-                 , ITEM_ATTR19_CD AS WEIGHT_UOM
-              FROM M4S_I002040
-             WHERE USE_YN = 'Y'
-               AND ITEM_ATTR17_CD IS NOT NULL
-               AND ITEM_TYPE_CD IN ('HAWA', 'FERT')
-        """
-        return sql
-
     #################################
     # Delete SQL
     #################################
+    # Delete required production quantity result
     @staticmethod
     def del_dmd_result(**kwargs):
         sql = f"""
@@ -323,6 +326,7 @@ class Query(object):
         """
         return sql
 
+    # Delete resource (day/night)
     @staticmethod
     def del_res_day_night_qty(**kwargs):
         sql = f"""

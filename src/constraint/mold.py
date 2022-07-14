@@ -34,26 +34,27 @@ class Mold(object):
         # Mold constraint instance attribute
         self._mold_res = mold_cstr[self._key.mold_res].get(plant, None)
         self._mold_capa = mold_cstr[self._key.mold_capa].get(plant, None)
+        self.prev_fix_dmd = None
         self._new_sku_dmd = []
         self._sku_weight_map = {}
         self._weight_conv_map = {'G': 0.001, 'KG': 1, 'TON': 1000}
         self._sku_brand_pkg_map = {}
 
         # Time instance attribute
-        self.work_day = config.work_day  # 6 days: Monday ~ Friday
-        self.sec_of_day = config.sec_of_day  # Seconds of 1 day
-        self.half_sec_of_day = self.sec_of_day // 2
+        self.work_day = config.work_day      # 6 days: Monday ~ Friday
         self.day_multiple = 3
+        self.time_idx_map = {'D': 0, 'N': 1}
         self.time_interval = []
         self.time_multiple = config.time_multiple  # Minute -> Seconds
-        self.schedule_days = config.schedule_days
-        self.time_idx_map = {'D': 0, 'N': 1}
+        self.schedule_days = config.schedule_days  # Schedule days
+        self.sec_of_day = config.sec_of_day  # Seconds of 1 day
+        self.half_sec_of_day = self.sec_of_day // 2
 
         # Column information
         self._col_item_weight = [self._item.sku, self._item.weight, self._item.weight_uom]
         self._col_item_info = [self._item.sku, self._item.brand, self._item.pkg]
 
-        self.prev_fix_dmd = None
+        self.log = []
 
     def apply(self, data: pd.DataFrame):
         # Preprocess the dataset
@@ -106,7 +107,7 @@ class Mold(object):
                          self._post.time_idx, 'capa_use_rate', 'tot_weight', 'day', 'fixed']
             )
 
-            return result
+            return result, self.log
 
     def calc_mold_usable_day(self, mold_res, last_day):
         mold_avail_day = [i for i, capa in enumerate(self._mold_capa[mold_res]) if sum(capa) != 0]
@@ -202,8 +203,10 @@ class Mold(object):
                 avail_sku.append([res, sku])
 
         if len(avail_sku) == 0:
-            print(f"Does not find any sku that can be made on available resource "
-                  f"(Mold Resource: {mold_res} Day: {day} Time index: {time_idx}).")
+            msg = f"Does not find any sku that can be made on available resource " \
+                  f"(Mold Resource: {mold_res} Day: {day} Time index: {time_idx})."
+            print(msg)
+            self.log.append(msg)
 
         res_sku_max_weight = []
         for res, sku_list in avail_sku:
@@ -380,11 +383,9 @@ class Mold(object):
                 time_idx=time_idx
             )
             if len(choose_dmd) == 0:
-                print(f"Mold Resource {mold_res} cannot use all of capa in Day: {day} / Time-Index: {time_idx}.")
-
-            # for choose_dmd in choose_dmd_list:
-            #     data = data.drop(choose_dmd.name)
-            #     data = data.reset_index(drop=True)
+                msg = f"Mold Resource {mold_res} cannot use all of capa in Day: {day} / Time-Index: {time_idx}."
+                print(msg)
+                self.log.append(msg)
 
         return data, choose_dmd
 
@@ -405,8 +406,10 @@ class Mold(object):
 
         #
         if choose_dmd['tot_weight'].sum() < mold_capa:
-            print(f"Capa cannot be made from current resource status on Mold resource: "
-                  f"{mold_res} Day: {day} Time index: {time_idx} {mold_capa - choose_dmd['tot_weight'].sum()}")
+            msg = f"Capa cannot be made from current resource status on Mold resource: "\
+                  f"{mold_res} Day: {day} Time index: {time_idx} {mold_capa - choose_dmd['tot_weight'].sum()}"
+            print(msg)
+            self.log.append(msg)
 
         return choose_dmd
 

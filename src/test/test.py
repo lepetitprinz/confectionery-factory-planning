@@ -1,22 +1,19 @@
-n = int(input())
+n, m = map(int, input().split())
+books = list(map(int, input().split()))
+books = sorted(books, reverse=True)
+
 cnt = 0
-positions = []
+weight = m
+while books:
+    for book in books:
+        if book <= weight:
+            weight -= book
+            books.remove(book)
+            if weight == 0:
+                cnt += 1
+                weight = m
+                break
+    cnt += 1
+    weight = m
 
-def check_loc(n, i, positions):
-    row = list(range(n))
-    for x, y in positions:
-        if x in row:
-            row.remove(x)
-        for loc in make_diagonal(n, i, (x, y)):
-            if loc in row:
-                row.remove(loc)
-
-    return row
-
-def make_diagonal(n, i, coordinate):
-    location = []
-    for add in [i, -i]:
-        if 0 <= coordinate + add < n:
-            location.append(coordinate + add)
-
-    return location
+print(cnt)

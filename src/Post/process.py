@@ -94,8 +94,7 @@ class Process(object):
             self.sim_prod_cstr = prep_data[self._key.cstr][self._key.sim_prod_cstr]['necessary'].get(plant, None)
 
         if self.cfg['cstr']['apply_mold_capa_cstr']:    # Mold capacity constraint
-            if self._plant != 'K170':
-                self.mold_capa_cstr = prep_data[self._key.cstr][self._key.mold_cstr]
+            self.mold_capa_cstr = prep_data[self._key.cstr][self._key.mold_cstr]
 
         # Path instance attribute
         self.save_path = os.path.join('..', '..', 'result')
@@ -142,9 +141,9 @@ class Process(object):
                 self.log.extend(log)
 
         if self.cfg['cstr']['apply_mold_capa_cstr']:
-            if self._plant != 'K170':
-                if self.mold_capa_cstr[self._key.mold_res].get(self._plant, None) is not None:
-                    result = self.apply_mold_cstr(data=result)
+            if self.mold_capa_cstr[self._key.mold_res].get(self._plant, None) is not None:
+                result, log = self.apply_mold_cstr(data=result)
+                self.log.extend(log)
 
         util.save_log(
             log=self.log,
@@ -285,7 +284,7 @@ class Process(object):
             mold_cstr=self.mold_capa_cstr,
             res_to_res_grp=self._res_to_res_grp
         )
-        result = mold_cstr.apply(data=data)
+        result, log = mold_cstr.apply(data=data)
 
         return result
 
